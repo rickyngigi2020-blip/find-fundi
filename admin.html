@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-outline { transition: background-color 160ms ease; }
+  button:disabled { opacity: 0.55; pointer-events: none; }
+  .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
+
+<header class="bg-white border-b border-navy/10">
+  <div class="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span> <span class="text-navy/40 font-body font-normal">Admin</span></span>
+    </a>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-5 py-10">
+  <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in required</h1>
+    <a href="login.html?next=admin.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
+  </div>
+
+  <div id="forbidden" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Not authorized</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">This account doesn't have admin access.</p>
+  </div>
+
+  <div id="content" hidden>
+    <h1 class="font-display font-800 text-[1.6rem] text-navy">Fundi Applications</h1>
+    <div id="appList" class="mt-6 space-y-4"></div>
+    <p id="emptyState" hidden class="mt-6 text-navy/60 text-[15px]">No applications yet.</p>
+  </div>
+</main>
+
+<template id="appCardTemplate">
+  <div class="app-card bg-white rounded-2xl border border-navy/10 p-5">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <p class="font-display font-700 text-[15.5px] text-navy full-name"></p>
+        <p class="text-[13.5px] text-navy/55 mt-0.5 details"></p>
+      </div>
+      <span class="status-pill shrink-0"></span>
+    </div>
+    <p class="mt-3 text-[13.5px] text-navy/60 bio"></p>
+    <div class="mt-3 flex flex-wrap gap-2 text-[12.5px] text-navy/50 docs"></div>
+    <div class="actions mt-4 flex gap-2"></div>
+  </div>
+</template>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  const CATEGORY_LABELS = {
+    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
+    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
+  };
+  const STATUS_STYLES = {
+    pending: 'bg-orange-50 text-orange-700', verified: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-600',
+  };
+
+  async function signedUrlFor(path) {
+    const { data, error } = await sb.storage.from('verification-docs').createSignedUrl(path, 60 * 10);
+    return error ? null : data.signedUrl;
+  }
+
+  async function renderApp(app) {
+    const tpl = document.getElementById('appCardTemplate').content.cloneNode(true);
+    const card = tpl.querySelector('.app-card');
+    tpl.querySelector('.full-name').textContent = app.profiles.full_name;
+    tpl.querySelector('.details').textContent = `${CATEGORY_LABELS[app.category] || app.category} · ${app.profiles.area || 'No area'} · ${app.profiles.phone} · ${app.years_experience} yrs · ${app.highest_qualification}`;
+    tpl.querySelector('.bio').textContent = app.bio || '';
+
+    const pill = tpl.querySelector('.status-pill');
+    pill.textContent = app.verification_status;
+    pill.className += ' ' + STATUS_STYLES[app.verification_status];
+
+    const docsEl = tpl.querySelector('.docs');
+    const idUrl = await signedUrlFor(app.id_document_url);
+    if (idUrl) docsEl.innerHTML += `<a href="${idUrl}" target="_blank" rel="noopener" class="underline hover:text-navy">View ID document</a>`;
+    if (app.certificate_url) {
+      const certUrl = await signedUrlFor(app.certificate_url);
+      if (certUrl) docsEl.innerHTML += `<a href="${certUrl}" target="_blank" rel="noopener" class="underline hover:text-navy">View certificate</a>`;
+    }
+
+    const actions = tpl.querySelector('.actions');
+    if (app.verification_status !== 'verified') {
+      const approveBtn = document.createElement('button');
+      approveBtn.className = 'btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg';
+      approveBtn.textContent = 'Approve';
+      approveBtn.addEventListener('click', () => updateStatus(app.id, 'verified', card));
+      actions.appendChild(approveBtn);
+    }
+    if (app.verification_status !== 'rejected') {
+      const rejectBtn = document.createElement('button');
+      rejectBtn.className = 'btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5';
+      rejectBtn.textContent = 'Reject';
+      rejectBtn.addEventListener('click', () => updateStatus(app.id, 'rejected', card));
+      actions.appendChild(rejectBtn);
+    }
+
+    return tpl;
+  }
+
+  async function updateStatus(fundiId, status, card) {
+    card.querySelectorAll('button').forEach(b => b.disabled = true);
+    try {
+      await apiFetch(`/admin/fundi-applications/${fundiId}/status`, {
+        method: 'POST', body: JSON.stringify({ status }),
+      });
+      await load();
+    } catch (err) {
+      alert(err.message);
+      card.querySelectorAll('button').forEach(b => b.disabled = false);
+    }
+  }
+
+  async function load() {
+    const apps = await apiFetch('/admin/fundi-applications');
+    const list = document.getElementById('appList');
+    list.innerHTML = '';
+    document.getElementById('emptyState').hidden = apps.length !== 0;
+    for (const app of apps) {
+      list.appendChild(await renderApp(app));
+    }
+  }
+
+  (async function init() {
+    const session = await getSession();
+    if (!session) {
+      document.getElementById('signedOutNotice').hidden = false;
+      return;
+    }
+    try {
+      await load();
+      document.getElementById('content').hidden = false;
+    } catch (err) {
+      document.getElementById('forbidden').hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>

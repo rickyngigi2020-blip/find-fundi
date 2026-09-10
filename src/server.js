@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const profileRoutes = require('./routes/profile');
 const fundiRoutes = require('./routes/fundi');
 const jobsRoutes = require('./routes/jobs');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/fundi', fundiRoutes);
 app.use('/api/v1/jobs', jobsRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: { message: 'Not found', code: 'not_found' } });
