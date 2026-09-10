@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book a fundi — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 600: '#E85A00' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  input:focus, textarea:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
+  .cat-btn[aria-pressed="true"] { border-color: #FE6902; background: #FFF1E6; }
+  .fundi-card[aria-pressed="true"] { border-color: #FE6902; box-shadow: 0 0 0 2px rgba(254,105,2,0.18); }
+  .step { display: none; }
+  .step.active { display: block; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
+
+<header class="bg-white border-b border-navy/10">
+  <div class="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <a href="my-jobs.html" class="text-[14px] font-semibold text-navy/70 hover:text-navy">My jobs</a>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-5 py-10">
+
+  <!-- signed-out state -->
+  <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in to book a fundi</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Create an account or sign in to describe your problem and get matched.</p>
+    <div class="mt-6 flex justify-center gap-3">
+      <a href="login.html?next=book.html" class="btn-primary text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Sign in</a>
+      <a href="signup.html" class="text-navy font-semibold text-[14.5px] px-5 py-2.5 rounded-lg border border-navy/15 hover:bg-navy/5">Sign up</a>
+    </div>
+  </div>
+
+  <div id="flow" hidden>
+    <!-- progress -->
+    <div class="flex items-center gap-2 mb-8 text-[13px] font-semibold text-navy/40">
+      <span data-step-label="1" class="text-orange">1. Describe</span><span>—</span>
+      <span data-step-label="2">2. Match</span><span>—</span>
+      <span data-step-label="3">3. Confirm</span>
+    </div>
+
+    <!-- STEP 1: describe -->
+    <section id="step1" class="step active bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+      <h1 class="font-display font-800 text-[1.4rem] text-navy">What needs fixing?</h1>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-5" id="categoryGrid">
+        <button type="button" class="cat-btn" data-value="phone_electronics" aria-pressed="false">Phone &amp; Electronics</button>
+        <button type="button" class="cat-btn" data-value="computer_laptop" aria-pressed="false">Computer &amp; Laptop</button>
+        <button type="button" class="cat-btn" data-value="appliance" aria-pressed="false">Appliance</button>
+        <button type="button" class="cat-btn" data-value="electrical" aria-pressed="false">Electrical</button>
+        <button type="button" class="cat-btn" data-value="mechanical" aria-pressed="false">Mechanical</button>
+      </div>
+
+      <div class="mt-5">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="subcategory">What specifically? (optional)</label>
+        <input id="subcategory" type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="e.g. Cracked screen, won't charge">
+      </div>
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="description">Describe the problem</label>
+        <textarea id="description" required rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none resize-none" placeholder="What's broken, and what happened?"></textarea>
+      </div>
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="area">Your area</label>
+        <select id="area" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+          <option value="">Select your area</option>
+          <option>CBD</option><option>Westlands</option><option>Kilimani</option><option>Karen</option>
+          <option>Lavington</option><option>Parklands</option><option>Eastleigh</option><option>Kasarani</option>
+          <option>South C</option><option>Embakasi</option><option>Kikuyu</option><option>Ruiru</option>
+        </select>
+      </div>
+      <div class="mt-4 flex items-center gap-2.5">
+        <input id="urgent" type="checkbox" class="w-4 h-4 accent-orange">
+        <label for="urgent" class="text-[14px] text-navy/70">Mark as urgent</label>
+      </div>
+
+      <p id="step1Error" class="hidden mt-4 text-[13.5px] text-red-600"></p>
+
+      <button id="toStep2" class="btn-primary w-full mt-6 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+        Find a fundi
+      </button>
+    </section>
+
+    <!-- STEP 2: match -->
+    <section id="step2" class="step bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+      <h1 class="font-display font-800 text-[1.4rem] text-navy">Choose a fundi</h1>
+      <p class="mt-1.5 text-navy/60 text-[14.5px]">Verified fundis matching your category and area.</p>
+
+      <div id="fundiList" class="mt-5 space-y-3"></div>
+      <p id="noFundis" hidden class="mt-5 text-[14.5px] text-navy/60">No verified fundis are available in your area for this category yet. Try again shortly, or pick a nearby area.</p>
+
+      <button id="toStep3" disabled class="btn-primary w-full mt-6 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+        Continue
+      </button>
+    </section>
+
+    <!-- STEP 3: confirm -->
+    <section id="step3" class="step bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+      <h1 class="font-display font-800 text-[1.4rem] text-navy">Confirm your booking</h1>
+      <div id="jobSummary" class="mt-4 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
+
+      <div class="mt-5">
+        <p class="text-[13px] font-semibold text-navy/70 mb-2">Payment method</p>
+        <div class="grid grid-cols-3 gap-2.5">
+          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
+            <input type="radio" name="payment" value="mpesa" class="sr-only" checked> M-Pesa
+          </label>
+          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
+            <input type="radio" name="payment" value="card" class="sr-only"> Card
+          </label>
+          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
+            <input type="radio" name="payment" value="cash" class="sr-only"> Cash
+          </label>
+        </div>
+      </div>
+
+      <p class="mt-5 text-[13px] text-navy/50 leading-[1.6]">Confirming creates your booking. Payment isn't charged yet — final cost and payment collection happen once the fundi assesses the job on-site.</p>
+
+      <p id="step3Error" class="hidden mt-4 text-[13.5px] text-red-600"></p>
+
+      <button id="confirmBtn" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+        Confirm Booking
+      </button>
+    </section>
+
+    <!-- DONE -->
+    <section id="stepDone" class="step bg-white rounded-2xl border border-navy/10 p-8 text-center">
+      <div class="w-14 h-14 rounded-full bg-orange-50 text-orange flex items-center justify-center mx-auto">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
+      </div>
+      <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
+      <p class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi has been notified. Payment is pending until the job is assessed — track progress from My Jobs.</p>
+      <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My Jobs</a>
+    </section>
+  </div>
+</main>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  const CATEGORY_LABELS = {
+    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
+    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
+  };
+
+  let selectedCategory = null;
+  let selectedFundi = null;
+  let currentJob = null;
+
+  function showStep(id) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.className += ' border border-navy/15 rounded-lg py-3 text-[13.5px] font-semibold text-navy/80';
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      selectedCategory = btn.dataset.value;
+    });
+  });
+
+  document.getElementById('toStep2').addEventListener('click', async () => {
+    const errorEl = document.getElementById('step1Error');
+    errorEl.classList.add('hidden');
+
+    const description = document.getElementById('description').value.trim();
+    const area = document.getElementById('area').value;
+    if (!selectedCategory || !description || !area) {
+      errorEl.textContent = 'Pick a category, describe the problem, and select your area.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('toStep2');
+    btn.disabled = true;
+    btn.textContent = 'Finding fundis…';
+
+    try {
+      currentJob = await apiFetch('/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: selectedCategory,
+          subcategory: document.getElementById('subcategory').value.trim() || null,
+          description,
+          area,
+          urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
+        }),
+      });
+
+      const fundis = await apiFetch(`/fundi/search?category=${selectedCategory}&area=${encodeURIComponent(area)}`);
+      renderFundis(fundis);
+      showStep('step2');
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Find a fundi';
+    }
+  });
+
+  function renderFundis(fundis) {
+    const list = document.getElementById('fundiList');
+    const noFundis = document.getElementById('noFundis');
+    list.innerHTML = '';
+    if (!fundis.length) {
+      noFundis.hidden = false;
+      return;
+    }
+    noFundis.hidden = true;
+    fundis.forEach(f => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.setAttribute('aria-pressed', 'false');
+      card.className = 'fundi-card w-full text-left border border-navy/15 rounded-xl p-4 flex items-center justify-between';
+      card.innerHTML = `
+        <div>
+          <p class="font-semibold text-[15px] text-navy">${f.profiles.full_name}</p>
+          <p class="text-[13px] text-navy/55 mt-0.5">${f.profiles.area} · ${f.years_experience} yrs experience</p>
+        </div>
+        <span class="text-[12.5px] font-semibold text-orange">Select</span>
+      `;
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.fundi-card').forEach(c => c.setAttribute('aria-pressed', 'false'));
+        card.setAttribute('aria-pressed', 'true');
+        selectedFundi = f;
+        document.getElementById('toStep3').disabled = false;
+      });
+      list.appendChild(card);
+    });
+  }
+
+  document.getElementById('toStep3').addEventListener('click', () => {
+    document.getElementById('jobSummary').innerHTML = `
+      <p><span class="text-navy font-semibold">${CATEGORY_LABELS[currentJob.category]}</span></p>
+      <p>${currentJob.description}</p>
+      <p>Fundi: <span class="text-navy font-semibold">${selectedFundi.profiles.full_name}</span></p>
+      <p>Area: ${currentJob.area}</p>
+    `;
+    showStep('step3');
+  });
+
+  document.getElementById('confirmBtn').addEventListener('click', async () => {
+    const errorEl = document.getElementById('step3Error');
+    errorEl.classList.add('hidden');
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true;
+    btn.textContent = 'Confirming…';
+
+    try {
+      await apiFetch(`/jobs/${currentJob.id}/match`, {
+        method: 'POST',
+        body: JSON.stringify({ fundi_id: selectedFundi.id }),
+      });
+      const payment_method = document.querySelector('input[name="payment"]:checked').value;
+      await apiFetch(`/jobs/${currentJob.id}/confirm`, {
+        method: 'POST',
+        body: JSON.stringify({ payment_method }),
+      });
+      showStep('stepDone');
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Confirm Booking';
+    }
+  });
+
+  document.querySelectorAll('input[name="payment"]').forEach(input => {
+    input.addEventListener('change', () => {
+      document.querySelectorAll('.pay-option').forEach(l => l.classList.remove('border-orange', 'bg-orange-50'));
+      input.closest('.pay-option').classList.add('border-orange', 'bg-orange-50');
+    });
+  });
+
+  (async function init() {
+    const session = await getSession();
+    if (!session) {
+      document.getElementById('signedOutNotice').hidden = false;
+      return;
+    }
+    document.getElementById('flow').hidden = false;
+    document.querySelector('.pay-option').classList.add('border-orange', 'bg-orange-50');
+  })();
+</script>
+</body>
+</html>

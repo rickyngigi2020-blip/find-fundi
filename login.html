@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+  .btn-primary:disabled { opacity: 0.6; pointer-events: none; }
+  input:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen flex items-center justify-center px-5 py-12">
+
+<div class="w-full max-w-md">
+  <a href="index.html" class="flex items-center justify-center gap-2.5 mb-8">
+    <img src="assets/logo-mark.png" alt="Find Fundi" class="h-9 w-9 object-contain">
+    <span class="font-display font-700 text-lg"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+  </a>
+
+  <div class="bg-white rounded-2xl border border-navy/10 shadow-sm p-7 md:p-8">
+    <h1 class="font-display font-800 text-[1.6rem] tracking-[-0.01em] text-navy">Welcome back</h1>
+    <p class="mt-1.5 text-navy/60 text-[14.5px]">Sign in to manage your jobs.</p>
+
+    <form id="loginForm" class="mt-6 space-y-4">
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="email">Email</label>
+        <input id="email" required type="email" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="jane@example.com">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="password">Password</label>
+        <input id="password" required type="password" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="Your password">
+      </div>
+
+      <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
+
+      <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+        Sign in
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-[14px] text-navy/60">Don't have an account? <a href="signup.html" class="text-orange font-semibold hover:underline">Sign up</a></p>
+  </div>
+</div>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  const form = document.getElementById('loginForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const formError = document.getElementById('formError');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formError.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+
+    try {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const profile = await apiFetch('/profile/me');
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      window.location.href = next || (profile.role === 'fundi' ? 'job-feed.html' : 'my-jobs.html');
+    } catch (err) {
+      formError.textContent = err.message || 'Something went wrong.';
+      formError.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign in';
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Feed — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  .tab-btn[aria-selected="true"] { border-color: #FE6902; color: #FE6902; }
+  .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
+
+<header class="bg-white border-b border-navy/10">
+  <div class="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <a href="profile.html" class="text-[14px] font-semibold text-navy/70 hover:text-navy">Profile</a>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-5 py-10">
+  <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in to see your job feed</h1>
+    <a href="login.html?next=job-feed.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
+  </div>
+
+  <div id="notVerified" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">Verification pending</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">You'll see open jobs here once your fundi application is approved.</p>
+    <a href="apply.html" class="mt-6 inline-block text-navy font-semibold text-[14.5px] px-6 py-2.5 rounded-lg border border-navy/15 hover:bg-navy/5">View application</a>
+  </div>
+
+  <div id="content" hidden>
+    <h1 class="font-display font-800 text-[1.6rem] text-navy">Job Feed</h1>
+
+    <div class="flex gap-6 mt-6 border-b border-navy/10">
+      <button class="tab-btn pb-3 text-[14.5px] font-semibold text-navy/60 border-b-2 border-transparent" data-tab="open" aria-selected="true">Open jobs</button>
+      <button class="tab-btn pb-3 text-[14.5px] font-semibold text-navy/60 border-b-2 border-transparent" data-tab="mine" aria-selected="false">My jobs</button>
+    </div>
+
+    <div id="tabOpen" class="mt-5 space-y-4"></div>
+    <div id="tabMine" hidden class="mt-5 space-y-4"></div>
+    <p id="emptyOpen" hidden class="mt-5 text-navy/60 text-[15px]">No open jobs in your category and area right now.</p>
+    <p id="emptyMine" hidden class="mt-5 text-navy/60 text-[15px]">You haven't been matched to any jobs yet.</p>
+  </div>
+</main>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  const CATEGORY_LABELS = {
+    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
+    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
+  };
+  const STATUS_STYLES = {
+    matched: 'bg-orange-50 text-orange-700', in_progress: 'bg-orange-50 text-orange-700',
+    completed: 'bg-green-50 text-green-700', cancelled: 'bg-red-50 text-red-600',
+  };
+  const STATUS_LABELS = { matched: 'Matched', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
+
+  function openJobCard(job) {
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
+    div.innerHTML = `
+      <p class="font-display font-700 text-[15.5px] text-navy">${CATEGORY_LABELS[job.category] || job.category}</p>
+      <p class="text-[13.5px] text-navy/55 mt-0.5">${job.description}</p>
+      <p class="mt-2 text-[13px] text-navy/50">${job.area}${job.urgency === 'urgent' ? ' · Urgent' : ''}</p>
+    `;
+    return div;
+  }
+
+  function myJobCard(job) {
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
+    div.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="font-display font-700 text-[15.5px] text-navy">${CATEGORY_LABELS[job.category] || job.category}</p>
+          <p class="text-[13.5px] text-navy/55 mt-0.5">${job.description}</p>
+        </div>
+        <span class="status-pill shrink-0 ${STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60'}">${STATUS_LABELS[job.status] || job.status}</span>
+      </div>
+      <p class="mt-2 text-[13px] text-navy/50">${job.area}</p>
+      <div class="actions mt-3"></div>
+    `;
+    if (job.status === 'matched' || job.status === 'in_progress') {
+      const actions = div.querySelector('.actions');
+      const btn = document.createElement('button');
+      btn.className = 'btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg';
+      btn.textContent = 'Mark complete';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+          await apiFetch(`/jobs/${job.id}/complete`, { method: 'POST', body: JSON.stringify({}) });
+          loadMine();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Mark complete';
+          alert(err.message);
+        }
+      });
+      actions.appendChild(btn);
+    }
+    return div;
+  }
+
+  async function loadOpen() {
+    const jobs = await apiFetch('/jobs/feed');
+    const list = document.getElementById('tabOpen');
+    list.innerHTML = '';
+    document.getElementById('emptyOpen').hidden = jobs.length !== 0;
+    jobs.forEach(job => list.appendChild(openJobCard(job)));
+  }
+
+  async function loadMine() {
+    const jobs = await apiFetch('/jobs/mine?role=fundi');
+    const list = document.getElementById('tabMine');
+    list.innerHTML = '';
+    document.getElementById('emptyMine').hidden = jobs.length !== 0;
+    jobs.forEach(job => list.appendChild(myJobCard(job)));
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
+      btn.setAttribute('aria-selected', 'true');
+      document.getElementById('tabOpen').hidden = btn.dataset.tab !== 'open';
+      document.getElementById('tabMine').hidden = btn.dataset.tab !== 'mine';
+      document.getElementById('emptyOpen').hidden = document.getElementById('emptyOpen').hidden || btn.dataset.tab !== 'open';
+      document.getElementById('emptyMine').hidden = document.getElementById('emptyMine').hidden || btn.dataset.tab !== 'mine';
+    });
+  });
+
+  (async function init() {
+    const session = await getSession();
+    if (!session) {
+      document.getElementById('signedOutNotice').hidden = false;
+      return;
+    }
+    const status = await apiFetch('/fundi/status');
+    if (!status || status.verification_status !== 'verified') {
+      document.getElementById('notVerified').hidden = false;
+      return;
+    }
+    document.getElementById('content').hidden = false;
+    await Promise.all([loadOpen(), loadMine()]);
+  })();
+</script>
+</body>
+</html>

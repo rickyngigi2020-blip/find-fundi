@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apply as a fundi — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  input:focus, select:focus, textarea:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
+
+<header class="bg-white border-b border-navy/10">
+  <div class="max-w-2xl mx-auto px-5 h-16 flex items-center gap-2.5">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-5 py-10">
+
+  <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign up as a fundi</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Create a fundi account first, then submit your application.</p>
+    <a href="signup.html?role=fundi" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign up as a fundi</a>
+  </div>
+
+  <div id="wrongRole" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">This account is a customer account</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Sign up separately with a fundi account to apply.</p>
+    <a href="signup.html?role=fundi" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign up as a fundi</a>
+  </div>
+
+  <div id="statusPending" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <div class="w-14 h-14 rounded-full bg-orange-50 text-orange flex items-center justify-center mx-auto">
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </div>
+    <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Verification pending</h1>
+    <p class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">We're reviewing your ID and certification. This usually takes a short while — you'll be able to accept jobs once approved.</p>
+    <a href="job-feed.html" class="mt-6 inline-block text-navy font-semibold text-[14.5px] px-6 py-2.5 rounded-lg border border-navy/15 hover:bg-navy/5">Go to dashboard</a>
+  </div>
+
+  <div id="statusVerified" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">You're verified</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">You can already accept jobs.</p>
+    <a href="job-feed.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to job feed</a>
+  </div>
+
+  <div id="statusRejected" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">Application not approved</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Your last application wasn't approved. You can update your details and resubmit below.</p>
+  </div>
+
+  <form id="applyForm" hidden class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7 space-y-4">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">Apply as a fundi</h1>
+    <p class="text-navy/60 text-[14.5px]">Required to accept jobs. Your documents are stored privately and used only for verification.</p>
+
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="category">Area of expertise</label>
+      <select id="category" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+        <option value="">Select</option>
+        <option value="phone_electronics">Phone & Electronics Repair</option>
+        <option value="computer_laptop">Computer & Laptop Repair</option>
+        <option value="mechanical">Mechanical (Vehicles)</option>
+        <option value="appliance">Appliance Repair</option>
+        <option value="electrical">Electrical Engineering</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="nationalId">National ID / Passport number</label>
+      <input id="nationalId" required type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="qualification">Highest qualification</label>
+      <select id="qualification" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+        <option value="">Select</option>
+        <option>Certificate (KNEC / NITA)</option>
+        <option>Diploma (KNEC / College)</option>
+        <option>Bachelor's Degree</option>
+        <option>Master's Degree</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="experience">Years of experience</label>
+      <select id="experience" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+        <option value="">Select</option>
+        <option>0-1</option><option>2-3</option><option>4-5</option><option>6-10</option><option>10+</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID / Passport (JPG, PNG, or PDF)</label>
+      <input id="idDoc" required type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-[14px]">
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="certDoc">Certificate / Diploma (optional)</label>
+      <input id="certDoc" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-[14px]">
+    </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="bio">Short bio (optional)</label>
+      <textarea id="bio" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none resize-none" placeholder="A sentence or two about your work"></textarea>
+    </div>
+
+    <p class="text-[12.5px] text-navy/50 leading-[1.6]">By submitting, you confirm all documents are genuine and consent to identity verification. False documents may result in permanent account suspension.</p>
+
+    <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
+
+    <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+      Submit for Verification
+    </button>
+  </form>
+</main>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  function show(id) { document.getElementById(id).hidden = false; }
+
+  const form = document.getElementById('applyForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const formError = document.getElementById('formError');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formError.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    try {
+      const session = await getSession();
+      const idFile = document.getElementById('idDoc').files[0];
+      const certFile = document.getElementById('certDoc').files[0];
+
+      const id_document_url = await uploadPrivateFile('verification-docs', session.user.id, idFile);
+      const certificate_url = certFile ? await uploadPrivateFile('verification-docs', session.user.id, certFile) : null;
+
+      await apiFetch('/fundi/apply', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: document.getElementById('category').value,
+          national_id: document.getElementById('nationalId').value.trim(),
+          highest_qualification: document.getElementById('qualification').value,
+          years_experience: document.getElementById('experience').value,
+          id_document_url,
+          certificate_url,
+          bio: document.getElementById('bio').value.trim() || null,
+        }),
+      });
+
+      form.hidden = true;
+      show('statusPending');
+    } catch (err) {
+      formError.textContent = err.message;
+      formError.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit for Verification';
+    }
+  });
+
+  (async function init() {
+    const session = await getSession();
+    if (!session) return show('signedOutNotice');
+
+    const profile = await apiFetch('/profile/me');
+    if (profile.role !== 'fundi') return show('wrongRole');
+
+    const status = await apiFetch('/fundi/status');
+    if (!status) return show('applyForm');
+    if (status.verification_status === 'verified') return show('statusVerified');
+    if (status.verification_status === 'pending') return show('statusPending');
+    if (status.verification_status === 'rejected') {
+      show('statusRejected');
+      show('applyForm');
+    }
+  })();
+</script>
+</body>
+</html>

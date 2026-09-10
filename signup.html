@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign up — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C', line: '#1E3E6B' },
+          orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 100: '#FFE0C7', 400: '#FE8A3D', 600: '#E85A00', 700: '#C24A00' },
+        },
+        fontFamily: {
+          display: ['"Poppins"', 'sans-serif'],
+          body: ['"Inter"', 'sans-serif'],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); filter: brightness(0.97); }
+  .btn-primary:disabled { opacity: 0.6; pointer-events: none; }
+
+  .role-tab { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+  .role-tab[aria-selected="true"] { background: #041530; color: #fff; border-color: #041530; }
+
+  input, select { transition: border-color 160ms ease, box-shadow 160ms ease; }
+  input:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen flex items-center justify-center px-5 py-12">
+
+<div class="w-full max-w-md">
+  <a href="index.html" class="flex items-center justify-center gap-2.5 mb-8">
+    <img src="assets/logo-mark.png" alt="Find Fundi" class="h-9 w-9 object-contain">
+    <span class="font-display font-700 text-lg"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+  </a>
+
+  <div class="bg-white rounded-2xl border border-navy/10 shadow-sm p-7 md:p-8">
+    <h1 class="font-display font-800 text-[1.6rem] tracking-[-0.01em] text-navy">Create your account</h1>
+    <p class="mt-1.5 text-navy/60 text-[14.5px]">Book a fundi, or sign up to start taking jobs.</p>
+
+    <div role="tablist" class="mt-6 grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+      <button type="button" id="roleCustomer" role="tab" aria-selected="true" class="role-tab rounded-md py-2 text-[14px] font-semibold border border-transparent">I need a repair</button>
+      <button type="button" id="roleFundi" role="tab" aria-selected="false" class="role-tab rounded-md py-2 text-[14px] font-semibold border border-transparent">I'm a fundi</button>
+    </div>
+
+    <form id="signupForm" class="mt-6 space-y-4">
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="fullName">Full name</label>
+        <input id="fullName" required type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="Jane Wanjiru">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="email">Email</label>
+        <input id="email" required type="email" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="jane@example.com">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="password">Password</label>
+        <input id="password" required type="password" minlength="8" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="At least 8 characters">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="phone">Phone number</label>
+        <input id="phone" required type="tel" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="0712 345 678">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="area">Area</label>
+        <select id="area" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+          <option value="">Select your area</option>
+          <option>CBD</option><option>Westlands</option><option>Kilimani</option><option>Karen</option>
+          <option>Lavington</option><option>Parklands</option><option>Eastleigh</option><option>Kasarani</option>
+          <option>South C</option><option>Embakasi</option><option>Kikuyu</option><option>Ruiru</option>
+        </select>
+      </div>
+
+      <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
+
+      <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
+        Create account
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-[14px] text-navy/60">Already have an account? <a href="login.html" class="text-orange font-semibold hover:underline">Sign in</a></p>
+  </div>
+</div>
+
+<script src="assets/supabase-client.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  let role = params.get('role') === 'fundi' ? 'fundi' : 'customer';
+
+  const roleCustomer = document.getElementById('roleCustomer');
+  const roleFundi = document.getElementById('roleFundi');
+  function setRole(next) {
+    role = next;
+    roleCustomer.setAttribute('aria-selected', String(next === 'customer'));
+    roleFundi.setAttribute('aria-selected', String(next === 'fundi'));
+  }
+  setRole(role);
+  roleCustomer.addEventListener('click', () => setRole('customer'));
+  roleFundi.addEventListener('click', () => setRole('fundi'));
+
+  const form = document.getElementById('signupForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const formError = document.getElementById('formError');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formError.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating account…';
+
+    try {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const full_name = document.getElementById('fullName').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const area = document.getElementById('area').value;
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      if (!data.session) {
+        formError.textContent = 'Check your email to confirm your account, then sign in.';
+        formError.classList.remove('hidden');
+        formError.classList.replace('text-red-600', 'text-navy/70');
+        submitBtn.textContent = 'Check your email';
+        return;
+      }
+
+      await apiFetch('/profile', {
+        method: 'POST',
+        body: JSON.stringify({ full_name, phone, role, area }),
+      });
+
+      window.location.href = role === 'fundi' ? 'apply.html' : 'book.html';
+    } catch (err) {
+      formError.textContent = err.message || 'Something went wrong.';
+      formError.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create account';
+    }
+  });
+</script>
+</body>
+</html>
