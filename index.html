@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Fundi — Skilled People. Fast Solutions.</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C', line: '#1E3E6B' },
+          orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 100: '#FFE0C7', 400: '#FE8A3D', 600: '#E85A00', 700: '#C24A00' },
+        },
+        fontFamily: {
+          display: ['"Poppins"', 'sans-serif'],
+          body: ['"Inter"', 'sans-serif'],
+        },
+        boxShadow: {
+          card: '0 1px 2px rgba(4,21,48,0.04), 0 16px 32px -12px rgba(4,21,48,0.14), 0 4px 10px -4px rgba(254,105,2,0.10)',
+          cardHover: '0 2px 4px rgba(4,21,48,0.06), 0 22px 40px -12px rgba(4,21,48,0.20), 0 6px 14px -4px rgba(254,105,2,0.16)',
+          btn: '0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45)',
+          plate: '0 1px 1px rgba(0,0,0,0.15), 0 30px 60px -20px rgba(0,0,0,0.55)',
+        },
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FE6902; color: #fff; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 3px; border-radius: 2px; }
+
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay; }
+
+  .hero-glow {
+    background:
+      radial-gradient(55% 50% at 84% 8%, rgba(254,105,2,0.22), transparent 60%),
+      radial-gradient(40% 35% at 6% 90%, rgba(254,105,2,0.10), transparent 60%);
+  }
+
+  .card { transition: transform 260ms cubic-bezier(.22,1,.36,1), box-shadow 260ms cubic-bezier(.22,1,.36,1); }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(4,21,48,0.06), 0 22px 40px -12px rgba(4,21,48,0.20), 0 6px 14px -4px rgba(254,105,2,0.16); }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); filter: brightness(0.97); }
+
+  .btn-ghost { transition: background-color 180ms ease, transform 180ms cubic-bezier(.22,1,.36,1); }
+  .btn-ghost:hover { transform: translateY(-2px); }
+  .btn-ghost:active { transform: translateY(0) scale(0.98); }
+
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px;
+    background: #FE6902; transform: scaleX(0); transform-origin: left;
+    transition: transform 220ms cubic-bezier(.22,1,.36,1);
+  }
+  .nav-link:hover::after { transform: scaleX(1); }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  .route-path { stroke-dasharray: 1000; stroke-dashoffset: 1000; transition: stroke-dashoffset 1400ms cubic-bezier(.22,1,.36,1); }
+  .route-path.in { stroke-dashoffset: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .route-path { stroke-dashoffset: 0 !important; transition: none !important; }
+    .card, .btn-primary, .btn-ghost { transition: none !important; }
+  }
+</style>
+</head>
+<body class="bg-white text-navy font-body antialiased">
+
+<!-- icon defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="icon-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8Z"/><path d="M12 18v3"/>
+</symbol>
+<symbol id="icon-fridge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="2.5" width="12" height="19" rx="1.5"/><path d="M6 10h12"/><path d="M9 5.5v2"/><path d="M9 13.5v2"/>
+</symbol>
+<symbol id="icon-tap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5 9h7a5 5 0 0 1 5 5v1"/><path d="M5 5v14"/><path d="M2.5 9H8"/><path d="M17 15c0 1.4-1 2.7-2.2 3.6"/><circle cx="17" cy="19.5" r="1.2"/>
+</symbol>
+<symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+  <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/>
+</symbol>
+<symbol id="icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/>
+  <path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.7 6.3l-1.7 1.7M8 16l-1.7 1.7M17.7 17.7 16 16M8 8 6.3 6.3"/>
+</symbol>
+<symbol id="icon-hammer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m14.5 6.5 3 3L8 19H5v-3Z"/><path d="M13 4.5 19.5 11"/><path d="m17 3 4 4"/>
+</symbol>
+<symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 5 5.5v6c0 4.7 3 8 7 9.5 4-1.5 7-4.8 7-9.5v-6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/>
+</symbol>
+<symbol id="icon-star" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+  <path d="M12 2.5 14.9 9l7.1.6-5.4 4.6 1.7 6.9L12 17.8 5.7 21.1l1.7-6.9L2 9.6 9.1 9 12 2.5Z"/>
+</symbol>
+<symbol id="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5 12h14M13 6l6 6-6 6"/>
+</symbol>
+<symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m5 12.5 4.5 4.5L19 7"/>
+</symbol>
+<symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+  <path d="M4 7h16M4 12h16M4 17h16"/>
+</symbol>
+<symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+  <path d="M6 6l12 12M18 6 6 18"/>
+</symbol>
+<symbol id="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 21s-6.5-6-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.2"/>
+</symbol>
+<symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+</symbol>
+<symbol id="icon-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M7 11v9H4v-9h3Zm0 0 3.5-7a2 2 0 0 1 2 2.2L11.8 9H18a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 16.6 20H7"/>
+</symbol>
+</defs>
+</svg>
+
+<!-- ============ HEADER ============ -->
+<header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-navy/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-9 w-9 object-contain">
+      <span class="font-display font-700 text-lg tracking-tight"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 font-body text-[14.5px] text-navy/75">
+      <a href="#how" class="nav-link hover:text-navy">How it works</a>
+      <a href="#services" class="nav-link hover:text-navy">Services</a>
+      <a href="#trust" class="nav-link hover:text-navy">Trust &amp; safety</a>
+      <a href="#fundis" class="nav-link hover:text-navy">For fundi</a>
+    </nav>
+    <div class="hidden md:block">
+      <a href="#book" class="btn-primary inline-flex items-center gap-1.5 text-white font-semibold text-[14px] px-4 py-2.5 rounded-full">
+        Book a fundi
+      </a>
+    </div>
+    <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center text-navy" aria-label="Open menu" aria-expanded="false">
+      <svg class="w-6 h-6"><use href="#icon-menu"/></svg>
+    </button>
+  </div>
+  <div id="mobileMenu" class="hidden md:hidden border-t border-navy/10 bg-white px-5 py-4 flex flex-col gap-4 font-body text-[15px] text-navy">
+    <a href="#how" class="py-1">How it works</a>
+    <a href="#services" class="py-1">Services</a>
+    <a href="#trust" class="py-1">Trust &amp; safety</a>
+    <a href="#fundis" class="py-1">For fundi</a>
+    <a href="#book" class="btn-primary text-center text-white font-semibold px-4 py-2.5 rounded-full mt-1">Book a fundi</a>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="relative bg-navy text-white overflow-hidden">
+  <div class="hero-glow absolute inset-0"></div>
+  <svg class="grain"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#noise)"/></svg>
+
+  <div class="relative max-w-6xl mx-auto px-5 md:px-8 pt-16 md:pt-24 pb-20 md:pb-28 grid md:grid-cols-[1.1fr_0.9fr] gap-12 md:gap-8 items-center">
+    <div>
+      <span class="inline-flex items-center gap-2 font-display font-600 text-[11.5px] tracking-[0.08em] uppercase text-orange-100 border border-orange/30 bg-orange/10 rounded-full px-3.5 py-1.5">
+        Skilled people. Fast solutions.
+      </span>
+      <h1 class="font-display font-800 text-[2.5rem] leading-[1.06] md:text-[3.3rem] md:leading-[1.04] tracking-[-0.02em] mt-6 text-white">
+        The fundi you need is closer than you think.
+      </h1>
+      <p class="mt-5 text-white/65 text-[16.5px] leading-[1.7] max-w-md">
+        Find Fundi connects you with background-checked electricians, plumbers, appliance techs and mechanics — vetted, rated, and ready to work. Post a job, get matched, get it fixed.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-4">
+        <a href="#book" class="btn-primary inline-flex items-center gap-2 text-white font-semibold text-[15px] px-6 py-3.5 rounded-full">
+          Book a fundi <svg class="w-4 h-4"><use href="#icon-arrow"/></svg>
+        </a>
+        <a href="#fundis" class="btn-ghost inline-flex items-center gap-2 text-white font-semibold text-[15px] px-6 py-3.5 rounded-full border border-white/25 hover:bg-white/5">
+          Apply as a fundi
+        </a>
+      </div>
+      <div class="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-[13px] text-white/55 font-medium">
+        <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-orange"><use href="#icon-shield"/></svg>2,400+ verified fundis</span>
+        <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-orange"><use href="#icon-pin"/></svg>18 counties covered</span>
+        <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-orange"><use href="#icon-star"/></svg>4.8 avg. rating</span>
+      </div>
+    </div>
+
+    <!-- brand plate -->
+    <div class="reveal relative mx-auto md:mx-0 w-full max-w-[320px]">
+      <div class="absolute -inset-8 rounded-full bg-orange/25 blur-3xl"></div>
+      <div class="relative bg-white rounded-[28px] shadow-plate p-6" style="transform: rotate(-1.5deg)">
+        <img src="assets/logo-full.png" alt="Find Fundi — Skilled people. Fast solutions." class="w-full h-auto">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BEFORE / AFTER ============ -->
+<section class="bg-white">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28">
+    <div class="reveal max-w-xl">
+      <p class="font-display font-700 text-[11.5px] tracking-[0.08em] uppercase text-orange">The problem</p>
+      <h2 class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.02em] mt-3 text-navy">
+        Kenya's repair trade runs on word of mouth.
+      </h2>
+      <p class="mt-4 text-navy/65 leading-[1.7] text-[15.5px]">
+        Someone's cousin knows a guy. He might show up. He might not be any good. There's no way to check his work, his price, or whether he'll come back if the fix doesn't hold.
+      </p>
+    </div>
+
+    <div class="reveal grid md:grid-cols-2 gap-5 md:gap-6 mt-12">
+      <div class="rounded-2xl border border-navy/10 bg-gray-50 p-7">
+        <p class="font-display font-700 text-[11px] tracking-[0.06em] uppercase text-navy/40">Without Find Fundi</p>
+        <ul class="mt-4 space-y-3.5 text-[15px] text-navy/70">
+          <li class="flex gap-3"><span class="text-navy/30 mt-0.5">—</span>No way to verify skill or ID before they're in your house</li>
+          <li class="flex gap-3"><span class="text-navy/30 mt-0.5">—</span>Price is whatever they decide to quote on the day</li>
+          <li class="flex gap-3"><span class="text-navy/30 mt-0.5">—</span>No record if the job goes wrong, no one to call</li>
+        </ul>
+      </div>
+      <div class="rounded-2xl bg-navy text-white p-7 shadow-card">
+        <p class="font-display font-700 text-[11px] tracking-[0.06em] uppercase text-orange-100">With Find Fundi</p>
+        <ul class="mt-4 space-y-3.5 text-[15px] text-white/85">
+          <li class="flex gap-3"><svg class="w-4 h-4 mt-0.5 shrink-0 text-orange"><use href="#icon-check"/></svg>ID-checked and skills-assessed before they ever get approved</li>
+          <li class="flex gap-3"><svg class="w-4 h-4 mt-0.5 shrink-0 text-orange"><use href="#icon-check"/></svg>Upfront call-out pricing before you confirm the booking</li>
+          <li class="flex gap-3"><svg class="w-4 h-4 mt-0.5 shrink-0 text-orange"><use href="#icon-check"/></svg>Every job rated, every fundi accountable to their record</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" class="bg-gray-50 border-y border-navy/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28">
+    <div class="reveal max-w-xl">
+      <p class="font-display font-700 text-[11.5px] tracking-[0.08em] uppercase text-orange">How it works</p>
+      <h2 class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.02em] mt-3 text-navy">
+        Three steps, start to fixed.
+      </h2>
+    </div>
+
+    <div class="reveal relative mt-16">
+      <svg class="hidden md:block absolute top-[38px] left-0 w-full h-2" viewBox="0 0 1000 8" preserveAspectRatio="none" aria-hidden="true">
+        <path id="routePath" class="route-path" d="M 80 4 L 500 4 L 920 4" stroke="#FE6902" stroke-width="2" stroke-dasharray="4 8" fill="none"/>
+      </svg>
+      <div class="grid md:grid-cols-3 gap-10 md:gap-8 relative">
+        <div class="text-center md:text-left">
+          <div class="w-[76px] h-[76px] mx-auto md:mx-0 rounded-full bg-white border-2 border-orange text-navy flex items-center justify-center font-display font-700 text-[13px] relative z-10">01</div>
+          <h3 class="font-display font-700 text-[19px] mt-5 text-navy">Describe the problem</h3>
+          <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.7]">Tell us what's broken, add a photo, and drop a pin on your location.</p>
+        </div>
+        <div class="text-center md:text-left">
+          <div class="w-[76px] h-[76px] mx-auto md:mx-0 rounded-full bg-white border-2 border-orange text-navy flex items-center justify-center font-display font-700 text-[13px] relative z-10">02</div>
+          <h3 class="font-display font-700 text-[19px] mt-5 text-navy">Get matched instantly</h3>
+          <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.7]">We connect you with a nearby verified fundi who fits the job and quotes upfront.</p>
+        </div>
+        <div class="text-center md:text-left">
+          <div class="w-[76px] h-[76px] mx-auto md:mx-0 rounded-full bg-white border-2 border-orange text-navy flex items-center justify-center font-display font-700 text-[13px] relative z-10">03</div>
+          <h3 class="font-display font-700 text-[19px] mt-5 text-navy">Pay and rate the job</h3>
+          <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.7]">Fundi fixes it, you pay securely in-app, and you rate the work for the next customer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICES ============ -->
+<section id="services" class="bg-white">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28">
+    <div class="reveal max-w-xl">
+      <p class="font-display font-700 text-[11.5px] tracking-[0.08em] uppercase text-orange">Services</p>
+      <h2 class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.02em] mt-3 text-navy">
+        Every kind of broken, covered.
+      </h2>
+    </div>
+
+    <div class="reveal grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-orange-50 text-orange flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-plug"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">Electronics</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">TVs, laptops, phones, gaming consoles</p>
+      </div>
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-navy/5 text-navy flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-fridge"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">Appliances</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">Fridges, washing machines, cookers</p>
+      </div>
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-orange-50 text-orange flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-tap"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">Plumbing</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">Leaks, blockages, new installations</p>
+      </div>
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-navy/5 text-navy flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-bolt"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">Electrical</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">Wiring, sockets, backup power</p>
+      </div>
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-orange-50 text-orange flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-gear"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">Mechanical</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">Vehicles, generators, motors</p>
+      </div>
+      <div class="card rounded-2xl border border-navy/10 p-6 shadow-card">
+        <span class="w-11 h-11 rounded-xl bg-navy/5 text-navy flex items-center justify-center"><svg class="w-5 h-5"><use href="#icon-hammer"/></svg></span>
+        <p class="font-display font-700 text-[16px] mt-4 text-navy">And more</p>
+        <p class="mt-1.5 text-[13.5px] text-navy/60 leading-[1.6]">Carpentry, masonry, general handywork</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRUST & SAFETY ============ -->
+<section id="trust" class="relative bg-navy text-white overflow-hidden">
+  <svg class="grain"><filter id="noise2"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#noise2)"/></svg>
+  <div class="relative max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28 grid md:grid-cols-[0.9fr_1.1fr] gap-12 items-start">
+    <div class="reveal">
+      <p class="font-display font-700 text-[11.5px] tracking-[0.08em] uppercase text-orange">Trust &amp; safety</p>
+      <h2 class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.02em] mt-3">
+        Every fundi earns their badge.
+      </h2>
+      <p class="mt-4 text-white/60 leading-[1.7] text-[15.5px]">
+        Nobody gets listed by just signing up. Every technician on Find Fundi clears the same checks before their first job.
+      </p>
+      <span class="inline-flex items-center gap-1.5 font-display font-700 text-[11px] uppercase tracking-wide text-navy bg-orange px-3.5 py-1.5 rounded-full mt-7">
+        <svg class="w-3.5 h-3.5"><use href="#icon-shield"/></svg>Verified fundi
+      </span>
+    </div>
+    <div class="reveal grid sm:grid-cols-2 gap-4">
+      <div class="bg-navy-soft border border-white/10 rounded-2xl p-6">
+        <svg class="w-6 h-6 text-orange"><use href="#icon-shield"/></svg>
+        <h3 class="font-display font-700 text-[16px] mt-4">ID &amp; background check</h3>
+        <p class="mt-2 text-[13.5px] text-white/55 leading-[1.6]">National ID verified, criminal record screened, before approval.</p>
+      </div>
+      <div class="bg-navy-soft border border-white/10 rounded-2xl p-6">
+        <svg class="w-6 h-6 text-orange"><use href="#icon-gear"/></svg>
+        <h3 class="font-display font-700 text-[16px] mt-4">Skills assessed</h3>
+        <p class="mt-2 text-[13.5px] text-white/55 leading-[1.6]">Practical trade tests confirm they can actually do the work.</p>
+      </div>
+      <div class="bg-navy-soft border border-white/10 rounded-2xl p-6">
+        <svg class="w-6 h-6 text-orange"><use href="#icon-star"/></svg>
+        <h3 class="font-display font-700 text-[16px] mt-4">Rated every job</h3>
+        <p class="mt-2 text-[13.5px] text-white/55 leading-[1.6]">Ratings are public and permanent — good work builds a record.</p>
+      </div>
+      <div class="bg-navy-soft border border-white/10 rounded-2xl p-6">
+        <svg class="w-6 h-6 text-orange"><use href="#icon-check"/></svg>
+        <h3 class="font-display font-700 text-[16px] mt-4">Insured call-outs</h3>
+        <p class="mt-2 text-[13.5px] text-white/55 leading-[1.6]">Premium jobs are covered, so you're never on the hook alone.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOR FUNDIS ============ -->
+<section id="fundis" class="bg-orange text-navy">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28 grid md:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+    <div class="reveal">
+      <p class="font-display font-700 text-[11.5px] tracking-[0.08em] uppercase text-navy/60">For fundi</p>
+      <h2 class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.02em] mt-3">
+        Your tools. Your hours. More work.
+      </h2>
+      <p class="mt-4 text-navy/75 leading-[1.7] text-[15.5px] max-w-md">
+        Join Kenya's largest network of verified technicians. Get matched with jobs near you, set your own rates, and get paid straight after every job.
+      </p>
+      <a href="#" class="mt-7 inline-flex items-center gap-2 bg-navy text-white font-semibold text-[15px] px-6 py-3.5 rounded-full hover:bg-navy-soft transition-colors">
+        Apply as a fundi <svg class="w-4 h-4"><use href="#icon-arrow"/></svg>
+      </a>
+    </div>
+    <div class="reveal grid grid-cols-2 gap-4">
+      <div class="bg-navy text-white rounded-2xl p-5">
+        <svg class="w-5 h-5 text-orange"><use href="#icon-pin"/></svg>
+        <p class="font-display font-700 text-[15px] mt-3">Jobs near you</p>
+        <p class="text-[13px] text-white/55 mt-1 leading-[1.5]">Matched by location and trade, not luck.</p>
+      </div>
+      <div class="bg-navy text-white rounded-2xl p-5">
+        <svg class="w-5 h-5 text-orange"><use href="#icon-check"/></svg>
+        <p class="font-display font-700 text-[15px] mt-3">Paid same day</p>
+        <p class="text-[13px] text-white/55 mt-1 leading-[1.5]">Straight to your account after the job's confirmed.</p>
+      </div>
+      <div class="bg-navy text-white rounded-2xl p-5 col-span-2">
+        <svg class="w-5 h-5 text-orange"><use href="#icon-star"/></svg>
+        <p class="font-display font-700 text-[15px] mt-3">A rating that brings repeat customers</p>
+        <p class="text-[13px] text-white/55 mt-1 leading-[1.5]">Good work follows you — build a name on the platform, not just a phone number people forget.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section id="book" class="relative bg-navy text-white overflow-hidden">
+  <div class="hero-glow absolute inset-0"></div>
+  <div class="relative max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-28 text-center">
+    <h2 class="font-display font-800 text-[2.1rem] md:text-[2.8rem] leading-[1.08] tracking-[-0.02em] max-w-2xl mx-auto">
+      Stop guessing who to call.
+    </h2>
+    <p class="mt-4 text-white/60 text-[16px] max-w-md mx-auto leading-[1.7]">
+      The smarter way to get things done — get matched with a verified fundi in minutes.
+    </p>
+    <div class="mt-9 flex flex-wrap justify-center gap-4">
+      <a href="#" class="btn-primary inline-flex items-center gap-2 text-white font-semibold text-[15px] px-6 py-3.5 rounded-full">
+        Book a fundi <svg class="w-4 h-4"><use href="#icon-arrow"/></svg>
+      </a>
+      <a href="#fundis" class="btn-ghost inline-flex items-center gap-2 text-white font-semibold text-[15px] px-6 py-3.5 rounded-full border border-white/25 hover:bg-white/5">
+        Become a fundi
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="bg-navy-soft text-white/60 border-t border-white/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-14 grid sm:grid-cols-2 md:grid-cols-4 gap-10">
+    <div class="col-span-2 md:col-span-1">
+      <div class="flex items-center gap-2.5">
+        <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+        <span class="font-display font-700 text-lg text-white">Find<span class="text-orange">Fundi</span></span>
+      </div>
+      <p class="mt-4 text-[13.5px] leading-[1.7] max-w-[220px]">Skilled people. Fast solutions. Verified repair technicians, on demand, across Kenya.</p>
+    </div>
+    <div>
+      <p class="font-display font-700 text-[11px] tracking-[0.06em] uppercase text-white/40">Company</p>
+      <ul class="mt-4 space-y-2.5 text-[14px]">
+        <li><a href="#" class="hover:text-white transition-colors">About</a></li>
+        <li><a href="#trust" class="hover:text-white transition-colors">Trust &amp; safety</a></li>
+        <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-display font-700 text-[11px] tracking-[0.06em] uppercase text-white/40">Services</p>
+      <ul class="mt-4 space-y-2.5 text-[14px]">
+        <li><a href="#services" class="hover:text-white transition-colors">Electronics</a></li>
+        <li><a href="#services" class="hover:text-white transition-colors">Plumbing</a></li>
+        <li><a href="#services" class="hover:text-white transition-colors">Electrical</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-display font-700 text-[11px] tracking-[0.06em] uppercase text-white/40">For fundi</p>
+      <ul class="mt-4 space-y-2.5 text-[14px]">
+        <li><a href="#fundis" class="hover:text-white transition-colors">Apply</a></li>
+        <li><a href="#" class="hover:text-white transition-colors">Requirements</a></li>
+        <li><a href="#" class="hover:text-white transition-colors">Support</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-white/10 py-6">
+    <p class="max-w-6xl mx-auto px-5 md:px-8 text-[12.5px] text-white/35">© 2026 Find Fundi. Nairobi, Kenya.</p>
+  </div>
+</footer>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  menuBtn.addEventListener('click', () => {
+    const isOpen = !mobileMenu.classList.contains('hidden');
+    mobileMenu.classList.toggle('hidden');
+    menuBtn.setAttribute('aria-expanded', String(!isOpen));
+    menuBtn.querySelector('svg use').setAttribute('href', isOpen ? '#icon-menu' : '#icon-close');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileMenu.classList.add('hidden');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.querySelector('svg use').setAttribute('href', '#icon-menu');
+  }));
+
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!prefersReduced && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    const route = document.getElementById('routePath');
+    if (route) {
+      const ioRoute = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); ioRoute.unobserve(e.target); } });
+      }, { threshold: 0.3 });
+      ioRoute.observe(route);
+    }
+  } else {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+  }
+</script>
+
+</body>
+</html>
