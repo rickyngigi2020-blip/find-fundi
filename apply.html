@@ -51,12 +51,6 @@
     <a href="signup.html?role=fundi" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign up as a fundi</a>
   </div>
 
-  <div id="wrongRole" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
-    <h1 class="font-display font-800 text-[1.5rem] text-navy">This account is a customer account</h1>
-    <p class="mt-2 text-navy/60 text-[15px]">Sign up separately with a fundi account to apply.</p>
-    <a href="signup.html?role=fundi" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign up as a fundi</a>
-  </div>
-
   <div id="statusPending" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
     <div class="w-14 h-14 rounded-full bg-orange-50 text-orange flex items-center justify-center mx-auto">
       <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -185,8 +179,15 @@
     const session = await getSession();
     if (!session) return show('signedOutNotice');
 
-    const profile = await apiFetch('/profile/me');
-    if (profile.role !== 'fundi') return show('wrongRole');
+    try {
+      await apiFetch('/profile/me');
+    } catch (err) {
+      if (err.message === 'Not found.') {
+        window.location.href = 'profile.html?role=fundi&next=apply.html';
+        return;
+      }
+      throw err;
+    }
 
     const status = await apiFetch('/fundi/status');
     if (!status) return show('applyForm');

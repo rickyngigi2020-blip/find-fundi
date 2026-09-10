@@ -29,6 +29,8 @@
   .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
   .tab-btn[aria-selected="true"] { border-color: #FE6902; color: #FE6902; }
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  .btn-outline { transition: background-color 160ms ease; }
+  .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -40,7 +42,10 @@
       <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
       <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
     </a>
-    <a href="profile.html" class="text-[14px] font-semibold text-navy/70 hover:text-navy">Profile</a>
+    <nav class="flex items-center gap-5 text-[14px] font-semibold text-navy/70">
+      <a href="book.html" class="hover:text-navy">Book a fundi</a>
+      <a href="profile.html" class="hover:text-navy">Profile</a>
+    </nav>
   </div>
 </header>
 
@@ -50,10 +55,22 @@
     <a href="login.html?next=job-feed.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
   </div>
 
+  <div id="notApplied" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">You're not registered as a fundi yet</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Apply to start seeing and accepting repair jobs.</p>
+    <a href="apply.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Apply as a fundi</a>
+  </div>
+
   <div id="notVerified" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
     <h1 class="font-display font-800 text-[1.4rem] text-navy">Verification pending</h1>
     <p class="mt-2 text-navy/60 text-[15px]">You'll see open jobs here once your fundi application is approved.</p>
     <a href="apply.html" class="mt-6 inline-block text-navy font-semibold text-[14.5px] px-6 py-2.5 rounded-lg border border-navy/15 hover:bg-navy/5">View application</a>
+  </div>
+
+  <div id="notApprovedYet" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
+    <h1 class="font-display font-800 text-[1.4rem] text-navy">Application not approved</h1>
+    <p class="mt-2 text-navy/60 text-[15px]">Your last application wasn't approved. You can update and resubmit it.</p>
+    <a href="apply.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">View application</a>
   </div>
 
   <div id="content" hidden>
@@ -72,6 +89,7 @@
 </main>
 
 <script src="assets/supabase-client.js"></script>
+<script src="assets/map.js"></script>
 <script>
   const CATEGORY_LABELS = {
     phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
@@ -94,6 +112,16 @@
     return div;
   }
 
+  // job.id -> browser geolocation watchId, so toggles can be cleanly stopped.
+  const activeWatchers = {};
+
+  function stopSharing(jobId) {
+    if (activeWatchers[jobId] != null) {
+      navigator.geolocation.clearWatch(activeWatchers[jobId]);
+      delete activeWatchers[jobId];
+    }
+  }
+
   function myJobCard(job) {
     const div = document.createElement('div');
     div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
@@ -106,26 +134,93 @@
         <span class="status-pill shrink-0 ${STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60'}">${STATUS_LABELS[job.status] || job.status}</span>
       </div>
       <p class="mt-2 text-[13px] text-navy/50">${job.area}</p>
-      <div class="actions mt-3"></div>
+      <div class="location-section mt-3 hidden"></div>
+      <div class="actions mt-3 flex gap-2"></div>
     `;
+
     if (job.status === 'matched' || job.status === 'in_progress') {
+      const locationSection = div.querySelector('.location-section');
+      locationSection.classList.remove('hidden');
+      const mapId = `map-${job.id}`;
+      locationSection.innerHTML = `
+        <button class="share-toggle btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5">Share my location</button>
+        <p class="share-error hidden mt-2 text-[13px] text-red-600"></p>
+        <div id="${mapId}" class="map-box mt-3 hidden bg-gray-100"></div>
+      `;
+
+      const toggleBtn = locationSection.querySelector('.share-toggle');
+      const shareError = locationSection.querySelector('.share-error');
+      const mapBox = locationSection.querySelector(`#${mapId}`);
+
+      toggleBtn.addEventListener('click', async () => {
+        const isSharing = activeWatchers[job.id] != null;
+        if (isSharing) {
+          stopSharing(job.id);
+          toggleBtn.textContent = 'Share my location';
+          toggleBtn.classList.remove('bg-orange-50', 'text-orange-700', 'border-orange');
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          shareError.textContent = 'Location is not available in this browser.';
+          shareError.classList.remove('hidden');
+          return;
+        }
+
+        const session = await getSession();
+        mapBox.classList.remove('hidden');
+        if (job.customer_lat != null && job.customer_lng != null) {
+          await renderPinMap(mapId, [
+            { key: 'customer', position: { lat: job.customer_lat, lng: job.customer_lng }, label: 'C', title: 'Customer' },
+          ]);
+        } else {
+          mapBox.innerHTML = '<p class="p-4 text-[13px] text-navy/50">Customer didn\'t share a location for this job.</p>';
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+          async (pos) => {
+            try {
+              await sb.from('fundi_locations').upsert({
+                fundi_id: session.user.id,
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                updated_at: new Date().toISOString(),
+              });
+            } catch (err) {
+              // Transient write failures aren't worth interrupting the toggle for.
+            }
+          },
+          () => {
+            shareError.textContent = 'Could not get your location. Check your browser permissions.';
+            shareError.classList.remove('hidden');
+            stopSharing(job.id);
+            toggleBtn.textContent = 'Share my location';
+          },
+          { enableHighAccuracy: true, maximumAge: 10000 }
+        );
+        activeWatchers[job.id] = watchId;
+        toggleBtn.textContent = 'Sharing location…';
+        toggleBtn.classList.add('bg-orange-50', 'text-orange-700', 'border-orange');
+      });
+
       const actions = div.querySelector('.actions');
-      const btn = document.createElement('button');
-      btn.className = 'btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg';
-      btn.textContent = 'Mark complete';
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        btn.textContent = 'Saving…';
+      const completeBtn = document.createElement('button');
+      completeBtn.className = 'btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg';
+      completeBtn.textContent = 'Mark complete';
+      completeBtn.addEventListener('click', async () => {
+        completeBtn.disabled = true;
+        completeBtn.textContent = 'Saving…';
         try {
+          stopSharing(job.id);
           await apiFetch(`/jobs/${job.id}/complete`, { method: 'POST', body: JSON.stringify({}) });
           loadMine();
         } catch (err) {
-          btn.disabled = false;
-          btn.textContent = 'Mark complete';
+          completeBtn.disabled = false;
+          completeBtn.textContent = 'Mark complete';
           alert(err.message);
         }
       });
-      actions.appendChild(btn);
+      actions.appendChild(completeBtn);
     }
     return div;
   }
@@ -139,6 +234,7 @@
   }
 
   async function loadMine() {
+    Object.keys(activeWatchers).forEach(stopSharing);
     const jobs = await apiFetch('/jobs/mine?role=fundi');
     const list = document.getElementById('tabMine');
     list.innerHTML = '';
@@ -164,8 +260,16 @@
       return;
     }
     const status = await apiFetch('/fundi/status');
-    if (!status || status.verification_status !== 'verified') {
+    if (!status) {
+      document.getElementById('notApplied').hidden = false;
+      return;
+    }
+    if (status.verification_status === 'pending') {
       document.getElementById('notVerified').hidden = false;
+      return;
+    }
+    if (status.verification_status === 'rejected') {
+      document.getElementById('notApprovedYet').hidden = false;
       return;
     }
     document.getElementById('content').hidden = false;

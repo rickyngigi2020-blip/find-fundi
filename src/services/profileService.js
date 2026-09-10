@@ -17,11 +17,9 @@ async function getOwnProfile(accessToken, userId) {
   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
   if (error) throw toApiError(error);
 
-  let fundiProfile = null;
-  if (profile.role === 'fundi') {
-    const { data: fp } = await supabase.from('fundi_profiles').select('*').eq('id', userId).maybeSingle();
-    fundiProfile = fp;
-  }
+  // Fetched regardless of `role` — a customer-primary account can also have
+  // applied as a fundi, and vice versa.
+  const { data: fundiProfile } = await supabase.from('fundi_profiles').select('*').eq('id', userId).maybeSingle();
   return { ...profile, fundi_profile: fundiProfile };
 }
 

@@ -2,12 +2,13 @@ const jobService = require('../services/jobService');
 
 async function create(req, res, next) {
   try {
-    const { category, subcategory, description, photo_url, urgency, area } = req.body;
+    const { category, subcategory, description, photo_url, urgency, area, customer_lat, customer_lng } = req.body;
     if (!category || !description || !area) {
       return res.status(400).json({ error: { message: 'category, description, and area are required', code: 'invalid_request' } });
     }
     const job = await jobService.createJob(req.accessToken, req.user.id, {
       category, subcategory, description, photo_url, urgency, area,
+      customer_lat: customer_lat ?? null, customer_lng: customer_lng ?? null,
     });
     res.json({ data: job });
   } catch (err) {

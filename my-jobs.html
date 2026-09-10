@@ -29,6 +29,7 @@
   .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
   .star-btn { transition: color 120ms ease; }
+  .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -70,11 +71,13 @@
       <span class="status-pill shrink-0"></span>
     </div>
     <div class="mt-3 text-[13px] text-navy/50 area-urgency"></div>
+    <div class="tracking-section mt-4 hidden"></div>
     <div class="review-section mt-4 hidden pt-4 border-t border-navy/10"></div>
   </div>
 </template>
 
 <script src="assets/supabase-client.js"></script>
+<script src="assets/map.js"></script>
 <script>
   const STATUS_STYLES = {
     requested: 'bg-gray-100 text-navy/60',
@@ -92,6 +95,32 @@
     appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
   };
 
+  async function setupTracking(job, mapId, waitingNote) {
+    const points = [];
+    if (job.customer_lat != null && job.customer_lng != null) {
+      points.push({ key: 'customer', position: { lat: job.customer_lat, lng: job.customer_lng }, label: 'C', title: 'You' });
+    }
+    const handle = await renderPinMap(mapId, points);
+
+    const { data: existing } = await sb
+      .from('fundi_locations')
+      .select('lat, lng')
+      .eq('fundi_id', job.fundi_id)
+      .maybeSingle();
+    if (existing) {
+      handle.setMarker('fundi', { lat: existing.lat, lng: existing.lng }, 'F', 'Your fundi');
+      waitingNote.hidden = true;
+    }
+
+    sb.channel(`fundi-location-${job.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fundi_locations', filter: `fundi_id=eq.${job.fundi_id}` }, (payload) => {
+        if (!payload.new) return;
+        handle.setMarker('fundi', { lat: payload.new.lat, lng: payload.new.lng }, 'F', 'Your fundi');
+        waitingNote.hidden = true;
+      })
+      .subscribe();
+  }
+
   function renderJob(job) {
     const tpl = document.getElementById('jobCardTemplate').content.cloneNode(true);
     tpl.querySelector('.category').textContent = CATEGORY_LABELS[job.category] || job.category;
@@ -100,6 +129,18 @@
     pill.textContent = STATUS_LABELS[job.status] || job.status;
     pill.className += ' ' + (STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60');
     tpl.querySelector('.area-urgency').textContent = `${job.area}${job.urgency === 'urgent' ? ' · Urgent' : ''} · Payment ${job.payment_status}`;
+
+    if (job.status === 'matched' || job.status === 'in_progress') {
+      const trackingSection = tpl.querySelector('.tracking-section');
+      trackingSection.classList.remove('hidden');
+      const mapId = `track-map-${job.id}`;
+      trackingSection.innerHTML = `
+        <p class="text-[13px] font-semibold text-navy/70 mb-2">Track your fundi</p>
+        <div id="${mapId}" class="map-box bg-gray-100"></div>
+        <p class="waiting-note mt-2 text-[12.5px] text-navy/50">Waiting for your fundi to share their location.</p>
+      `;
+      setupTracking(job, mapId, trackingSection.querySelector('.waiting-note'));
+    }
 
     if (job.status === 'completed') {
       const section = tpl.querySelector('.review-section');

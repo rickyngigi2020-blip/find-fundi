@@ -188,6 +188,19 @@
     });
   });
 
+  // Resolves to {lat, lng} or null if permission is denied/unavailable — booking
+  // still works without it, the tracking map just won't have a customer pin.
+  function getBrowserLocation() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 8000 }
+      );
+    });
+  }
+
   document.getElementById('toStep2').addEventListener('click', async () => {
     const errorEl = document.getElementById('step1Error');
     errorEl.classList.add('hidden');
@@ -205,6 +218,7 @@
     btn.textContent = 'Finding fundis…';
 
     try {
+      const location = await getBrowserLocation();
       currentJob = await apiFetch('/jobs', {
         method: 'POST',
         body: JSON.stringify({
@@ -213,6 +227,8 @@
           description,
           area,
           urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
+          customer_lat: location ? location.lat : null,
+          customer_lng: location ? location.lng : null,
         }),
       });
 
