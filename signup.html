@@ -134,7 +134,7 @@
       const phone = document.getElementById('phone').value.trim();
       const area = document.getElementById('area').value;
 
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await sb.auth.signUp({ email, password });
       if (error) throw error;
 
       if (!data.session) {

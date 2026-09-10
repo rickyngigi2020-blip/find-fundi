@@ -81,7 +81,7 @@
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       const profile = await apiFetch('/profile/me');

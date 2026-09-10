@@ -86,7 +86,7 @@
 <script src="assets/supabase-client.js"></script>
 <script>
   document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     window.location.href = 'index.html';
   });
 
