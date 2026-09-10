@@ -44,6 +44,7 @@
     </a>
     <nav class="flex items-center gap-5 text-[14px] font-semibold text-navy/70">
       <a href="my-jobs.html" class="hover:text-navy">My jobs</a>
+      <a id="adminLink" href="admin.html" hidden class="text-orange hover:underline">Admin</a>
       <button id="logoutBtn" hidden class="hover:text-navy">Log out</button>
     </nav>
   </div>
@@ -192,6 +193,8 @@
       window.location.href = next;
       return;
     }
+
+    if (profile.is_admin) document.getElementById('adminLink').hidden = false;
 
     form.dataset.role = profile.role;
     document.getElementById('fullName').value = profile.full_name || '';
