@@ -107,7 +107,18 @@
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      const profile = await apiFetch('/profile/me');
+      let profile = null;
+      try {
+        profile = await apiFetch('/profile/me');
+      } catch (err) {
+        if (err.message !== 'Not found.') throw err;
+      }
+
+      if (!profile) {
+        // Signed in, but setup was never finished — send them to complete it.
+        window.location.href = `profile.html${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''}`;
+        return;
+      }
       window.location.href = nextParam || (profile.role === 'fundi' ? 'job-feed.html' : 'my-jobs.html');
     } catch (err) {
       formError.textContent = err.message || 'Something went wrong.';
