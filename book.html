@@ -20,7 +20,7 @@
 </script>
 <style>
   body { -webkit-font-smoothing: antialiased; }
-  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 4px; }
   .btn-primary {
     background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
     box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
@@ -29,12 +29,72 @@
   .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
   .btn-primary:active { transform: translateY(0) scale(0.98); }
   .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  .btn-quiet { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+  .btn-quiet:hover { background: rgba(4,21,48,0.05); }
+  .btn-quiet:active { background: rgba(4,21,48,0.09); }
   input:focus, textarea:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
-  .cat-btn[aria-pressed="true"] { border-color: #FE6902; background: #FFF1E6; }
+  .fundi-card { transition: border-color 160ms ease, box-shadow 160ms ease; }
+  .fundi-card:hover { border-color: rgba(4,21,48,0.28); }
   .fundi-card[aria-pressed="true"] { border-color: #FE6902; box-shadow: 0 0 0 2px rgba(254,105,2,0.18); }
   .step { display: none; }
   .step.active { display: block; }
   [hidden] { display: none !important; }
+
+  .icon-link { transition: background-color 160ms ease, color 160ms ease; }
+  .icon-link svg { transition: transform 320ms cubic-bezier(.22,1,.36,1); }
+  .icon-link:hover svg { transform: rotate(45deg); }
+  .icon-link:active { background: rgba(4,21,48,0.09); }
+
+  /* ---- category cards ---- */
+  .cat-card {
+    display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+    width: 100%; min-height: 116px; padding: 14px 14px 12px; text-align: left;
+    background: #fff; border: 1px solid rgba(4,21,48,0.12); border-radius: 14px; overflow: hidden;
+    transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms cubic-bezier(.22,1,.36,1), border-color 160ms ease, background-color 160ms ease;
+  }
+  .cat-card:hover {
+    transform: translateY(-2px); border-color: rgba(4,21,48,0.22);
+    box-shadow: 0 1px 2px rgba(4,21,48,0.05), 0 14px 26px -14px rgba(4,21,48,0.22), 0 4px 10px -6px rgba(254,105,2,0.12);
+  }
+  .cat-card:active { transform: translateY(0) scale(0.99); }
+  .cat-card[aria-pressed="true"] { border-color: #FE6902; background: #FFF1E6; box-shadow: inset 0 0 0 1px #FE6902; }
+  .cat-icon {
+    width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(4,21,48,0.05); color: #041530;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  .cat-card[aria-pressed="true"] .cat-icon { background: #FE6902; color: #fff; }
+  .cat-strip {
+    display: block; overflow: hidden; padding-top: 9px; border-top: 1px solid rgba(4,21,48,0.08);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+  }
+  .cat-track { display: flex; width: max-content; animation: drift var(--dur, 24s) linear infinite; animation-delay: var(--delay, 0s); will-change: transform; }
+  .cat-run { display: flex; align-items: center; flex-shrink: 0; }
+  .cat-ex { font-size: 12.5px; line-height: 1.2; color: rgba(4,21,48,0.58); white-space: nowrap; }
+  .cat-dot { width: 3px; height: 3px; margin: 0 10px; border-radius: 9999px; background: rgba(254,105,2,0.55); flex-shrink: 0; }
+  @keyframes drift { from { transform: translate3d(-50%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+  .cat-card:hover .cat-track, .cat-card:focus-visible .cat-track { animation-play-state: paused; }
+
+  /* ---- voice note + photos ---- */
+  .rec-dot { width: 8px; height: 8px; border-radius: 9999px; background: #DC2626; animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .photo-tile { transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease; }
+  .photo-tile:hover { border-color: #FE6902; color: #FE6902; background: #FFF1E6; }
+  .photo-tile:active { background: #FFE0C7; }
+  .thumb-remove { transition: background-color 160ms ease; }
+  .thumb-remove:hover { background: #041530; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cat-track { animation: none; width: auto; }
+    .cat-strip { -webkit-mask-image: none; mask-image: none; }
+    .cat-run { flex-wrap: wrap; row-gap: 3px; }
+    .cat-run + .cat-run { display: none; }
+    .cat-card, .btn-primary, .icon-link svg { transition: none; }
+    .cat-card:hover, .btn-primary:hover { transform: none; }
+    .rec-dot { animation: none; }
+  }
 </style>
 </head>
 <body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
@@ -45,48 +105,98 @@
       <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
       <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
     </a>
-    <a href="my-jobs.html" class="text-[14px] font-semibold text-navy/70 hover:text-navy">My jobs</a>
+    <nav class="flex items-center gap-1">
+      <a href="my-jobs.html" class="btn-quiet px-2.5 py-2 rounded-md text-[14px] font-semibold text-navy/70 hover:text-navy">My activity</a>
+      <a href="profile.html" class="icon-link w-9 h-9 rounded-md flex items-center justify-center text-navy/60 hover:text-navy hover:bg-navy/5" aria-label="Account settings" title="Account settings">
+        <svg class="w-[19px] h-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </a>
+    </nav>
   </div>
 </header>
 
 <main class="max-w-2xl mx-auto px-5 py-10">
 
-  <!-- signed-out state -->
   <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
     <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in to book a fundi</h1>
-    <p class="mt-2 text-navy/60 text-[15px]">Create an account or sign in to describe your problem and get matched.</p>
+    <p class="mt-2 text-navy/60 text-[15px]">Create an account or sign in to describe what you need and get matched.</p>
     <div class="mt-6 flex justify-center gap-3">
       <a href="login.html?next=book.html" class="btn-primary text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Sign in</a>
-      <a href="signup.html" class="text-navy font-semibold text-[14.5px] px-5 py-2.5 rounded-lg border border-navy/15 hover:bg-navy/5">Sign up</a>
+      <a href="signup.html" class="btn-quiet text-navy font-semibold text-[14.5px] px-5 py-2.5 rounded-lg border border-navy/15">Sign up</a>
     </div>
   </div>
 
   <div id="flow" hidden>
-    <!-- progress -->
     <div class="flex items-center gap-2 mb-8 text-[13px] font-semibold text-navy/40">
-      <span data-step-label="1" class="text-orange">1. Describe</span><span>·</span>
-      <span data-step-label="2">2. Match</span><span>·</span>
-      <span data-step-label="3">3. Confirm</span>
+      <span class="text-orange">1. Describe</span><span aria-hidden="true">·</span>
+      <span>2. Match</span><span aria-hidden="true">·</span>
+      <span>3. Confirm</span>
     </div>
 
     <!-- STEP 1: describe -->
-    <section id="step1" class="step active bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
-      <h1 class="font-display font-800 text-[1.4rem] text-navy">What needs fixing?</h1>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-5" id="categoryGrid">
-        <button type="button" class="cat-btn" data-value="phone_electronics" aria-pressed="false">Phone &amp; Electronics</button>
-        <button type="button" class="cat-btn" data-value="computer_laptop" aria-pressed="false">Computer &amp; Laptop</button>
-        <button type="button" class="cat-btn" data-value="appliance" aria-pressed="false">Appliance</button>
-        <button type="button" class="cat-btn" data-value="electrical" aria-pressed="false">Electrical</button>
-        <button type="button" class="cat-btn" data-value="mechanical" aria-pressed="false">Mechanical</button>
+    <section id="step1" class="step active bg-white rounded-2xl border border-navy/10 p-5 sm:p-7">
+      <h1 class="font-display font-800 text-[1.5rem] sm:text-[1.65rem] leading-[1.15] tracking-[-0.02em] text-navy">What can a fundi help you with?</h1>
+      <p class="mt-1.5 text-navy/55 text-[14.5px] leading-[1.6]">Pick the closest match. You'll add the details below.</p>
+
+      <div id="categoryGroups" class="mt-6 space-y-5"></div>
+
+      <div class="mt-7 pt-6 border-t border-navy/10">
+        <label class="block text-[13px] font-semibold text-navy/70" for="description">Describe what you need</label>
+        <p class="mt-0.5 mb-2 text-[12.5px] text-navy/50">Type it, record a voice note, or both.</p>
+        <textarea id="description" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] leading-[1.6] outline-none resize-none" placeholder="What's going on, and anything the fundi should know before coming?"></textarea>
+
+        <div id="voiceBox" class="mt-2.5 rounded-xl border border-navy/10 bg-gray-50 px-3 py-2.5">
+          <div id="voiceIdle" class="flex items-center justify-between gap-3">
+            <button type="button" id="recordBtn" class="btn-quiet inline-flex items-center gap-2 rounded-lg border border-navy/15 bg-white px-3 py-2 text-[13.5px] font-semibold text-navy">
+              <svg class="w-4 h-4 text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+              Record a voice note
+            </button>
+            <span class="text-[12px] text-navy/45">Up to 2 minutes</span>
+          </div>
+
+          <div id="voiceRecording" hidden class="flex items-center justify-between gap-3">
+            <span class="flex items-center gap-2.5 text-[13.5px] font-semibold text-navy">
+              <span class="rec-dot" aria-hidden="true"></span>
+              Recording <span id="recTime" class="tabular-nums text-navy/60 font-medium">0:00</span>
+            </span>
+            <span class="flex items-center gap-2">
+              <button type="button" id="cancelRecBtn" class="btn-quiet rounded-lg px-3 py-2 text-[13px] font-semibold text-navy/60">Cancel</button>
+              <button type="button" id="stopBtn" class="inline-flex items-center gap-2 rounded-lg bg-navy px-3 py-2 text-[13.5px] font-semibold text-white hover:bg-navy-soft active:scale-[0.98]">
+                <span class="w-2.5 h-2.5 rounded-[2px] bg-white" aria-hidden="true"></span>
+                Stop
+              </button>
+            </span>
+          </div>
+
+          <div id="voiceDone" hidden class="space-y-2">
+            <audio id="voicePlayback" controls class="w-full h-10"></audio>
+            <div class="flex items-center justify-between">
+              <span id="voiceLength" class="text-[12px] text-navy/50"></span>
+              <span class="flex items-center gap-1">
+                <button type="button" id="reRecordBtn" class="btn-quiet rounded-lg px-3 py-1.5 text-[13px] font-semibold text-navy">Re-record</button>
+                <button type="button" id="deleteVoiceBtn" class="btn-quiet rounded-lg px-3 py-1.5 text-[13px] font-semibold text-red-600">Delete</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <p id="voiceError" class="hidden mt-1.5 text-[12.5px] text-red-600" role="alert"></p>
       </div>
 
-      <div class="mt-5">
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="subcategory">What specifically? (optional)</label>
-        <input id="subcategory" type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="e.g. Cracked screen, won't charge">
+      <div class="mt-6">
+        <p class="text-[13px] font-semibold text-navy/70">Photos <span class="font-normal text-navy/45">(optional)</span></p>
+        <p class="mt-0.5 mb-2.5 text-[12.5px] text-navy/50">Up to 5. A clear photo helps the fundi understand the job before arriving.</p>
+        <div id="photoGrid" class="flex flex-wrap gap-2">
+          <button type="button" id="addPhotoBtn" class="photo-tile w-20 h-20 rounded-lg border border-dashed border-navy/25 flex flex-col items-center justify-center gap-1 text-navy/50">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg>
+            <span class="text-[11.5px] font-semibold">Add photo</span>
+          </button>
+        </div>
+        <input id="photoInput" type="file" accept="image/*" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+        <p id="photoError" class="hidden mt-1.5 text-[12.5px] text-red-600" role="alert"></p>
       </div>
-      <div class="mt-4">
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="description">Describe the problem</label>
-        <textarea id="description" required rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none resize-none" placeholder="What's broken, and what happened?"></textarea>
+
+      <div class="mt-6">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="subcategory">Item or job, in a few words <span class="font-normal text-navy/45">(optional)</span></label>
+        <input id="subcategory" type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="e.g. Samsung fridge, 55-inch TV mounting">
       </div>
       <div class="mt-4">
         <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="area">Your area</label>
@@ -102,7 +212,7 @@
         <label for="urgent" class="text-[14px] text-navy/70">Mark as urgent</label>
       </div>
 
-      <p id="step1Error" class="hidden mt-4 text-[13.5px] text-red-600"></p>
+      <p id="step1Error" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
 
       <button id="toStep2" class="btn-primary w-full mt-6 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
         Find a fundi
@@ -144,7 +254,7 @@
 
       <p class="mt-5 text-[13px] text-navy/50 leading-[1.6]">Confirming creates your booking. Payment isn't charged yet: final cost and payment collection happen once the fundi assesses the job on-site.</p>
 
-      <p id="step3Error" class="hidden mt-4 text-[13.5px] text-red-600"></p>
+      <p id="step3Error" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
 
       <button id="confirmBtn" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
         Confirm Booking
@@ -154,22 +264,18 @@
     <!-- DONE -->
     <section id="stepDone" class="step bg-white rounded-2xl border border-navy/10 p-8 text-center">
       <div class="w-14 h-14 rounded-full bg-orange-50 text-orange flex items-center justify-center mx-auto">
-        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
       </div>
       <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
-      <p class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi has been notified. Payment is pending until the job is assessed. Track progress from My Jobs.</p>
-      <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My Jobs</a>
+      <p class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi has been notified. Payment is pending until the job is assessed. Track progress from My activity.</p>
+      <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My activity</a>
     </section>
   </div>
 </main>
 
 <script src="assets/supabase-client.js"></script>
+<script src="assets/categories.js"></script>
 <script>
-  const CATEGORY_LABELS = {
-    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
-    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
-  };
-
   let selectedCategory = null;
   let selectedFundi = null;
   let currentJob = null;
@@ -177,19 +283,227 @@
   function showStep(id) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    window.scrollTo({ top: 0 });
   }
 
-  document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.className += ' border border-navy/15 rounded-lg py-3 text-[13.5px] font-semibold text-navy/80';
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.cat-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
-      btn.setAttribute('aria-pressed', 'true');
-      selectedCategory = btn.dataset.value;
+  // ---------- category cards ----------
+  function renderCategories() {
+    const root = document.getElementById('categoryGroups');
+    CATEGORY_GROUPS.forEach((group) => {
+      const section = document.createElement('div');
+      const heading = document.createElement('p');
+      heading.className = 'font-display font-700 text-[11px] uppercase tracking-[0.08em] text-navy/45 mb-2';
+      heading.textContent = group.label;
+      const grid = document.createElement('div');
+      grid.className = 'grid grid-cols-2 gap-2.5';
+
+      FUNDI_CATEGORIES.filter((c) => c.group === group.key).forEach((cat, i) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'cat-card';
+        card.dataset.value = cat.key;
+        card.setAttribute('aria-pressed', 'false');
+        card.setAttribute('aria-describedby', `cat-ex-${cat.key}`);
+
+        const run = cat.examples.map((ex) => `<span class="cat-ex">${escapeHtml(ex)}</span><span class="cat-dot"></span>`).join('');
+        card.innerHTML = `
+          <span class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-2.5">
+            <span class="cat-icon">${categoryIconSvg(cat.key, 'w-[19px] h-[19px]')}</span>
+            <span class="font-display font-600 text-[14px] sm:text-[14.5px] leading-[1.2] text-navy">${escapeHtml(cat.label)}</span>
+          </span>
+          <span class="cat-strip" aria-hidden="true">
+            <span class="cat-track"><span class="cat-run">${run}</span><span class="cat-run">${run}</span></span>
+          </span>
+          <span id="cat-ex-${cat.key}" class="sr-only">Includes ${escapeHtml(cat.examples.join(', '))}</span>
+        `;
+        // Offset each loop so the cards never drift in lockstep.
+        card.querySelector('.cat-track').style.setProperty('--delay', `${-(i * 3.7 + group.key.length)}s`);
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.cat-card').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+          card.setAttribute('aria-pressed', 'true');
+          selectedCategory = cat.key;
+        });
+        grid.appendChild(card);
+      });
+
+      section.append(heading, grid);
+      root.appendChild(section);
     });
+    tuneDriftSpeed();
+  }
+
+  // Constant reading speed (~22px/s) regardless of how long each card's example list is.
+  function tuneDriftSpeed() {
+    document.querySelectorAll('.cat-track').forEach((track) => {
+      const runWidth = track.scrollWidth / 2;
+      if (runWidth > 0) track.style.setProperty('--dur', `${Math.max(14, runWidth / 22)}s`);
+    });
+  }
+
+  // ---------- voice note ----------
+  const MAX_RECORD_SECONDS = 120;
+  const voiceError = document.getElementById('voiceError');
+  let mediaRecorder = null;
+  let micStream = null;
+  let recordChunks = [];
+  let recordStartedAt = 0;
+  let recordTimer = null;
+  let cancelRecording = false;
+  let voiceBlob = null;
+  let voiceUrl = null;
+
+  function setVoiceState(state) {
+    document.getElementById('voiceIdle').hidden = state !== 'idle';
+    document.getElementById('voiceRecording').hidden = state !== 'recording';
+    document.getElementById('voiceDone').hidden = state !== 'done';
+  }
+
+  function showVoiceError(message) {
+    voiceError.textContent = message;
+    voiceError.classList.toggle('hidden', !message);
+  }
+
+  function formatSeconds(total) {
+    const s = Math.max(0, Math.floor(total));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function pickAudioMime() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    return types.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  async function startRecording() {
+    showVoiceError('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      showVoiceError("Voice notes aren't supported in this browser. Type what you need instead.");
+      return;
+    }
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      showVoiceError('Microphone access is blocked. Allow it in your browser settings, or type what you need instead.');
+      return;
+    }
+
+    const mime = pickAudioMime();
+    mediaRecorder = new MediaRecorder(micStream, mime ? { mimeType: mime } : undefined);
+    recordChunks = [];
+    cancelRecording = false;
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) recordChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      clearInterval(recordTimer);
+      micStream.getTracks().forEach((t) => t.stop());
+      const seconds = (Date.now() - recordStartedAt) / 1000;
+      if (cancelRecording) { setVoiceState(voiceBlob ? 'done' : 'idle'); return; }
+      if (seconds < 1) {
+        setVoiceState(voiceBlob ? 'done' : 'idle');
+        showVoiceError('That recording was too short. Try again and speak for a few seconds.');
+        return;
+      }
+      clearVoice();
+      voiceBlob = new Blob(recordChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      voiceUrl = URL.createObjectURL(voiceBlob);
+      document.getElementById('voicePlayback').src = voiceUrl;
+      document.getElementById('voiceLength').textContent = `Voice note, ${formatSeconds(seconds)}`;
+      setVoiceState('done');
+    };
+
+    mediaRecorder.start();
+    recordStartedAt = Date.now();
+    document.getElementById('recTime').textContent = '0:00';
+    setVoiceState('recording');
+    recordTimer = setInterval(() => {
+      const elapsed = (Date.now() - recordStartedAt) / 1000;
+      document.getElementById('recTime').textContent = formatSeconds(elapsed);
+      if (elapsed >= MAX_RECORD_SECONDS) mediaRecorder.stop();
+    }, 250);
+  }
+
+  function clearVoice() {
+    if (voiceUrl) URL.revokeObjectURL(voiceUrl);
+    voiceBlob = null;
+    voiceUrl = null;
+    document.getElementById('voicePlayback').removeAttribute('src');
+  }
+
+  function isRecording() { return mediaRecorder && mediaRecorder.state === 'recording'; }
+
+  document.getElementById('recordBtn').addEventListener('click', startRecording);
+  document.getElementById('reRecordBtn').addEventListener('click', startRecording);
+  document.getElementById('stopBtn').addEventListener('click', () => { if (isRecording()) mediaRecorder.stop(); });
+  document.getElementById('cancelRecBtn').addEventListener('click', () => {
+    if (!isRecording()) return;
+    cancelRecording = true;
+    mediaRecorder.stop();
+  });
+  document.getElementById('deleteVoiceBtn').addEventListener('click', () => {
+    clearVoice();
+    setVoiceState('idle');
   });
 
-  // Resolves to {lat, lng} or null if permission is denied/unavailable — booking
-  // still works without it, the tracking map just won't have a customer pin.
+  function voiceFileExtension(type) {
+    if (type.includes('mp4')) return 'm4a';
+    if (type.includes('ogg')) return 'ogg';
+    return 'webm';
+  }
+
+  // ---------- photos ----------
+  const MAX_PHOTOS = 5;
+  const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+  const photoInput = document.getElementById('photoInput');
+  const photoError = document.getElementById('photoError');
+  const addPhotoBtn = document.getElementById('addPhotoBtn');
+  let photos = []; // { file, url }
+
+  addPhotoBtn.addEventListener('click', () => photoInput.click());
+
+  photoInput.addEventListener('change', () => {
+    photoError.classList.add('hidden');
+    const problems = [];
+    Array.from(photoInput.files).forEach((file) => {
+      if (photos.length >= MAX_PHOTOS) { problems.push(`You can add up to ${MAX_PHOTOS} photos.`); return; }
+      if (!file.type.startsWith('image/')) { problems.push(`${file.name} isn't an image.`); return; }
+      if (file.size > MAX_PHOTO_BYTES) { problems.push(`${file.name} is over 10 MB.`); return; }
+      photos.push({ file, url: URL.createObjectURL(file) });
+    });
+    photoInput.value = '';
+    if (problems.length) {
+      photoError.textContent = [...new Set(problems)].join(' ');
+      photoError.classList.remove('hidden');
+    }
+    renderPhotos();
+  });
+
+  function renderPhotos() {
+    const grid = document.getElementById('photoGrid');
+    grid.querySelectorAll('.thumb').forEach((t) => t.remove());
+    photos.forEach((photo, index) => {
+      const tile = document.createElement('div');
+      tile.className = 'thumb relative w-20 h-20 rounded-lg overflow-hidden border border-navy/10';
+      const img = document.createElement('img');
+      img.src = photo.url;
+      img.alt = `Photo ${index + 1}`;
+      img.className = 'w-full h-full object-cover';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'thumb-remove absolute top-1 right-1 w-6 h-6 rounded-md bg-navy/70 text-white flex items-center justify-center';
+      remove.setAttribute('aria-label', `Remove photo ${index + 1}`);
+      remove.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+      remove.addEventListener('click', () => {
+        URL.revokeObjectURL(photo.url);
+        photos.splice(index, 1);
+        renderPhotos();
+      });
+      tile.append(img, remove);
+      grid.insertBefore(tile, addPhotoBtn);
+    });
+    addPhotoBtn.hidden = photos.length >= MAX_PHOTOS;
+  }
+
+  // ---------- submit ----------
+  // Resolves to {lat, lng} or null if permission is denied/unavailable. Booking
+  // still works without it; the tracking map just won't have a customer pin.
   function getBrowserLocation() {
     return new Promise((resolve) => {
       if (!navigator.geolocation) return resolve(null);
@@ -207,37 +521,51 @@
 
     const description = document.getElementById('description').value.trim();
     const area = document.getElementById('area').value;
-    if (!selectedCategory || !description || !area) {
-      errorEl.textContent = 'Pick a category, describe the problem, and select your area.';
-      errorEl.classList.remove('hidden');
-      return;
-    }
+    const fail = (message) => { errorEl.textContent = message; errorEl.classList.remove('hidden'); };
+
+    if (isRecording()) return fail('Stop the voice note recording first.');
+    if (!selectedCategory) return fail('Pick what a fundi can help you with.');
+    if (!description && !voiceBlob) return fail('Describe what you need, or record a voice note.');
+    if (!area) return fail('Select your area.');
 
     const btn = document.getElementById('toStep2');
     btn.disabled = true;
-    btn.textContent = 'Finding fundis…';
 
     try {
-      const location = await getBrowserLocation();
-      currentJob = await apiFetch('/jobs', {
-        method: 'POST',
-        body: JSON.stringify({
-          category: selectedCategory,
-          subcategory: document.getElementById('subcategory').value.trim() || null,
-          description,
-          area,
-          urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
-          customer_lat: location ? location.lat : null,
-          customer_lng: location ? location.lng : null,
-        }),
-      });
+      // A retry after a failed fundi search must not create a second job.
+      if (!currentJob) {
+        const session = await getSession();
+        const hasMedia = voiceBlob || photos.length;
+        btn.textContent = hasMedia ? 'Uploading…' : 'Finding fundis…';
 
-      const fundis = await apiFetch(`/fundi/search?category=${selectedCategory}&area=${encodeURIComponent(area)}`);
+        const voice_note_path = voiceBlob
+          ? await uploadPrivateFile('job-media', session.user.id, new File([voiceBlob], `voice-note.${voiceFileExtension(voiceBlob.type)}`, { type: voiceBlob.type }))
+          : null;
+        const photo_paths = await Promise.all(photos.map((p) => uploadPrivateFile('job-media', session.user.id, p.file)));
+
+        btn.textContent = 'Finding fundis…';
+        const location = await getBrowserLocation();
+        currentJob = await apiFetch('/jobs', {
+          method: 'POST',
+          body: JSON.stringify({
+            category: selectedCategory,
+            subcategory: document.getElementById('subcategory').value.trim() || null,
+            description: description || null,
+            voice_note_path,
+            photo_paths,
+            area,
+            urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
+            customer_lat: location ? location.lat : null,
+            customer_lng: location ? location.lng : null,
+          }),
+        });
+      }
+
+      const fundis = await apiFetch(`/fundi/search?category=${encodeURIComponent(currentJob.category)}&area=${encodeURIComponent(currentJob.area)}`);
       renderFundis(fundis);
       showStep('step2');
     } catch (err) {
-      errorEl.textContent = err.message;
-      errorEl.classList.remove('hidden');
+      fail(err.message || 'Something went wrong. Try again.');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Find a fundi';
@@ -260,8 +588,8 @@
       card.className = 'fundi-card w-full text-left border border-navy/15 rounded-xl p-4 flex items-center justify-between';
       card.innerHTML = `
         <div>
-          <p class="font-semibold text-[15px] text-navy">${f.profiles.full_name}</p>
-          <p class="text-[13px] text-navy/55 mt-0.5">${f.profiles.area} · ${f.years_experience} yrs experience</p>
+          <p class="font-semibold text-[15px] text-navy">${escapeHtml(f.profiles.full_name)}</p>
+          <p class="text-[13px] text-navy/55 mt-0.5">${escapeHtml(f.profiles.area)} · ${escapeHtml(f.years_experience)} yrs experience</p>
         </div>
         <span class="text-[12.5px] font-semibold text-orange">Select</span>
       `;
@@ -276,11 +604,17 @@
   }
 
   document.getElementById('toStep3').addEventListener('click', () => {
+    const extras = [];
+    if (currentJob.voice_note_path) extras.push('Voice note attached');
+    if (currentJob.photo_paths && currentJob.photo_paths.length) {
+      extras.push(`${currentJob.photo_paths.length} photo${currentJob.photo_paths.length === 1 ? '' : 's'} attached`);
+    }
     document.getElementById('jobSummary').innerHTML = `
-      <p><span class="text-navy font-semibold">${CATEGORY_LABELS[currentJob.category]}</span></p>
-      <p>${currentJob.description}</p>
-      <p>Fundi: <span class="text-navy font-semibold">${selectedFundi.profiles.full_name}</span></p>
-      <p>Area: ${currentJob.area}</p>
+      <p><span class="text-navy font-semibold">${escapeHtml(CATEGORY_LABELS[currentJob.category] || currentJob.category)}</span></p>
+      ${currentJob.description ? `<p>${escapeHtml(currentJob.description)}</p>` : ''}
+      ${extras.length ? `<p>${escapeHtml(extras.join(' · '))}</p>` : ''}
+      <p>Fundi: <span class="text-navy font-semibold">${escapeHtml(selectedFundi.profiles.full_name)}</span></p>
+      <p>Area: ${escapeHtml(currentJob.area)}</p>
     `;
     showStep('step3');
   });
@@ -319,12 +653,15 @@
   });
 
   (async function init() {
+    renderCategories();
     const session = await getSession();
     if (!session) {
       document.getElementById('signedOutNotice').hidden = false;
       return;
     }
     document.getElementById('flow').hidden = false;
+    tuneDriftSpeed();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(tuneDriftSpeed);
     document.querySelector('.pay-option').classList.add('border-orange', 'bg-orange-50');
   })();
 </script>

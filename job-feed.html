@@ -57,7 +57,7 @@
 
   <div id="notApplied" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
     <h1 class="font-display font-800 text-[1.4rem] text-navy">You're not registered as a fundi yet</h1>
-    <p class="mt-2 text-navy/60 text-[15px]">Apply to start seeing and accepting repair jobs.</p>
+    <p class="mt-2 text-navy/60 text-[15px]">Apply to start seeing and accepting jobs in your field.</p>
     <a href="apply.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Apply as a fundi</a>
   </div>
 
@@ -90,11 +90,9 @@
 
 <script src="assets/supabase-client.js"></script>
 <script src="assets/map.js"></script>
+<script src="assets/categories.js"></script>
+<script src="assets/job-media.js"></script>
 <script>
-  const CATEGORY_LABELS = {
-    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
-    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
-  };
   const STATUS_STYLES = {
     matched: 'bg-orange-50 text-orange-700', in_progress: 'bg-orange-50 text-orange-700',
     completed: 'bg-green-50 text-green-700', cancelled: 'bg-red-50 text-red-600',
@@ -105,10 +103,11 @@
     const div = document.createElement('div');
     div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
     div.innerHTML = `
-      <p class="font-display font-700 text-[15.5px] text-navy">${CATEGORY_LABELS[job.category] || job.category}</p>
-      <p class="text-[13.5px] text-navy/55 mt-0.5">${job.description}</p>
-      <p class="mt-2 text-[13px] text-navy/50">${job.area}${job.urgency === 'urgent' ? ' · Urgent' : ''}</p>
+      <p class="font-display font-700 text-[15.5px] text-navy">${escapeHtml(CATEGORY_LABELS[job.category] || job.category)}</p>
+      <p class="text-[13.5px] text-navy/55 mt-0.5">${escapeHtml(jobSummaryText(job))}</p>
+      <p class="mt-2 text-[13px] text-navy/50">${escapeHtml(job.area)}${job.urgency === 'urgent' ? ' · Urgent' : ''}</p>
     `;
+    renderJobMedia(div, job);
     return div;
   }
 
@@ -128,15 +127,17 @@
     div.innerHTML = `
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="font-display font-700 text-[15.5px] text-navy">${CATEGORY_LABELS[job.category] || job.category}</p>
-          <p class="text-[13.5px] text-navy/55 mt-0.5">${job.description}</p>
+          <p class="font-display font-700 text-[15.5px] text-navy">${escapeHtml(CATEGORY_LABELS[job.category] || job.category)}</p>
+          <p class="text-[13.5px] text-navy/55 mt-0.5">${escapeHtml(jobSummaryText(job))}</p>
         </div>
         <span class="status-pill shrink-0 ${STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60'}">${STATUS_LABELS[job.status] || job.status}</span>
       </div>
-      <p class="mt-2 text-[13px] text-navy/50">${job.area}</p>
+      <p class="mt-2 text-[13px] text-navy/50">${escapeHtml(job.area)}</p>
+      <div class="media-section"></div>
       <div class="location-section mt-3 hidden"></div>
       <div class="actions mt-3 flex gap-2"></div>
     `;
+    renderJobMedia(div.querySelector('.media-section'), job);
 
     if (job.status === 'matched' || job.status === 'in_progress') {
       const locationSection = div.querySelector('.location-section');
@@ -225,11 +226,22 @@
     return div;
   }
 
+  let activeTab = 'open';
+  let openCount = null;
+  let mineCount = null;
+
+  // Each tab's empty message only shows on its own tab, once that tab has loaded.
+  function syncEmptyStates() {
+    document.getElementById('emptyOpen').hidden = !(activeTab === 'open' && openCount === 0);
+    document.getElementById('emptyMine').hidden = !(activeTab === 'mine' && mineCount === 0);
+  }
+
   async function loadOpen() {
     const jobs = await apiFetch('/jobs/feed');
     const list = document.getElementById('tabOpen');
     list.innerHTML = '';
-    document.getElementById('emptyOpen').hidden = jobs.length !== 0;
+    openCount = jobs.length;
+    syncEmptyStates();
     jobs.forEach(job => list.appendChild(openJobCard(job)));
   }
 
@@ -238,7 +250,8 @@
     const jobs = await apiFetch('/jobs/mine?role=fundi');
     const list = document.getElementById('tabMine');
     list.innerHTML = '';
-    document.getElementById('emptyMine').hidden = jobs.length !== 0;
+    mineCount = jobs.length;
+    syncEmptyStates();
     jobs.forEach(job => list.appendChild(myJobCard(job)));
   }
 
@@ -248,8 +261,8 @@
       btn.setAttribute('aria-selected', 'true');
       document.getElementById('tabOpen').hidden = btn.dataset.tab !== 'open';
       document.getElementById('tabMine').hidden = btn.dataset.tab !== 'mine';
-      document.getElementById('emptyOpen').hidden = document.getElementById('emptyOpen').hidden || btn.dataset.tab !== 'open';
-      document.getElementById('emptyMine').hidden = document.getElementById('emptyMine').hidden || btn.dataset.tab !== 'mine';
+      activeTab = btn.dataset.tab;
+      syncEmptyStates();
     });
   });
 

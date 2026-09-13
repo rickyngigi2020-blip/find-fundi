@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Profile — Find Fundi</title>
+<title>Account settings — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +31,14 @@
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
   .role-tab { transition: background-color 160ms ease, color 160ms ease; }
   .role-tab[aria-selected="true"] { background: #041530; color: #fff; }
+  .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
+  .btn-quiet:hover { background: rgba(4,21,48,0.05); }
+  .btn-quiet:active { background: rgba(4,21,48,0.09); }
+  .avatar-btn { transition: transform 180ms cubic-bezier(.22,1,.36,1), background-color 160ms ease; }
+  .avatar-btn:hover { transform: scale(1.06); background: #E85A00; }
+  .avatar-btn:active { transform: scale(0.96); }
+  .avatar-btn:disabled { opacity: 0.6; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .avatar-btn { transition: none; } .avatar-btn:hover { transform: none; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -43,7 +51,7 @@
       <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
     </a>
     <nav class="flex items-center gap-5 text-[14px] font-semibold text-navy/70">
-      <a href="my-jobs.html" class="hover:text-navy">My jobs</a>
+      <a href="my-jobs.html" class="hover:text-navy">My activity</a>
       <a id="adminLink" href="admin.html" hidden class="text-orange hover:underline">Admin</a>
       <button id="logoutBtn" hidden class="hover:text-navy">Log out</button>
     </nav>
@@ -57,7 +65,24 @@
   </div>
 
   <div id="content" hidden class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
-    <h1 id="pageTitle" class="font-display font-800 text-[1.4rem] text-navy">Your profile</h1>
+    <h1 id="pageTitle" class="font-display font-800 text-[1.4rem] tracking-[-0.01em] text-navy">Account settings</h1>
+
+    <div id="avatarBlock" hidden class="mt-5 flex items-center gap-4">
+      <div class="relative shrink-0">
+        <div class="w-20 h-20 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center">
+          <img id="avatarImg" hidden alt="Your profile picture" class="w-full h-full object-cover" referrerpolicy="no-referrer">
+          <span id="avatarInitials" class="font-display font-700 text-[1.5rem]"></span>
+        </div>
+        <button type="button" id="avatarBtn" class="avatar-btn absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-orange text-white border-2 border-white flex items-center justify-center" aria-label="Change profile picture" title="Change profile picture">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg>
+        </button>
+      </div>
+      <div class="min-w-0">
+        <p id="avatarName" class="font-display font-700 text-[16px] text-navy truncate"></p>
+        <p id="avatarHint" class="text-[12.5px] text-navy/50">JPG, PNG or WebP, up to 5 MB</p>
+      </div>
+      <input id="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" tabindex="-1" aria-hidden="true">
+    </div>
     <p id="pageSubtitle" hidden class="mt-1.5 text-navy/60 text-[14.5px]">A couple more details to finish setting up your account.</p>
     <div id="fundiStatus" hidden class="mt-3 flex items-center gap-3"></div>
     <a id="applyLink" href="apply.html" hidden class="mt-3 inline-block text-orange font-semibold text-[13.5px] hover:underline">Apply as a fundi &rarr;</a>
@@ -85,6 +110,10 @@
           <option>South C</option><option>Embakasi</option><option>Kikuyu</option><option>Ruiru</option>
         </select>
       </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="street">Street or building <span class="font-normal text-navy/45">(optional)</span></label>
+        <input id="street" type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="e.g. Sarit Centre, 2nd floor">
+      </div>
 
       <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
       <p id="formSuccess" class="hidden text-[13.5px] text-green-700"></p>
@@ -93,6 +122,22 @@
         Save changes
       </button>
     </form>
+
+    <div id="emailSection" hidden class="mt-7 pt-6 border-t border-navy/10">
+      <p class="text-[13px] font-semibold text-navy/70 mb-1.5">Email</p>
+      <div class="flex items-center justify-between gap-3">
+        <span id="currentEmail" class="text-[15px] text-navy truncate"></span>
+        <button type="button" id="changeEmailBtn" hidden class="btn-quiet shrink-0 rounded-lg px-3 py-1.5 text-[13.5px] font-semibold text-navy border border-navy/15">Change email</button>
+      </div>
+      <p id="googleEmailNote" hidden class="mt-1 text-[12.5px] text-navy/50">You sign in with Google, so this email is managed by your Google account.</p>
+      <form id="emailForm" hidden class="mt-3 flex flex-col sm:flex-row gap-2">
+        <label for="newEmail" class="sr-only">New email address</label>
+        <input id="newEmail" type="email" required class="flex-1 rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="New email address">
+        <button type="submit" id="sendEmailBtn" class="btn-primary text-white font-semibold text-[14px] px-4 py-2.5 rounded-lg">Send confirmation link</button>
+        <button type="button" id="cancelEmailBtn" class="btn-quiet rounded-lg px-3 py-2.5 text-[14px] font-semibold text-navy/60">Cancel</button>
+      </form>
+      <p id="emailMsg" class="hidden mt-2 text-[13px]"></p>
+    </div>
   </div>
 </main>
 
@@ -133,12 +178,13 @@
     const isNewProfile = form.dataset.isNew === 'true';
 
     try {
-      await apiFetch('/profile', {
+      const saved = await apiFetch('/profile', {
         method: 'POST',
         body: JSON.stringify({
           full_name: document.getElementById('fullName').value.trim(),
           phone: document.getElementById('phone').value.trim(),
           area: document.getElementById('area').value,
+          street: document.getElementById('street').value.trim() || null,
           role: isNewProfile ? selectedRole : form.dataset.role,
         }),
       });
@@ -148,7 +194,9 @@
         window.location.href = next || (selectedRole === 'fundi' ? 'apply.html' : 'book.html');
         return;
       }
-      formSuccess.textContent = 'Saved.';
+      currentProfile = saved;
+      renderAvatar();
+      formSuccess.textContent = 'Changes saved.';
       formSuccess.classList.remove('hidden');
     } catch (err) {
       formError.textContent = err.message;
@@ -157,6 +205,125 @@
       submitBtn.disabled = false;
       submitBtn.textContent = 'Save changes';
     }
+  });
+
+  let currentProfile = null;
+  let currentSession = null;
+
+  function initialsFor(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  }
+
+  function renderAvatar() {
+    const meta = (currentSession && currentSession.user.user_metadata) || {};
+    const url = currentProfile.avatar_url || meta.avatar_url || meta.picture || '';
+    const img = document.getElementById('avatarImg');
+    const initials = document.getElementById('avatarInitials');
+    initials.textContent = initialsFor(currentProfile.full_name);
+    if (url) {
+      img.onerror = () => { img.hidden = true; initials.hidden = false; };
+      img.src = url;
+      img.hidden = false;
+      initials.hidden = true;
+    } else {
+      img.hidden = true;
+      initials.hidden = false;
+    }
+    document.getElementById('avatarName').textContent = currentProfile.full_name || '';
+  }
+
+  const avatarBtn = document.getElementById('avatarBtn');
+  const avatarInput = document.getElementById('avatarInput');
+  const avatarHint = document.getElementById('avatarHint');
+  avatarBtn.addEventListener('click', () => avatarInput.click());
+
+  function setAvatarHint(text, isError) {
+    avatarHint.textContent = text;
+    avatarHint.className = `text-[12.5px] ${isError ? 'text-red-600' : 'text-navy/50'}`;
+  }
+
+  avatarInput.addEventListener('change', async () => {
+    const file = avatarInput.files[0];
+    avatarInput.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setAvatarHint('Choose a JPG, PNG or WebP image.', true);
+    if (file.size > 5 * 1024 * 1024) return setAvatarHint('That image is over 5 MB. Choose a smaller one.', true);
+
+    avatarBtn.disabled = true;
+    setAvatarHint('Uploading…');
+    try {
+      const uid = currentSession.user.id;
+      const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.type];
+      const path = `${uid}/avatar-${Date.now()}.${ext}`;
+      const { error: uploadError } = await sb.storage.from('avatars').upload(path, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data } = sb.storage.from('avatars').getPublicUrl(path);
+
+      const previous = currentProfile.avatar_url;
+      currentProfile = await apiFetch('/profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: currentProfile.full_name,
+          phone: currentProfile.phone,
+          area: currentProfile.area,
+          street: currentProfile.street,
+          role: currentProfile.role,
+          avatar_url: data.publicUrl,
+        }),
+      });
+      renderAvatar();
+      setAvatarHint('Profile picture updated.');
+
+      // Tidy up the old file. Failure here doesn't affect the new picture.
+      const marker = '/object/public/avatars/';
+      if (previous && previous.includes(marker)) {
+        sb.storage.from('avatars').remove([previous.split(marker)[1]]).catch(() => {});
+      }
+    } catch (err) {
+      setAvatarHint(err.message || 'Upload failed. Try again.', true);
+    } finally {
+      avatarBtn.disabled = false;
+    }
+  });
+
+  const emailForm = document.getElementById('emailForm');
+  const emailMsg = document.getElementById('emailMsg');
+  const changeEmailBtn = document.getElementById('changeEmailBtn');
+
+  function showEmailMsg(text, isError) {
+    emailMsg.textContent = text;
+    emailMsg.className = `mt-2 text-[13px] ${isError ? 'text-red-600' : 'text-green-700'}`;
+  }
+
+  changeEmailBtn.addEventListener('click', () => {
+    emailForm.hidden = false;
+    changeEmailBtn.hidden = true;
+    emailMsg.className = 'hidden';
+    document.getElementById('newEmail').focus();
+  });
+
+  document.getElementById('cancelEmailBtn').addEventListener('click', () => {
+    emailForm.hidden = true;
+    changeEmailBtn.hidden = false;
+  });
+
+  emailForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newEmail = document.getElementById('newEmail').value.trim();
+    if (newEmail.toLowerCase() === (currentSession.user.email || '').toLowerCase()) {
+      return showEmailMsg('That is already your email.', true);
+    }
+    const btn = document.getElementById('sendEmailBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    const { error } = await sb.auth.updateUser({ email: newEmail });
+    btn.disabled = false;
+    btn.textContent = 'Send confirmation link';
+    if (error) return showEmailMsg(error.message, true);
+    emailForm.hidden = true;
+    changeEmailBtn.hidden = false;
+    showEmailMsg(`Confirmation link sent to ${newEmail}. Your email changes once you open it.`, false);
   });
 
   (async function init() {
@@ -199,10 +366,25 @@
 
     if (profile.is_admin) document.getElementById('adminLink').hidden = false;
 
+    currentProfile = profile;
+    currentSession = session;
+    renderAvatar();
+    document.getElementById('avatarBlock').hidden = false;
+
+    const providers = session.user.app_metadata.providers || [session.user.app_metadata.provider];
+    document.getElementById('currentEmail').textContent = session.user.email || '';
+    document.getElementById('emailSection').hidden = false;
+    if (providers.includes('email')) {
+      changeEmailBtn.hidden = false;
+    } else {
+      document.getElementById('googleEmailNote').hidden = false;
+    }
+
     form.dataset.role = profile.role;
     document.getElementById('fullName').value = profile.full_name || '';
     document.getElementById('phone').value = profile.phone || '';
     document.getElementById('area').value = profile.area || '';
+    document.getElementById('street').value = profile.street || '';
 
     if (profile.fundi_profile) {
       const el = document.getElementById('fundiStatus');

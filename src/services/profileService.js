@@ -1,11 +1,11 @@
 const { clientForUser } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 
-async function upsertProfile(accessToken, userId, { full_name, phone, role, area, street }) {
+async function upsertProfile(accessToken, userId, { full_name, phone, role, area, street, avatar_url }) {
   const supabase = clientForUser(accessToken);
   const { data, error } = await supabase
     .from('profiles')
-    .upsert({ id: userId, full_name, phone, role, area, street, updated_at: new Date().toISOString() })
+    .upsert({ id: userId, full_name, phone, role, area, street, avatar_url, updated_at: new Date().toISOString() })
     .select()
     .single();
   if (error) throw toApiError(error);

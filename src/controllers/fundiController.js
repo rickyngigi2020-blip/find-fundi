@@ -1,6 +1,6 @@
 const fundiService = require('../services/fundiService');
 
-const CATEGORIES = ['phone_electronics', 'computer_laptop', 'mechanical', 'appliance', 'electrical'];
+const CATEGORIES = ['phone_electronics', 'computer_laptop', 'appliance', 'mechanical', 'general_maintenance', 'installation'];
 
 async function apply(req, res, next) {
   try {

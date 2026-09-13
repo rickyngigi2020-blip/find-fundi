@@ -32,11 +32,22 @@ async function apiFetch(path, options = {}) {
   return body.data;
 }
 
-// verification-docs and job-photos are private buckets — this returns a
-// short-lived signed URL rather than a permanent public one.
+// Uploads into the user's own folder and returns the storage path (not a URL).
+// Filenames are sanitised because Storage rejects many characters in keys.
 async function uploadPrivateFile(bucket, userId, file) {
-  const path = `${userId}/${Date.now()}-${file.name}`;
-  const { error } = await sb.storage.from(bucket).upload(path, file);
+  const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
   if (error) throw error;
   return path;
+}
+
+// For any user-supplied text placed into innerHTML (descriptions, names, areas).
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

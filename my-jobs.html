@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Jobs — Find Fundi</title>
+<title>My activity — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +30,14 @@
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
   .star-btn { transition: color 120ms ease; }
   .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
+  .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
+  .btn-quiet:hover { background: rgba(4,21,48,0.05); }
+  .btn-quiet:active { background: rgba(4,21,48,0.09); }
+  .icon-link { transition: background-color 160ms ease, color 160ms ease; }
+  .icon-link svg { transition: transform 320ms cubic-bezier(.22,1,.36,1); }
+  .icon-link:hover svg { transform: rotate(45deg); }
+  .icon-link:active { background: rgba(4,21,48,0.09); }
+  @media (prefers-reduced-motion: reduce) { .icon-link svg { transition: none; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -41,21 +49,23 @@
       <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
       <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
     </a>
-    <nav class="flex items-center gap-5 text-[14px] font-semibold text-navy/70">
-      <a href="book.html" class="hover:text-navy">Book a fundi</a>
-      <a href="profile.html" class="hover:text-navy">Profile</a>
+    <nav class="flex items-center gap-1">
+      <a href="book.html" class="btn-quiet px-2.5 py-2 rounded-md text-[14px] font-semibold text-navy/70 hover:text-navy">Book a fundi</a>
+      <a href="profile.html" class="icon-link w-9 h-9 rounded-md flex items-center justify-center text-navy/60 hover:text-navy hover:bg-navy/5" aria-label="Account settings" title="Account settings">
+        <svg class="w-[19px] h-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </a>
     </nav>
   </div>
 </header>
 
 <main class="max-w-3xl mx-auto px-5 py-10">
   <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
-    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in to see your jobs</h1>
+    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in to see your activity</h1>
     <a href="login.html?next=my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
   </div>
 
   <div id="content" hidden>
-    <h1 class="font-display font-800 text-[1.6rem] text-navy">My Jobs</h1>
+    <h1 class="font-display font-800 text-[1.6rem] tracking-[-0.02em] text-navy">My activity</h1>
     <div id="jobList" class="mt-6 space-y-4"></div>
     <p id="emptyState" hidden class="mt-6 text-navy/60 text-[15px]">No jobs yet. <a href="book.html" class="text-orange font-semibold hover:underline">Book a fundi</a> to get started.</p>
   </div>
@@ -71,6 +81,7 @@
       <span class="status-pill shrink-0"></span>
     </div>
     <div class="mt-3 text-[13px] text-navy/50 area-urgency"></div>
+    <div class="media-section"></div>
     <div class="tracking-section mt-4 hidden"></div>
     <div class="review-section mt-4 hidden pt-4 border-t border-navy/10"></div>
   </div>
@@ -78,6 +89,8 @@
 
 <script src="assets/supabase-client.js"></script>
 <script src="assets/map.js"></script>
+<script src="assets/categories.js"></script>
+<script src="assets/job-media.js"></script>
 <script>
   const STATUS_STYLES = {
     requested: 'bg-gray-100 text-navy/60',
@@ -89,10 +102,6 @@
   const STATUS_LABELS = {
     requested: 'Finding a fundi', matched: 'Matched', in_progress: 'In progress',
     completed: 'Completed', cancelled: 'Cancelled',
-  };
-  const CATEGORY_LABELS = {
-    phone_electronics: 'Phone & Electronics', computer_laptop: 'Computer & Laptop',
-    appliance: 'Appliance', electrical: 'Electrical', mechanical: 'Mechanical',
   };
 
   async function setupTracking(job, mapId, waitingNote) {
@@ -124,7 +133,8 @@
   function renderJob(job) {
     const tpl = document.getElementById('jobCardTemplate').content.cloneNode(true);
     tpl.querySelector('.category').textContent = CATEGORY_LABELS[job.category] || job.category;
-    tpl.querySelector('.description').textContent = job.description;
+    tpl.querySelector('.description').textContent = jobSummaryText(job);
+    renderJobMedia(tpl.querySelector('.media-section'), job);
     const pill = tpl.querySelector('.status-pill');
     pill.textContent = STATUS_LABELS[job.status] || job.status;
     pill.className += ' ' + (STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60');

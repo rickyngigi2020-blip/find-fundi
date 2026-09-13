@@ -2,12 +2,30 @@ const jobService = require('../services/jobService');
 
 async function create(req, res, next) {
   try {
-    const { category, subcategory, description, photo_url, urgency, area, customer_lat, customer_lng } = req.body;
-    if (!category || !description || !area) {
-      return res.status(400).json({ error: { message: 'category, description, and area are required', code: 'invalid_request' } });
+    const { category, subcategory, urgency, area, customer_lat, customer_lng } = req.body;
+    const description = typeof req.body.description === 'string' && req.body.description.trim() ? req.body.description.trim() : null;
+    const voice_note_path = typeof req.body.voice_note_path === 'string' && req.body.voice_note_path ? req.body.voice_note_path : null;
+    const photo_paths = Array.isArray(req.body.photo_paths) ? req.body.photo_paths.filter((p) => typeof p === 'string' && p) : [];
+
+    if (!category || !area) {
+      return res.status(400).json({ error: { message: 'category and area are required', code: 'invalid_request' } });
     }
+    if (!description && !voice_note_path) {
+      return res.status(400).json({ error: { message: 'Describe the problem in writing or record a voice note', code: 'invalid_request' } });
+    }
+    if (photo_paths.length > 5) {
+      return res.status(400).json({ error: { message: 'You can attach up to 5 photos', code: 'invalid_request' } });
+    }
+
+    // Media must live in the caller's own storage folder; storage RLS enforces
+    // the upload, this stops a job pointing at someone else's files.
+    const ownPrefix = `${req.user.id}/`;
+    if ((voice_note_path && !voice_note_path.startsWith(ownPrefix)) || photo_paths.some((p) => !p.startsWith(ownPrefix))) {
+      return res.status(400).json({ error: { message: 'Attached media must be your own uploads', code: 'invalid_request' } });
+    }
+
     const job = await jobService.createJob(req.accessToken, req.user.id, {
-      category, subcategory, description, photo_url, urgency, area,
+      category, subcategory, description, urgency, area, voice_note_path, photo_paths,
       customer_lat: customer_lat ?? null, customer_lng: customer_lng ?? null,
     });
     res.json({ data: job });
