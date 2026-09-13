@@ -2,6 +2,15 @@ const SUPABASE_URL = 'https://imyvlogspyragdaagyar.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteXZsb2dzcHlyYWdkYWFneWFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTIwNzMsImV4cCI6MjEwNDYyODA3M30.yMU-nPDMhA9O7qrk1jfOIzq5DnRYLkFxbK15niJYrWo';
 const API_BASE = 'http://localhost:3001/api/v1';
 
+// When a Google sign-in fails, Supabase sends the user back with the reason in
+// the URL (query or #hash). Read it before the client can tidy the URL up.
+const AUTH_REDIRECT_ERROR = (() => {
+  const params = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const message = params.get('error_description') || hash.get('error_description');
+  return message ? message.replace(/\+/g, ' ') : null;
+})();
+
 // Named "sb", not "supabase" — the CDN script already declares a global
 // `supabase`, and redeclaring it crashes the whole page script.
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
