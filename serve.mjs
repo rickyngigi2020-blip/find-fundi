@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const assetsDir = path.join(root, 'assets');
 const port = 3000;
 
 const mime = {
@@ -18,14 +19,38 @@ const mime = {
   '.ico': 'image/x-icon',
 };
 
-http.createServer((req, res) => {
-  const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const relPath = urlPath === '/' ? '/index.html' : urlPath;
-  const filePath = path.join(root, relPath);
+// Only site pages and the assets folder are served. The project root also holds
+// .env (with the Supabase service-role key), source code and node_modules, none
+// of which may ever be reachable over HTTP.
+function resolvePublicFile(urlPath) {
+  if (urlPath === '/') return path.join(root, 'index.html');
 
-  if (!filePath.startsWith(root)) {
-    res.writeHead(403);
-    res.end('Forbidden');
+  const page = urlPath.match(/^\/([a-z0-9-]+)\.html$/);
+  if (page) return path.join(root, `${page[1]}.html`);
+
+  if (urlPath.startsWith('/assets/')) {
+    const segments = urlPath.slice('/assets/'.length).split('/');
+    if (segments.some((s) => !s || s.startsWith('.'))) return null;
+    const filePath = path.join(assetsDir, ...segments);
+    return filePath.startsWith(assetsDir + path.sep) ? filePath : null;
+  }
+  return null;
+}
+
+http.createServer((req, res) => {
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(req.url.split('?')[0]);
+  } catch {
+    res.writeHead(400);
+    res.end('Bad request');
+    return;
+  }
+
+  const filePath = resolvePublicFile(urlPath);
+  if (!filePath) {
+    res.writeHead(404);
+    res.end('Not found');
     return;
   }
 
@@ -40,6 +65,7 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
     res.end(data);
   });
-}).listen(port, () => {
+// Bound to this computer only, so nothing on the local network can reach it.
+}).listen(port, '127.0.0.1', () => {
   console.log(`Serving "${root}" at http://localhost:${port}`);
 });

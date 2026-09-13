@@ -1,6 +1,10 @@
 const SUPABASE_URL = 'https://imyvlogspyragdaagyar.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteXZsb2dzcHlyYWdkYWFneWFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTIwNzMsImV4cCI6MjEwNDYyODA3M30.yMU-nPDMhA9O7qrk1jfOIzq5DnRYLkFxbK15niJYrWo';
-const API_BASE = 'http://localhost:3001/api/v1';
+// Pages from serve.mjs (localhost:3000) call the API on port 3001. Pages served
+// by the API itself, such as through the phone tunnel, use their own origin.
+const API_BASE = window.location.port === '3000'
+  ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
+  : '/api/v1';
 
 // When a Google sign-in fails, Supabase sends the user back with the reason in
 // the URL (query or #hash). Read it before the client can tidy the URL up.
