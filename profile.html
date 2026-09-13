@@ -99,7 +99,10 @@
 <script src="assets/supabase-client.js"></script>
 <script>
   document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await sb.auth.signOut();
+    const { error } = await sb.auth.signOut();
+    // A failed server call leaves the session in the browser — drop it locally
+    // so "Log out" always actually logs this device out.
+    if (error) await sb.auth.signOut({ scope: 'local' });
     window.location.href = 'index.html';
   });
 

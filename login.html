@@ -87,7 +87,13 @@
 
   document.getElementById('googleBtn').addEventListener('click', async () => {
     const redirectTo = `${window.location.origin}/profile.html${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''}`;
-    await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+    // prompt=select_account makes Google show its account picker every time.
+    // Without it, Google silently reuses whichever account the browser is
+    // signed in to, so logging out of Find Fundi can't switch accounts.
+    await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo, queryParams: { prompt: 'select_account' } },
+    });
   });
 
   const form = document.getElementById('loginForm');

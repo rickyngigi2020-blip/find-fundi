@@ -136,7 +136,11 @@
   document.getElementById('googleBtn').addEventListener('click', async () => {
     await sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/profile.html?role=${role}` },
+      options: {
+        redirectTo: `${window.location.origin}/profile.html?role=${role}`,
+        // Always show Google's account picker (see login.html).
+        queryParams: { prompt: 'select_account' },
+      },
     });
   });
 
