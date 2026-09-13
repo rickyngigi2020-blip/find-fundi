@@ -84,6 +84,8 @@
   .photo-tile:hover { border-color: #FE6902; color: #FE6902; background: #FFF1E6; }
   .photo-tile:active { background: #FFE0C7; }
   .thumb-remove { transition: background-color 160ms ease; }
+  .photo-drop { transition: border-color 160ms ease, background-color 160ms ease; }
+  .photo-drop.is-dragging { border-color: #FE6902; background: #FFF1E6; }
   .thumb-remove:hover { background: #041530; }
 
   @media (prefers-reduced-motion: reduce) {
@@ -168,7 +170,7 @@
           </div>
 
           <div id="voiceDone" hidden class="space-y-2">
-            <audio id="voicePlayback" controls class="w-full h-10"></audio>
+            <div id="voicePlayerSlot"></div>
             <div class="flex items-center justify-between">
               <span id="voiceLength" class="text-[12px] text-navy/50"></span>
               <span class="flex items-center gap-1">
@@ -181,9 +183,9 @@
         <p id="voiceError" class="hidden mt-1.5 text-[12.5px] text-red-600" role="alert"></p>
       </div>
 
-      <div class="mt-6">
+      <div id="photoDropZone" class="photo-drop mt-6 -mx-2 rounded-xl border-2 border-dashed border-transparent p-2">
         <p class="text-[13px] font-semibold text-navy/70">Photos <span class="font-normal text-navy/45">(optional)</span></p>
-        <p class="mt-0.5 mb-2.5 text-[12.5px] text-navy/50">Up to 5. A clear photo helps the fundi understand the job before arriving.</p>
+        <p class="mt-0.5 mb-2.5 text-[12.5px] text-navy/50">Up to 5. Drag photos here or tap Add photo. A clear photo helps the fundi understand the job.</p>
         <div id="photoGrid" class="flex flex-wrap gap-2">
           <button type="button" id="addPhotoBtn" class="photo-tile w-20 h-20 rounded-lg border border-dashed border-navy/25 flex flex-col items-center justify-center gap-1 text-navy/50">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg>
@@ -192,6 +194,7 @@
         </div>
         <input id="photoInput" type="file" accept="image/*" multiple class="sr-only" tabindex="-1" aria-hidden="true">
         <p id="photoError" class="hidden mt-1.5 text-[12.5px] text-red-600" role="alert"></p>
+        <p id="dropHint" hidden class="mt-2 text-[13px] font-semibold text-orange">Drop to add photos</p>
       </div>
 
       <div class="mt-6">
@@ -237,27 +240,19 @@
       <h1 class="font-display font-800 text-[1.4rem] text-navy">Confirm your booking</h1>
       <div id="jobSummary" class="mt-4 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
 
-      <div class="mt-5">
-        <p class="text-[13px] font-semibold text-navy/70 mb-2">Payment method</p>
-        <div class="grid grid-cols-3 gap-2.5">
-          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
-            <input type="radio" name="payment" value="mpesa" class="sr-only" checked> M-Pesa
-          </label>
-          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
-            <input type="radio" name="payment" value="card" class="sr-only"> Card
-          </label>
-          <label class="pay-option border border-navy/15 rounded-lg py-2.5 text-center text-[13.5px] font-semibold cursor-pointer">
-            <input type="radio" name="payment" value="cash" class="sr-only"> Cash
-          </label>
-        </div>
+      <div class="mt-5 rounded-xl border border-navy/10 p-4">
+        <p class="text-[13.5px] font-semibold text-navy">What happens next</p>
+        <ol class="mt-2.5 space-y-2 text-[13.5px] text-navy/65 leading-[1.55]">
+          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">1</span><span id="nextStepCall">Your fundi calls you to understand the job.</span></li>
+          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">2</span><span>They send you a price in My activity.</span></li>
+          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">3</span><span>You accept it and choose how to pay. Nothing is agreed until you do.</span></li>
+        </ol>
       </div>
-
-      <p class="mt-5 text-[13px] text-navy/50 leading-[1.6]">Confirming creates your booking. Payment isn't charged yet: final cost and payment collection happen once the fundi assesses the job on-site.</p>
 
       <p id="step3Error" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
 
       <button id="confirmBtn" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-        Confirm Booking
+        Confirm booking
       </button>
     </section>
 
@@ -267,7 +262,7 @@
         <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
       </div>
       <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
-      <p class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi has been notified. Payment is pending until the job is assessed. Track progress from My activity.</p>
+      <p id="doneMessage" class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi will call you to discuss the job, then send you a price to accept in My activity.</p>
       <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My activity</a>
     </section>
   </div>
@@ -275,6 +270,7 @@
 
 <script src="assets/supabase-client.js"></script>
 <script src="assets/categories.js"></script>
+<script src="assets/job-media.js"></script>
 <script>
   let selectedCategory = null;
   let selectedFundi = null;
@@ -292,7 +288,7 @@
     CATEGORY_GROUPS.forEach((group) => {
       const section = document.createElement('div');
       const heading = document.createElement('p');
-      heading.className = 'font-display font-700 text-[11px] uppercase tracking-[0.08em] text-navy/45 mb-2';
+      heading.className = 'font-display font-bold text-[13px] uppercase tracking-[0.06em] text-navy mb-2.5';
       heading.textContent = group.label;
       const grid = document.createElement('div');
       grid.className = 'grid grid-cols-2 gap-2.5';
@@ -350,7 +346,7 @@
   let recordTimer = null;
   let cancelRecording = false;
   let voiceBlob = null;
-  let voiceUrl = null;
+  let voicePlayer = null;
 
   function setVoiceState(state) {
     document.getElementById('voiceIdle').hidden = state !== 'idle';
@@ -375,6 +371,7 @@
 
   async function startRecording() {
     showVoiceError('');
+    if (voicePlayer) voicePlayer.pause();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
       showVoiceError("Voice notes aren't supported in this browser. Type what you need instead.");
       return;
@@ -403,9 +400,9 @@
       }
       clearVoice();
       voiceBlob = new Blob(recordChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-      voiceUrl = URL.createObjectURL(voiceBlob);
-      document.getElementById('voicePlayback').src = voiceUrl;
-      document.getElementById('voiceLength').textContent = `Voice note, ${formatSeconds(seconds)}`;
+      voicePlayer = createVoicePlayer(voiceBlob);
+      document.getElementById('voicePlayerSlot').replaceChildren(voicePlayer.element);
+      document.getElementById('voiceLength').textContent = `Recorded ${formatSeconds(seconds)}`;
       setVoiceState('done');
     };
 
@@ -421,10 +418,10 @@
   }
 
   function clearVoice() {
-    if (voiceUrl) URL.revokeObjectURL(voiceUrl);
+    if (voicePlayer) voicePlayer.destroy();
+    voicePlayer = null;
     voiceBlob = null;
-    voiceUrl = null;
-    document.getElementById('voicePlayback').removeAttribute('src');
+    document.getElementById('voicePlayerSlot').replaceChildren();
   }
 
   function isRecording() { return mediaRecorder && mediaRecorder.state === 'recording'; }
@@ -458,21 +455,65 @@
 
   addPhotoBtn.addEventListener('click', () => photoInput.click());
 
-  photoInput.addEventListener('change', () => {
+  function addPhotoFiles(fileList) {
     photoError.classList.add('hidden');
     const problems = [];
-    Array.from(photoInput.files).forEach((file) => {
+    Array.from(fileList).forEach((file) => {
       if (photos.length >= MAX_PHOTOS) { problems.push(`You can add up to ${MAX_PHOTOS} photos.`); return; }
       if (!file.type.startsWith('image/')) { problems.push(`${file.name} isn't an image.`); return; }
       if (file.size > MAX_PHOTO_BYTES) { problems.push(`${file.name} is over 10 MB.`); return; }
       photos.push({ file, url: URL.createObjectURL(file) });
     });
-    photoInput.value = '';
     if (problems.length) {
       photoError.textContent = [...new Set(problems)].join(' ');
       photoError.classList.remove('hidden');
     }
     renderPhotos();
+  }
+
+  photoInput.addEventListener('change', () => {
+    addPhotoFiles(photoInput.files);
+    photoInput.value = '';
+  });
+
+  // Photos can be dropped anywhere on the describe step. Dropping elsewhere on
+  // the page is swallowed, otherwise the browser would open the image and the
+  // half-filled form would be lost.
+  const dropZone = document.getElementById('photoDropZone');
+  const dropHint = document.getElementById('dropHint');
+  let dragDepth = 0;
+  const draggingFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+  const setDragging = (on) => {
+    dropZone.classList.toggle('is-dragging', on);
+    dropHint.hidden = !on;
+  };
+
+  window.addEventListener('dragover', (e) => { if (draggingFiles(e)) e.preventDefault(); });
+  window.addEventListener('drop', (e) => { if (draggingFiles(e)) e.preventDefault(); });
+
+  const step1 = document.getElementById('step1');
+  step1.addEventListener('dragenter', (e) => {
+    if (!draggingFiles(e)) return;
+    e.preventDefault();
+    dragDepth += 1;
+    setDragging(true);
+  });
+  step1.addEventListener('dragover', (e) => {
+    if (!draggingFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  step1.addEventListener('dragleave', (e) => {
+    if (!draggingFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) setDragging(false);
+  });
+  step1.addEventListener('drop', (e) => {
+    if (!draggingFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    setDragging(false);
+    addPhotoFiles(e.dataTransfer.files);
   });
 
   function renderPhotos() {
@@ -616,6 +657,7 @@
       <p>Fundi: <span class="text-navy font-semibold">${escapeHtml(selectedFundi.profiles.full_name)}</span></p>
       <p>Area: ${escapeHtml(currentJob.area)}</p>
     `;
+    document.getElementById('nextStepCall').textContent = `${selectedFundi.profiles.full_name} calls you to understand the job.`;
     showStep('step3');
   });
 
@@ -631,25 +673,15 @@
         method: 'POST',
         body: JSON.stringify({ fundi_id: selectedFundi.id }),
       });
-      const payment_method = document.querySelector('input[name="payment"]:checked').value;
-      await apiFetch(`/jobs/${currentJob.id}/confirm`, {
-        method: 'POST',
-        body: JSON.stringify({ payment_method }),
-      });
+      document.getElementById('doneMessage').textContent =
+        `${selectedFundi.profiles.full_name} will call you to discuss the job, then send you a price to accept in My activity.`;
       showStep('stepDone');
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = 'Confirm Booking';
+      btn.textContent = 'Confirm booking';
     }
-  });
-
-  document.querySelectorAll('input[name="payment"]').forEach(input => {
-    input.addEventListener('change', () => {
-      document.querySelectorAll('.pay-option').forEach(l => l.classList.remove('border-orange', 'bg-orange-50'));
-      input.closest('.pay-option').classList.add('border-orange', 'bg-orange-50');
-    });
   });
 
   (async function init() {
@@ -662,7 +694,6 @@
     document.getElementById('flow').hidden = false;
     tuneDriftSpeed();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(tuneDriftSpeed);
-    document.querySelector('.pay-option').classList.add('border-orange', 'bg-orange-50');
   })();
 </script>
 </body>

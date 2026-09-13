@@ -24,7 +24,7 @@ async function create(req, res, next) {
       return res.status(400).json({ error: { message: 'Attached media must be your own uploads', code: 'invalid_request' } });
     }
 
-    const job = await jobService.createJob(req.accessToken, req.user.id, {
+    const job = await jobService.createJob(req.user.id, {
       category, subcategory, description, urgency, area, voice_note_path, photo_paths,
       customer_lat: customer_lat ?? null, customer_lng: customer_lng ?? null,
     });
@@ -59,22 +59,34 @@ async function match(req, res, next) {
     if (!fundi_id) {
       return res.status(400).json({ error: { message: 'fundi_id is required', code: 'invalid_request' } });
     }
-    const job = await jobService.matchFundi(req.accessToken, req.params.id, req.user.id, fundi_id);
+    const job = await jobService.matchFundi(req.params.id, req.user.id, fundi_id);
     res.json({ data: job });
   } catch (err) {
     next(err);
   }
 }
 
-async function confirm(req, res, next) {
+async function quote(req, res, next) {
   try {
-    const { payment_method, estimated_cost_min, estimated_cost_max } = req.body;
-    if (!payment_method || !['mpesa', 'card', 'cash'].includes(payment_method)) {
-      return res.status(400).json({ error: { message: 'payment_method must be mpesa, card, or cash', code: 'invalid_request' } });
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+      return res.status(400).json({ error: { message: 'Enter the agreed price in whole shillings', code: 'invalid_request' } });
     }
-    const job = await jobService.confirmBooking(req.accessToken, req.params.id, req.user.id, {
-      payment_method, estimated_cost_min, estimated_cost_max,
-    });
+    const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim().slice(0, 500) : null;
+    const job = await jobService.sendQuote(req.params.id, req.user.id, { amount, note });
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function acceptQuote(req, res, next) {
+  try {
+    const { payment_method, quoted_at } = req.body;
+    if (!['mpesa', 'card', 'cash'].includes(payment_method)) {
+      return res.status(400).json({ error: { message: 'Choose how you will pay: M-Pesa, card, or cash', code: 'invalid_request' } });
+    }
+    const job = await jobService.acceptQuote(req.params.id, req.user.id, { payment_method, quoted_at });
     res.json({ data: job });
   } catch (err) {
     next(err);
@@ -83,8 +95,7 @@ async function confirm(req, res, next) {
 
 async function complete(req, res, next) {
   try {
-    const { final_cost } = req.body;
-    const job = await jobService.completeJob(req.accessToken, req.params.id, req.user.id, { final_cost });
+    const job = await jobService.completeJob(req.params.id, req.user.id);
     res.json({ data: job });
   } catch (err) {
     next(err);
@@ -104,4 +115,4 @@ async function review(req, res, next) {
   }
 }
 
-module.exports = { create, mine, feed, match, confirm, complete, review };
+module.exports = { create, mine, feed, match, quote, acceptQuote, complete, review };

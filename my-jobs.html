@@ -30,6 +30,10 @@
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
   .star-btn { transition: color 120ms ease; }
   .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
+  .pay-choice { transition: border-color 160ms ease, background-color 160ms ease; }
+  .pay-choice:hover { border-color: rgba(4,21,48,0.3); }
+  .pay-choice:has(input:checked) { border-color: #FE6902; background: #FFF1E6; }
+  .pay-choice:has(input:focus-visible) { outline: 2px solid #FE6902; outline-offset: 2px; }
   .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
   .btn-quiet:hover { background: rgba(4,21,48,0.05); }
   .btn-quiet:active { background: rgba(4,21,48,0.09); }
@@ -82,6 +86,8 @@
     </div>
     <div class="mt-3 text-[13px] text-navy/50 area-urgency"></div>
     <div class="media-section"></div>
+    <div class="contact-section"></div>
+    <div class="quote-section"></div>
     <div class="tracking-section mt-4 hidden"></div>
     <div class="review-section mt-4 hidden pt-4 border-t border-navy/10"></div>
   </div>
@@ -100,9 +106,110 @@
     cancelled: 'bg-red-50 text-red-600',
   };
   const STATUS_LABELS = {
-    requested: 'Finding a fundi', matched: 'Matched', in_progress: 'In progress',
+    requested: 'Finding a fundi', matched: 'Booked', in_progress: 'Price agreed',
     completed: 'Completed', cancelled: 'Cancelled',
   };
+
+  function statusLabel(job) {
+    if (job.status === 'matched' && job.quote_amount) return 'Price to review';
+    return STATUS_LABELS[job.status] || job.status;
+  }
+
+  // Price agreement: the fundi sends a quote after calling, the customer accepts
+  // it here and picks how they'll pay. Re-renders itself after each change.
+  function renderQuoteSection(section, job, pill) {
+    section.replaceChildren();
+    pill.textContent = statusLabel(job);
+    pill.className = 'status-pill shrink-0 ' + (STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60');
+    if (!job.fundi_id) return;
+
+    const fundiName = (job.counterpart && job.counterpart.full_name) || 'Your fundi';
+    const box = document.createElement('div');
+    box.className = 'mt-3 rounded-xl border px-4 py-3';
+
+    if (job.status === 'matched' && !job.quote_amount) {
+      box.classList.add('border-navy/10');
+      const p = document.createElement('p');
+      p.className = 'text-[13.5px] text-navy/65 leading-[1.55]';
+      p.textContent = `Waiting for a price. ${fundiName} will call you to understand the job, then send the price here.`;
+      box.appendChild(p);
+      section.appendChild(box);
+      return;
+    }
+
+    if (job.status === 'matched' && job.quote_amount) {
+      box.classList.add('border-orange/40', 'bg-orange-50/60');
+      box.innerHTML = `
+        <p class="text-[12px] font-semibold uppercase tracking-wide text-navy/50">Price from <span class="q-name"></span></p>
+        <p class="mt-0.5 font-display font-800 text-[1.6rem] tracking-[-0.02em] text-navy q-amount"></p>
+        <p class="q-note mt-1 text-[13.5px] text-navy/70 leading-[1.55] whitespace-pre-line"></p>
+        <fieldset class="mt-3">
+          <legend class="text-[13px] font-semibold text-navy/70 mb-2">How will you pay?</legend>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="pay-choice cursor-pointer rounded-lg border border-navy/15 bg-white py-2.5 text-center text-[13.5px] font-semibold text-navy"><input type="radio" name="pay-${job.id}" value="mpesa" class="sr-only">M-Pesa</label>
+            <label class="pay-choice cursor-pointer rounded-lg border border-navy/15 bg-white py-2.5 text-center text-[13.5px] font-semibold text-navy"><input type="radio" name="pay-${job.id}" value="card" class="sr-only">Card</label>
+            <label class="pay-choice cursor-pointer rounded-lg border border-navy/15 bg-white py-2.5 text-center text-[13.5px] font-semibold text-navy"><input type="radio" name="pay-${job.id}" value="cash" class="sr-only">Cash</label>
+          </div>
+        </fieldset>
+        <p class="q-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+        <button type="button" class="q-accept btn-primary mt-3 w-full text-white font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Accept price</button>
+        <p class="mt-2 text-[12.5px] text-navy/50 leading-[1.5]">Not right? Call your fundi to talk it through. They can send a new price before you accept.</p>
+      `;
+      box.querySelector('.q-name').textContent = fundiName;
+      box.querySelector('.q-amount').textContent = formatKsh(job.quote_amount);
+      const note = box.querySelector('.q-note');
+      if (job.quote_note) note.textContent = job.quote_note; else note.remove();
+
+      const errorEl = box.querySelector('.q-error');
+      const btn = box.querySelector('.q-accept');
+      btn.addEventListener('click', async () => {
+        errorEl.classList.add('hidden');
+        const chosen = box.querySelector(`input[name="pay-${job.id}"]:checked`);
+        if (!chosen) {
+          errorEl.textContent = 'Choose how you will pay first.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Accepting…';
+        try {
+          const updated = await apiFetch(`/jobs/${job.id}/accept-quote`, {
+            method: 'POST',
+            body: JSON.stringify({ payment_method: chosen.value, quoted_at: job.quoted_at }),
+          });
+          renderQuoteSection(section, { ...updated, counterpart: job.counterpart }, pill);
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Accept price';
+          if (/changed the price/i.test(err.message)) {
+            const fresh = (await apiFetch('/jobs/mine?role=customer')).find((j) => j.id === job.id);
+            if (fresh) {
+              renderQuoteSection(section, fresh, pill);
+              const again = section.querySelector('.q-error');
+              if (again) { again.textContent = err.message; again.classList.remove('hidden'); }
+            }
+          }
+        }
+      });
+      section.appendChild(box);
+      return;
+    }
+
+    if (job.final_cost) {
+      box.classList.add('border-navy/10');
+      const label = job.status === 'completed' ? 'Final price' : 'Agreed price';
+      const p = document.createElement('p');
+      p.className = 'text-[13.5px] text-navy/70';
+      p.innerHTML = '<span class="font-semibold text-navy q-label"></span> <span class="q-amount font-semibold text-navy"></span><span class="q-pay"></span>';
+      p.querySelector('.q-label').textContent = `${label}:`;
+      p.querySelector('.q-amount').textContent = formatKsh(job.final_cost);
+      p.querySelector('.q-pay').textContent = job.payment_method ? ` · Paying by ${PAYMENT_LABELS[job.payment_method]}` : '';
+      box.appendChild(p);
+      section.appendChild(box);
+    }
+  }
 
   async function setupTracking(job, mapId, waitingNote) {
     const points = [];
@@ -136,9 +243,12 @@
     tpl.querySelector('.description').textContent = jobSummaryText(job);
     renderJobMedia(tpl.querySelector('.media-section'), job);
     const pill = tpl.querySelector('.status-pill');
-    pill.textContent = STATUS_LABELS[job.status] || job.status;
-    pill.className += ' ' + (STATUS_STYLES[job.status] || 'bg-gray-100 text-navy/60');
-    tpl.querySelector('.area-urgency').textContent = `${job.area}${job.urgency === 'urgent' ? ' · Urgent' : ''} · Payment ${job.payment_status}`;
+    tpl.querySelector('.area-urgency').textContent =
+      [job.subcategory, job.area, job.urgency === 'urgent' ? 'Urgent' : null].filter(Boolean).join(' · ');
+    if (job.counterpart) {
+      tpl.querySelector('.contact-section').appendChild(renderContactCard(job.counterpart, 'Your fundi'));
+    }
+    renderQuoteSection(tpl.querySelector('.quote-section'), job, pill);
 
     if (job.status === 'matched' || job.status === 'in_progress') {
       const trackingSection = tpl.querySelector('.tracking-section');

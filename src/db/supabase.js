@@ -9,8 +9,9 @@ if (!supabaseUrl || !anonKey || !serviceRoleKey) {
   throw new Error('Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY in .env');
 }
 
-// Full-privilege client — bypasses Row Level Security. Only for operations
-// that must cross user boundaries (none needed yet, kept for future admin use).
+// Full-privilege client that bypasses Row Level Security. Used only after the
+// service layer has checked who the caller is and what they may change (job
+// writes, admin actions, sharing a counterpart's contact details).
 const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
 // Per-request client scoped to the calling user's own JWT, so every query
