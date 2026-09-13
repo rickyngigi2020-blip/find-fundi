@@ -629,7 +629,7 @@
       card.className = 'fundi-card w-full text-left border border-navy/15 rounded-xl p-4 flex items-center justify-between';
       card.innerHTML = `
         <div>
-          <p class="font-semibold text-[15px] text-navy">${escapeHtml(f.profiles.full_name)}</p>
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-[15px] text-navy">${escapeHtml(f.profiles.full_name)}${f.available_now ? '<span class="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600"><span class="w-1.5 h-1.5 rounded-sm bg-orange"></span>Available now</span>' : ''}</p>
           <p class="text-[13px] text-navy/55 mt-0.5">${escapeHtml(f.profiles.area)} · ${escapeHtml(f.years_experience)} yrs experience</p>
         </div>
         <span class="text-[12.5px] font-semibold text-orange">Select</span>

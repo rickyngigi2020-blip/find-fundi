@@ -1,6 +1,11 @@
 // Fill this in with your restricted (HTTP-referrer-locked) Google Maps API key.
 const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
 
+// False until a real key is filled in above, so pages can skip the map.
+function hasMapsKey() {
+  return Boolean(GOOGLE_MAPS_API_KEY) && GOOGLE_MAPS_API_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY';
+}
+
 let _mapsLoadPromise = null;
 function loadGoogleMaps() {
   if (window.google && window.google.maps) return Promise.resolve();

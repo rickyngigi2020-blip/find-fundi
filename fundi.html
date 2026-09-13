@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Your work | Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 600: '#E85A00' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  :root {
+    --spring: cubic-bezier(.22,1,.36,1);
+    --nav-h: 64px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  body { -webkit-font-smoothing: antialiased; background: #F3F4F7; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+
+  /* ---- buttons (shared look with the rest of the site) ---- */
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms var(--spring), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  .btn-outline { transition: background-color 160ms ease, transform 160ms var(--spring); }
+  .btn-outline:hover { background: rgba(4,21,48,0.05); }
+  .btn-outline:active { transform: scale(0.98); background: rgba(4,21,48,0.09); }
+  .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
+
+  /* ---- depth: base (page) → elevated (cards) → floating (dock, nav) ---- */
+  .surface { background: #fff; border: 1px solid rgba(4,21,48,0.08); border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(4,21,48,0.04), 0 8px 24px -16px rgba(4,21,48,0.18); }
+
+  /* ---- earnings strip ---- */
+  .metric-card {
+    position: relative; overflow: hidden; border-radius: 18px; color: #fff;
+    background:
+      radial-gradient(38% 60% at 100% 0%, rgba(254,105,2,0.26) 0%, rgba(254,105,2,0) 100%),
+      radial-gradient(80% 90% at 0% 100%, rgba(21,49,92,0.85) 0%, rgba(21,49,92,0) 70%),
+      linear-gradient(180deg, #0A1F40 0%, #041530 100%);
+    box-shadow: 0 2px 4px rgba(4,21,48,0.10), 0 22px 40px -22px rgba(4,21,48,0.55);
+  }
+  .metric-card::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.10; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .metric-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .metric-track::-webkit-scrollbar { display: none; }
+  .metric-slide { flex: 0 0 100%; scroll-snap-align: start; padding: 18px 20px 14px; }
+  .metric-dot { width: 18px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.28);
+    transition: background-color 200ms ease, transform 200ms var(--spring); }
+  .metric-dot-btn { padding: 10px 3px; }
+  .metric-dot-btn:hover .metric-dot { background: rgba(255,255,255,0.55); }
+  .metric-dot-btn:active .metric-dot { transform: scaleX(0.8); }
+  .metric-dot-btn[aria-current="true"] .metric-dot { background: #FE6902; }
+  /* From md up there is room for all four figures side by side. */
+  @media (min-width: 768px) {
+    .metric-track { overflow: visible; }
+    .metric-slide { flex: 1 1 0; padding: 20px 22px 22px; }
+    .metric-slide + .metric-slide { border-left: 1px solid rgba(255,255,255,0.09); }
+    .metric-slide .m-value { font-size: 1.55rem; white-space: nowrap; }
+    .metric-card .metric-controls { display: none; }
+  }
+  .m-cur { font-size: 0.5em; font-weight: 700; letter-spacing: 0; margin-right: 0.3em; color: rgba(255,255,255,0.6); vertical-align: 0.4em; }
+  .metric-arrow { transition: background-color 160ms ease, transform 160ms var(--spring); }
+  .metric-arrow:hover { background: rgba(255,255,255,0.12); }
+  .metric-arrow:active { transform: scale(0.92); }
+
+  /* ---- demand bars ---- */
+  .demand-bar { height: 8px; border-radius: 3px; background: #FE6902; transform-origin: left center;
+    transform: scaleX(var(--w, 0)); transition: transform 700ms var(--spring); }
+  .demand-bar.is-empty { background: rgba(4,21,48,0.12); }
+  .demand-rows:not(.ready) .demand-bar { transform: scaleX(0); }
+
+  /* ---- go dock ---- */
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + var(--safe-b)); z-index: 30;
+    padding: 10px 16px 12px; pointer-events: none;
+  }
+  .dock-inner { pointer-events: auto; max-width: 42rem; margin: 0 auto; position: relative; }
+  .dock-state { transition: opacity 220ms ease, transform 320ms var(--spring); }
+  .dock-state[aria-hidden="true"] { opacity: 0; transform: translateY(8px); pointer-events: none; position: absolute; inset: 0; }
+  .go-btn { box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 16px 30px -10px rgba(254,105,2,0.55), 0 4px 10px -4px rgba(4,21,48,0.25); }
+  .online-panel { background: #041530; box-shadow: 0 18px 36px -14px rgba(4,21,48,0.6), 0 3px 8px -3px rgba(4,21,48,0.3); }
+  .offline-btn { transition: background-color 160ms ease, transform 160ms var(--spring); }
+  .offline-btn:hover { background: rgba(255,255,255,0.14); }
+  .offline-btn:active { transform: scale(0.97); }
+  .offline-btn:disabled { opacity: 0.55; pointer-events: none; }
+  .live-dot { position: relative; width: 10px; height: 10px; }
+  .live-dot::before, .live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 9999px; background: #FE6902; }
+  .live-dot::after { animation: ping 1.8s var(--spring) infinite; }
+  @keyframes ping { from { transform: scale(1); opacity: 0.7; } to { transform: scale(2.6); opacity: 0; } }
+
+  /* ---- navigation: bottom bar on phones, side rail from md ---- */
+  .app-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: calc(var(--nav-h) + var(--safe-b));
+    padding-bottom: var(--safe-b); background: rgba(255,255,255,0.96); border-top: 1px solid rgba(4,21,48,0.08);
+    display: flex; justify-content: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .nav-item { flex: 1; max-width: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font-size: 12px; font-weight: 600; color: rgba(4,21,48,0.5); transition: color 160ms ease, background-color 160ms ease; }
+  .nav-item svg { transition: transform 220ms var(--spring); }
+  .nav-item:hover { color: #041530; }
+  .nav-item:active svg { transform: scale(0.9); }
+  .nav-item[aria-current="page"] { color: #FE6902; }
+  .main-pad { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 24px); }
+  .home-pad { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 120px); }
+  @media (min-width: 768px) {
+    :root { --nav-h: 0px; }
+    .app-nav { top: 0; right: auto; width: 96px; height: auto; flex-direction: column; justify-content: flex-start;
+      padding: 88px 0 0; border-top: 0; border-right: 1px solid rgba(4,21,48,0.08); gap: 6px; }
+    .nav-item { flex: 0 0 auto; width: 100%; max-width: none; padding: 12px 0; }
+    .app-shell { padding-left: 96px; }
+    .dock { left: 96px; bottom: 16px; }
+  }
+
+  /* ---- account links ---- */
+  .row-link { transition: background-color 160ms ease; }
+  .row-link:hover { background: rgba(4,21,48,0.035); }
+  .row-link:active { background: rgba(4,21,48,0.07); }
+  .row-link svg.chev { transition: transform 220ms var(--spring); }
+  .row-link:hover svg.chev { transform: translateX(3px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot::after { animation: none; }
+    .demand-bar, .dock-state, .btn-primary, .nav-item svg, .row-link svg.chev { transition: none; }
+    .btn-primary:hover { transform: none; }
+  }
+</style>
+</head>
+<body class="text-navy font-body antialiased min-h-screen">
+
+<div class="app-shell">
+  <header class="bg-white border-b border-navy/10 md:relative md:z-50">
+    <div class="max-w-2xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2.5 rounded-md">
+        <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+        <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+      </a>
+      <span id="statusChip" hidden class="inline-flex items-center gap-2 rounded-md border border-navy/10 bg-white px-2.5 py-1 text-[12.5px] font-semibold text-navy/60">
+        <span class="chip-dot w-2 h-2 rounded-sm bg-navy/25"></span><span class="chip-text">Offline</span>
+      </span>
+    </div>
+  </header>
+
+  <main id="main" class="max-w-2xl mx-auto px-4 md:px-6 pt-5 main-pad">
+
+    <!-- ===== gates ===== -->
+    <div id="signedOutNotice" hidden class="surface p-8 text-center">
+      <h1 class="font-display font-800 text-[1.45rem] tracking-[-0.02em]">Sign in to see your work</h1>
+      <a href="login.html?next=fundi.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
+    </div>
+    <div id="notApplied" hidden class="surface p-8 text-center">
+      <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em]">You're not registered as a fundi yet</h1>
+      <p class="mt-2 text-navy/60 text-[15px] leading-[1.7]">Apply with your ID and experience. Once approved, you can go online and get booked.</p>
+      <a href="apply.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Apply as a fundi</a>
+    </div>
+    <div id="notVerified" hidden class="surface p-8 text-center">
+      <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em]">Verification pending</h1>
+      <p class="mt-2 text-navy/60 text-[15px] leading-[1.7]">We're checking your documents. You can go online once your application is approved.</p>
+      <a href="apply.html" class="btn-outline mt-6 inline-block text-navy font-semibold text-[14.5px] px-6 py-2.5 rounded-lg border border-navy/15">View application</a>
+    </div>
+    <div id="notApprovedYet" hidden class="surface p-8 text-center">
+      <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em]">Application not approved</h1>
+      <p class="mt-2 text-navy/60 text-[15px] leading-[1.7]">Your last application wasn't approved. Update it and send it again.</p>
+      <a href="apply.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Update application</a>
+    </div>
+    <div id="loadError" hidden class="surface p-6">
+      <p class="font-semibold text-[15px]">Your work didn't load</p>
+      <p id="loadErrorText" class="mt-1 text-[14px] text-navy/60"></p>
+      <button type="button" id="retryBtn" class="btn-outline mt-4 text-navy font-semibold text-[14px] px-4 py-2 rounded-lg border border-navy/15">Try again</button>
+    </div>
+
+    <!-- ===== home ===== -->
+    <section id="panelHome" hidden aria-label="Home">
+      <div class="metric-card">
+        <div id="metricTrack" class="metric-track" aria-roledescription="carousel" aria-label="Your earnings and rating">
+          <div class="metric-slide" data-metric="today" aria-roledescription="slide" aria-label="Earned today">
+            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Earned today</p>
+            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums">KSh 0</p>
+            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
+          </div>
+          <div class="metric-slide" data-metric="week" aria-roledescription="slide" aria-label="This week">
+            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">This week</p>
+            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums">KSh 0</p>
+            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
+          </div>
+          <div class="metric-slide" data-metric="last" aria-roledescription="slide" aria-label="Last job">
+            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Last job</p>
+            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums"></p>
+            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
+          </div>
+          <div class="metric-slide" data-metric="rating" aria-roledescription="slide" aria-label="Rating">
+            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Rating</p>
+            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums flex items-center gap-2"></p>
+            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
+          </div>
+        </div>
+        <div class="metric-controls relative z-10 flex items-center justify-between px-3 pb-2">
+          <div id="metricDots" class="flex items-center pl-2"></div>
+          <div class="flex gap-1">
+            <button type="button" class="metric-arrow w-9 h-9 rounded-lg flex items-center justify-center text-white/70" data-dir="-1" aria-label="Previous figure">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="metric-arrow w-9 h-9 rounded-lg flex items-center justify-center text-white/70" data-dir="1" aria-label="Next figure">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="surface mt-4 p-5">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Where the work is</h2>
+          <span id="demandCategory" class="text-[12.5px] text-navy/50 text-right"></span>
+        </div>
+        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Open jobs in your category, by area.</p>
+        <div id="demandMap" hidden class="map-box mt-4 bg-gray-100"></div>
+        <div id="demandRows" class="demand-rows mt-4 space-y-3"></div>
+        <p id="demandEmpty" hidden class="mt-3 text-[13.5px] text-navy/60 leading-[1.6]">No open jobs in your category right now. Stay online so customers who book find you first.</p>
+      </div>
+
+      <div id="myJobsBlock" hidden class="mt-7">
+        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your jobs</h2>
+        <div id="myJobsList" class="mt-3 space-y-4"></div>
+      </div>
+
+      <div class="mt-7">
+        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Open jobs</h2>
+        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Customers choose who to book. Fundis who are online show first on their list.</p>
+        <div id="openJobsList" class="mt-3 space-y-4"></div>
+        <p id="openJobsEmpty" hidden class="mt-3 text-[14px] text-navy/55">Nothing open in your category right now.</p>
+      </div>
+    </section>
+
+    <!-- ===== account ===== -->
+    <section id="panelAccount" hidden aria-label="Account">
+      <div class="surface p-5">
+        <div class="flex items-center gap-4">
+          <div id="accAvatar" class="w-16 h-16 shrink-0 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center font-display font-700 text-[1.25rem]"></div>
+          <div class="min-w-0">
+            <p id="accName" class="font-display font-700 text-[18px] tracking-[-0.02em] truncate"></p>
+            <p id="accCategory" class="text-[13.5px] text-navy/60 truncate"></p>
+            <span class="mt-1.5 inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              Verified fundi
+            </span>
+          </div>
+        </div>
+        <dl class="mt-5 grid grid-cols-3 border-t border-navy/10 pt-4 text-center">
+          <div>
+            <dt class="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-navy/45">Rating</dt>
+            <dd id="accRating" class="mt-1 font-display font-700 text-[16px] tabular-nums"></dd>
+          </div>
+          <div class="border-x border-navy/10">
+            <dt class="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-navy/45">Jobs done</dt>
+            <dd id="accJobs" class="mt-1 font-display font-700 text-[16px] tabular-nums"></dd>
+          </div>
+          <div>
+            <dt class="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-navy/45">Area</dt>
+            <dd id="accArea" class="mt-1 font-display font-700 text-[16px] truncate px-1"></dd>
+          </div>
+        </dl>
+      </div>
+
+      <nav class="surface mt-4 overflow-hidden" aria-label="Account links">
+        <a href="apply.html" class="row-link flex items-center gap-3 px-5 py-4 border-b border-navy/[0.07]">
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">Work profile</span><span class="block text-[13px] text-navy/55">Category, experience and documents</span></span>
+          <svg class="chev w-4 h-4 text-navy/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <a href="profile.html" class="row-link flex items-center gap-3 px-5 py-4 border-b border-navy/[0.07]">
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">Account settings</span><span class="block text-[13px] text-navy/55">Name, phone, area and photo</span></span>
+          <svg class="chev w-4 h-4 text-navy/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <a href="book.html" class="row-link flex items-center gap-3 px-5 py-4 border-b border-navy/[0.07]">
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">Book a repair</span><span class="block text-[13px] text-navy/55">Switch to customer and get something fixed</span></span>
+          <svg class="chev w-4 h-4 text-navy/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <a href="my-jobs.html" class="row-link flex items-center gap-3 px-5 py-4">
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">Repairs you've booked</span><span class="block text-[13px] text-navy/55">Jobs where you are the customer</span></span>
+          <svg class="chev w-4 h-4 text-navy/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+        <a id="accAdminLink" href="admin.html" hidden class="row-link flex items-center gap-3 px-5 py-4 border-t border-navy/[0.07]">
+          <span class="flex-1 font-semibold text-[15px] text-orange-600">Admin</span>
+          <svg class="chev w-4 h-4 text-navy/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+      </nav>
+
+      <button type="button" id="logoutBtn" class="btn-outline mt-4 w-full rounded-lg border border-navy/15 bg-white py-3 text-[14.5px] font-semibold text-navy">Log out</button>
+    </section>
+  </main>
+
+  <!-- ===== go online dock (home only) ===== -->
+  <div id="dock" class="dock" hidden>
+    <div class="dock-inner">
+      <div id="dockOffline" class="dock-state" aria-hidden="false">
+        <button type="button" id="goOnlineBtn" class="go-btn btn-primary w-full rounded-xl py-4 text-white font-display font-700 text-[17px] tracking-[-0.01em]">
+          Go online
+        </button>
+      </div>
+      <div id="dockOnline" class="dock-state" aria-hidden="true">
+        <div class="online-panel flex items-center gap-3 rounded-xl py-3 pl-4 pr-3 text-white">
+          <span class="live-dot shrink-0" aria-hidden="true"></span>
+          <div class="min-w-0 flex-1">
+            <p class="font-display font-700 text-[15px] leading-tight">You're online</p>
+            <p class="text-[12.5px] text-white/60 leading-snug">Customers see you as available while this page is open.</p>
+          </div>
+          <button type="button" id="goOfflineBtn" class="offline-btn shrink-0 rounded-lg border border-white/25 px-3.5 py-2 text-[13.5px] font-semibold text-white">Go offline</button>
+        </div>
+      </div>
+      <p id="dockError" hidden role="alert" class="mt-2 rounded-lg bg-white px-3 py-2 text-[13px] text-red-600 shadow"></p>
+    </div>
+  </div>
+
+  <nav id="appNav" class="app-nav" hidden aria-label="Fundi app">
+    <a href="#home" class="nav-item" data-route="home">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4.2v-6h-5.6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>
+      Home
+    </a>
+    <a href="#account" class="nav-item" data-route="account">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
+      Account
+    </a>
+  </nav>
+</div>
+
+<script src="assets/supabase-client.js"></script>
+<script src="assets/map.js"></script>
+<script src="assets/categories.js"></script>
+<script src="assets/job-media.js"></script>
+<script src="assets/fundi-jobs.js"></script>
+<script>
+  // While online, the page checks in this often so customers keep seeing the
+  // fundi as available (the API stops counting them after 15 minutes).
+  const CHECK_IN_MS = 4 * 60 * 1000;
+  // Open jobs and demand refresh on this interval while the page is visible.
+  const FEED_REFRESH_MS = 60 * 1000;
+
+  const STAR_SVG = '<svg class="w-6 h-6 text-orange" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9L3.4 9.5l6-.8z"/></svg>';
+
+  const state = { profile: null, dashboard: null, feed: [], online: false };
+  let checkInTimer = null;
+
+  // ---------- helpers ----------
+  function initialsFor(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  }
+
+  function jobsText(count, suffix) {
+    return `${count} job${count === 1 ? '' : 's'} ${suffix}`;
+  }
+
+  function whenText(iso) {
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Nairobi' });
+    const day = (x) => x.toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' });
+    const now = new Date();
+    if (day(d) === day(now)) return `Today, ${time}`;
+    if (day(d) === day(new Date(now.getTime() - 86400000))) return `Yesterday, ${time}`;
+    return d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', timeZone: 'Africa/Nairobi' });
+  }
+
+  function showOnly(id) {
+    ['signedOutNotice', 'notApplied', 'notVerified', 'notApprovedYet', 'loadError'].forEach((g) => {
+      document.getElementById(g).hidden = g !== id;
+    });
+  }
+
+  // ---------- earnings strip ----------
+  const metricTrack = document.getElementById('metricTrack');
+  const metricSlides = [...metricTrack.querySelectorAll('.metric-slide')];
+  const metricDots = document.getElementById('metricDots');
+
+  metricSlides.forEach((slide, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'metric-dot-btn';
+    btn.setAttribute('aria-label', `Show ${slide.getAttribute('aria-label').toLowerCase()}`);
+    btn.innerHTML = '<span class="metric-dot block"></span>';
+    btn.addEventListener('click', () => goToMetric(i));
+    metricDots.appendChild(btn);
+  });
+
+  function currentMetric() {
+    return Math.round(metricTrack.scrollLeft / Math.max(metricTrack.clientWidth, 1));
+  }
+  function goToMetric(i) {
+    const index = (i + metricSlides.length) % metricSlides.length;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    metricTrack.scrollTo({ left: index * metricTrack.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+  }
+  function syncMetricDots() {
+    const i = currentMetric();
+    [...metricDots.children].forEach((d, n) => d.setAttribute('aria-current', String(n === i)));
+  }
+  metricTrack.addEventListener('scroll', () => requestAnimationFrame(syncMetricDots), { passive: true });
+  document.querySelectorAll('.metric-arrow').forEach((btn) => {
+    btn.addEventListener('click', () => goToMetric(currentMetric() + Number(btn.dataset.dir)));
+  });
+  syncMetricDots();
+
+  function setSlide(key, value, sub, html) {
+    const slide = metricTrack.querySelector(`[data-metric="${key}"]`);
+    const valueEl = slide.querySelector('.m-value');
+    const money = !html && /^KSh (.+)$/.exec(value);
+    if (html) valueEl.innerHTML = value;
+    else if (money) valueEl.innerHTML = `<span class="m-cur">KSh</span>${escapeHtml(money[1])}`;
+    else valueEl.textContent = value;
+    slide.querySelector('.m-sub').textContent = sub;
+  }
+
+  function renderMetrics() {
+    const d = state.dashboard;
+    setSlide('today', formatKsh(d.today.amount), jobsText(d.today.jobs, 'completed today'));
+    setSlide('week', formatKsh(d.week.amount), jobsText(d.week.jobs, 'completed since Monday'));
+    if (d.last_job) {
+      setSlide('last', formatKsh(d.last_job.amount || 0), `${CATEGORY_LABELS[d.last_job.category] || d.last_job.category} · ${whenText(d.last_job.completed_at)}`);
+    } else {
+      setSlide('last', 'None yet', 'Your most recent completed job shows here');
+    }
+    if (d.rating.average != null) {
+      setSlide('rating', `${escapeHtml(d.rating.average.toFixed(1))}${STAR_SVG}`, `From ${d.rating.count} review${d.rating.count === 1 ? '' : 's'}`, true);
+    } else {
+      setSlide('rating', 'No reviews yet', 'Customers rate you after a completed job');
+    }
+
+    document.getElementById('accRating').textContent = d.rating.average != null ? d.rating.average.toFixed(1) : 'None';
+    document.getElementById('accJobs').textContent = String(d.jobs_completed);
+  }
+
+  // ---------- demand ----------
+  let demandMapHandle = null;
+
+  async function renderDemand() {
+    const rows = document.getElementById('demandRows');
+    const fundiArea = state.profile.area;
+    const counts = {};
+    state.feed.forEach((job) => { counts[job.area] = (counts[job.area] || 0) + 1; });
+    if (fundiArea && !(fundiArea in counts)) counts[fundiArea] = 0;
+
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const max = Math.max(1, ...entries.map(([, n]) => n));
+    document.getElementById('demandEmpty').hidden = state.feed.length > 0;
+
+    rows.classList.remove('ready');
+    rows.replaceChildren(...entries.map(([area, n]) => {
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-[minmax(0,7.5rem)_1fr_2rem] items-center gap-3';
+      row.innerHTML = `
+        <span class="text-[13.5px] font-semibold truncate"><span class="d-area"></span><span class="d-you block text-[11.5px] font-medium text-navy/45"></span></span>
+        <span class="block"><span class="demand-bar block ${n ? '' : 'is-empty'}"></span></span>
+        <span class="text-right font-display font-700 text-[15px] tabular-nums"></span>
+      `;
+      row.querySelector('.d-area').textContent = area;
+      const you = row.querySelector('.d-you');
+      if (area === fundiArea) you.textContent = 'Your area'; else you.remove();
+      row.querySelector('.demand-bar').style.setProperty('--w', n ? n / max : 0.04);
+      row.lastElementChild.textContent = String(n);
+      row.setAttribute('aria-label', `${area}: ${n} open job${n === 1 ? '' : 's'}`);
+      return row;
+    }));
+    requestAnimationFrame(() => requestAnimationFrame(() => rows.classList.add('ready')));
+
+    // Map pins are rounded to about a kilometre, so an open job's pin shows
+    // the neighbourhood rather than the customer's exact spot.
+    const pinned = state.feed.filter((j) => j.customer_lat != null && j.customer_lng != null);
+    const mapBox = document.getElementById('demandMap');
+    if (!hasMapsKey() || !pinned.length) {
+      mapBox.hidden = true;
+      return;
+    }
+    mapBox.hidden = false;
+    const round = (x) => Math.round(x * 100) / 100;
+    const points = pinned.map((j) => ({
+      key: j.id,
+      position: { lat: round(j.customer_lat), lng: round(j.customer_lng) },
+      label: '',
+      title: j.area,
+    }));
+    try {
+      if (!demandMapHandle) demandMapHandle = await renderPinMap('demandMap', points);
+      else points.forEach((p) => demandMapHandle.setMarker(p.key, p.position, p.label, p.title));
+    } catch (err) {
+      mapBox.hidden = true;
+    }
+  }
+
+  // ---------- jobs ----------
+  function renderOpenJobs() {
+    const list = document.getElementById('openJobsList');
+    list.replaceChildren(...state.feed.map((job) => {
+      const card = openJobCard(job);
+      card.className = 'surface p-5';
+      return card;
+    }));
+    document.getElementById('openJobsEmpty').hidden = state.feed.length > 0;
+  }
+
+  async function loadFeed() {
+    state.feed = await apiFetch('/jobs/feed');
+    renderOpenJobs();
+    renderDemand();
+  }
+
+  // Only jobs still in play sit on Home. Finished ones move to Earnings later.
+  async function loadMyJobs() {
+    Object.keys(activeWatchers).forEach(stopSharing);
+    const jobs = await apiFetch('/jobs/mine?role=fundi');
+    const active = jobs.filter((j) => j.status === 'matched' || j.status === 'in_progress');
+    const list = document.getElementById('myJobsList');
+    list.replaceChildren(...active.map((job) => {
+      const card = myJobCard(job);
+      card.className = 'surface p-5';
+      return card;
+    }));
+    document.getElementById('myJobsBlock').hidden = active.length === 0;
+  }
+
+  async function loadDashboard() {
+    state.dashboard = await apiFetch('/fundi/dashboard');
+    renderMetrics();
+  }
+
+  onFundiJobsChanged = () => {
+    loadMyJobs().catch(() => {});
+    loadDashboard().catch(() => {});
+  };
+
+  // ---------- online / offline ----------
+  const dockOffline = document.getElementById('dockOffline');
+  const dockOnline = document.getElementById('dockOnline');
+  const dockError = document.getElementById('dockError');
+  const goOnlineBtn = document.getElementById('goOnlineBtn');
+  const goOfflineBtn = document.getElementById('goOfflineBtn');
+
+  function renderOnline() {
+    dockOffline.setAttribute('aria-hidden', String(state.online));
+    dockOnline.setAttribute('aria-hidden', String(!state.online));
+    goOnlineBtn.tabIndex = state.online ? -1 : 0;
+    goOfflineBtn.tabIndex = state.online ? 0 : -1;
+
+    const chip = document.getElementById('statusChip');
+    chip.querySelector('.chip-text').textContent = state.online ? 'Online' : 'Offline';
+    chip.querySelector('.chip-dot').className = `chip-dot w-2 h-2 rounded-sm ${state.online ? 'bg-orange' : 'bg-navy/25'}`;
+    chip.className = `inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[12.5px] font-semibold ${state.online ? 'border-orange/30 bg-orange-50 text-orange-600' : 'border-navy/10 bg-white text-navy/60'}`;
+
+    clearInterval(checkInTimer);
+    if (state.online) checkInTimer = setInterval(checkIn, CHECK_IN_MS);
+  }
+
+  async function setOnline(online) {
+    dockError.hidden = true;
+    const btn = online ? goOnlineBtn : goOfflineBtn;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = online ? 'Going online…' : 'Going offline…';
+    try {
+      const result = await apiFetch('/fundi/availability', { method: 'POST', body: JSON.stringify({ online }) });
+      state.online = result.is_online;
+      renderOnline();
+      (state.online ? goOfflineBtn : goOnlineBtn).focus({ preventScroll: true });
+    } catch (err) {
+      dockError.textContent = err.message;
+      dockError.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  async function checkIn() {
+    if (!state.online || document.visibilityState !== 'visible') return;
+    try {
+      const result = await apiFetch('/fundi/availability', { method: 'POST', body: JSON.stringify({ online: true }) });
+      state.online = result.is_online;
+      renderOnline();
+    } catch (err) {
+      // A missed check-in is retried on the next interval.
+    }
+  }
+
+  goOnlineBtn.addEventListener('click', () => setOnline(true));
+  goOfflineBtn.addEventListener('click', () => setOnline(false));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !state.profile) return;
+    checkIn();
+    loadFeed().catch(() => {});
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && state.profile) loadFeed().catch(() => {});
+  }, FEED_REFRESH_MS);
+
+  // ---------- account ----------
+  function renderAccount() {
+    const p = state.profile;
+    const meta = (state.session && state.session.user.user_metadata) || {};
+    const url = p.avatar_url || meta.avatar_url || meta.picture || '';
+    const avatar = document.getElementById('accAvatar');
+    avatar.textContent = initialsFor(p.full_name);
+    if (url) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.className = 'w-full h-full object-cover';
+      img.onload = () => avatar.replaceChildren(img);
+      img.src = url;
+    }
+    document.getElementById('accName').textContent = p.full_name || '';
+    const category = p.fundi_profile.category;
+    document.getElementById('accCategory').textContent = CATEGORY_LABELS[category] || category;
+    document.getElementById('demandCategory').textContent = CATEGORY_LABELS[category] || category;
+    document.getElementById('accArea').textContent = p.area || 'Not set';
+    document.getElementById('accAdminLink').hidden = !p.is_admin;
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if (state.online) {
+      try { await apiFetch('/fundi/availability', { method: 'POST', body: JSON.stringify({ online: false }) }); } catch (err) { /* logging out anyway */ }
+    }
+    const { error } = await sb.auth.signOut();
+    if (error) await sb.auth.signOut({ scope: 'local' });
+    window.location.href = 'index.html';
+  });
+
+  // ---------- routing ----------
+  function route() {
+    const name = window.location.hash === '#account' ? 'account' : 'home';
+    document.getElementById('panelHome').hidden = name !== 'home';
+    document.getElementById('panelAccount').hidden = name !== 'account';
+    document.getElementById('dock').hidden = name !== 'home';
+    document.getElementById('main').classList.toggle('home-pad', name === 'home');
+    document.querySelectorAll('.nav-item').forEach((a) => {
+      if (a.dataset.route === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    if (name === 'home') syncMetricDots();
+  }
+  window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+
+  // ---------- start ----------
+  async function init() {
+    showOnly(null);
+    const session = await getSession();
+    if (!session) return showOnly('signedOutNotice');
+    state.session = session;
+
+    try {
+      let profile = null;
+      try {
+        profile = await apiFetch('/profile/me');
+      } catch (err) {
+        if (err.message !== 'Not found.') throw err;
+      }
+      if (!profile) {
+        window.location.href = 'profile.html?role=fundi&next=fundi.html';
+        return;
+      }
+      const fundi = profile.fundi_profile;
+      if (!fundi) return showOnly('notApplied');
+      if (fundi.verification_status === 'pending') return showOnly('notVerified');
+      if (fundi.verification_status === 'rejected') return showOnly('notApprovedYet');
+
+      state.profile = profile;
+      await Promise.all([loadDashboard(), loadFeed(), loadMyJobs()]);
+    } catch (err) {
+      document.getElementById('loadErrorText').textContent = err.message;
+      return showOnly('loadError');
+    }
+
+    renderAccount();
+    state.online = state.dashboard.is_online;
+    renderOnline();
+    // Coming back to the page while still marked online counts as a check-in.
+    if (state.online) checkIn();
+
+    document.getElementById('statusChip').hidden = false;
+    document.getElementById('appNav').hidden = false;
+    route();
+  }
+
+  document.getElementById('retryBtn').addEventListener('click', init);
+  init();
+</script>
+</body>
+</html>

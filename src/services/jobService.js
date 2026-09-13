@@ -1,18 +1,11 @@
 const { adminClient, clientForUser } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
+const { apiError } = require('../utils/apiError');
 
 // Job writes go through the service-role client, because jobs have no
 // client-side write policies: every change is authorised here instead, so a
 // customer can't rewrite a quote and a fundi can't mark their own job paid.
 // Reads still use the caller's RLS-scoped client.
-
-function apiError(status, message, code) {
-  const err = new Error(message);
-  err.status = status;
-  err.publicMessage = message;
-  err.code = code;
-  return err;
-}
 
 async function loadJob(jobId) {
   const { data, error } = await adminClient.from('jobs').select('*').eq('id', jobId).maybeSingle();
@@ -152,7 +145,7 @@ async function completeJob(jobId, fundiId) {
   if (job.status !== 'in_progress') {
     throw apiError(409, 'Agree on a price with the customer before marking the job complete.', 'conflict');
   }
-  return updateJob(jobId, { status: 'completed' }, { status: 'in_progress' });
+  return updateJob(jobId, { status: 'completed', completed_at: new Date().toISOString() }, { status: 'in_progress' });
 }
 
 async function addReview(accessToken, jobId, { rating, comment }) {

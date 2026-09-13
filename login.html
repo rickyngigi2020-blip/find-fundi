@@ -125,7 +125,7 @@
         window.location.href = `profile.html${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''}`;
         return;
       }
-      window.location.href = nextParam || (profile.role === 'fundi' ? 'job-feed.html' : 'my-jobs.html');
+      window.location.href = nextParam || (profile.role === 'fundi' ? 'fundi.html' : 'my-jobs.html');
     } catch (err) {
       formError.textContent = err.message || 'Something went wrong.';
       formError.classList.remove('hidden');

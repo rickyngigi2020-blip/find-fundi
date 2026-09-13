@@ -399,7 +399,7 @@
       const vs = profile.fundi_profile.verification_status;
       el.innerHTML = `<span class="status-pill ${styles[vs]}">${labels[vs]}</span>`;
       if (vs === 'verified') {
-        el.innerHTML += '<a href="job-feed.html" class="text-orange font-semibold text-[13.5px] hover:underline">Go to job feed &rarr;</a>';
+        el.innerHTML += '<a href="fundi.html" class="text-orange font-semibold text-[13.5px] hover:underline">Go to your work &rarr;</a>';
       }
       el.hidden = false;
     } else {

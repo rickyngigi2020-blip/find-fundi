@@ -46,4 +46,25 @@ async function search(req, res, next) {
   }
 }
 
-module.exports = { apply, status, search };
+async function setAvailability(req, res, next) {
+  try {
+    if (typeof req.body.online !== 'boolean') {
+      return res.status(400).json({ error: { message: 'online must be true or false', code: 'invalid_request' } });
+    }
+    const data = await fundiService.setAvailability(req.user.id, req.body.online);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function dashboard(req, res, next) {
+  try {
+    const data = await fundiService.getDashboard(req.user.id);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { apply, status, search, setAvailability, dashboard };
