@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy | Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C', line: '#1E3E6B' },
+          orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 100: '#FFE0C7', 400: '#FE8A3D', 600: '#E85A00', 700: '#C24A00' },
+        },
+        fontFamily: {
+          display: ['"Poppins"', 'sans-serif'],
+          body: ['"Inter"', 'sans-serif'],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+  body { -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FE6902; color: #fff; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 3px; border-radius: 2px; }
+
+  .grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay; }
+  .band-glow {
+    background:
+      radial-gradient(50% 80% at 90% 0%, rgba(254,105,2,0.20), transparent 60%),
+      radial-gradient(35% 60% at 0% 100%, rgba(254,105,2,0.08), transparent 60%);
+  }
+
+  .doc-switch a { transition: background-color 160ms ease, color 160ms ease; }
+  .doc-switch a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .doc-switch a:active { transform: scale(0.98); }
+  .doc-switch a[aria-current="page"] { background: #fff; color: #041530; }
+
+  .toc a { transition: color 160ms ease, border-color 160ms ease; }
+  .toc a:hover { color: #041530; border-color: rgba(4,21,48,0.35); }
+  .toc a:active { color: #C24A00; }
+  .toc a.active { color: #041530; border-color: #FE6902; }
+
+  .clause p, .clause li { color: rgba(4,21,48,0.72); font-size: 15.5px; line-height: 1.7; }
+  .clause p + p, .clause p + ul, .clause ul + p { margin-top: 0.85rem; }
+  .clause ul { list-style: none; padding: 0; }
+  .clause ul li { position: relative; padding-left: 1.1rem; }
+  .clause ul li + li { margin-top: 0.4rem; }
+  .clause ul li::before { content: ""; position: absolute; left: 0; top: 0.72em; width: 6px; height: 1.5px; background: #FE6902; }
+  .clause strong { color: #041530; font-weight: 600; }
+  .clause a, .text-link { color: #C24A00; font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .clause a:hover, .text-link:hover { color: #041530; }
+  .clause a:active, .text-link:active { color: #FE6902; }
+
+  .back-link { transition: color 160ms ease, transform 180ms cubic-bezier(.22,1,.36,1); }
+  .back-link:hover { color: #041530; transform: translateX(-2px); }
+  .back-link:active { transform: translateX(0) scale(0.98); }
+
+  details.toc summary { list-style: none; display: flex; align-items: center; justify-content: space-between; transition: background-color 160ms ease; }
+  details.toc summary::-webkit-details-marker { display: none; }
+  details.toc summary:hover { background: rgba(4,21,48,0.04); }
+  details.toc summary:active { background: rgba(4,21,48,0.08); }
+  details.toc summary svg { transition: transform 200ms cubic-bezier(.22,1,.36,1); }
+  details.toc[open] summary svg { transform: rotate(180deg); }
+
+  @media (max-width: 639px) {
+    .who-table thead { display: none; }
+    .who-table, .who-table tbody, .who-table tr, .who-table th, .who-table td { display: block; }
+    .who-table th[scope="row"] { padding-bottom: 0.25rem; }
+    .who-table td { padding-top: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .back-link, .doc-switch a, .toc a { transition: none; }
+  }
+</style>
+</head>
+<body class="bg-white text-navy font-body antialiased">
+
+<header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-navy/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="" class="h-9 w-9 object-contain">
+      <span class="font-display font-bold text-lg tracking-tight"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <a href="index.html" class="back-link inline-flex items-center gap-1.5 text-[14px] font-medium text-navy/65 py-2">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      Back to home
+    </a>
+  </div>
+</header>
+
+<section class="relative bg-navy text-white overflow-hidden">
+  <div class="band-glow absolute inset-0"></div>
+  <svg class="grain" aria-hidden="true"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#noise)"/></svg>
+  <div class="relative max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-16 pb-10 md:pb-12">
+    <nav class="doc-switch inline-grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.06] border border-white/10 text-[13.5px] font-semibold" aria-label="Legal documents">
+      <a href="terms.html" class="rounded-md px-4 py-2 text-center text-white/70">Terms of Service</a>
+      <a href="privacy.html" aria-current="page" class="rounded-md px-4 py-2 text-center text-white/70">Privacy Policy</a>
+    </nav>
+    <h1 class="font-display font-extrabold text-[2.3rem] md:text-[3rem] leading-[1.05] tracking-[-0.03em] mt-8">Privacy Policy</h1>
+    <p class="mt-4 text-white/65 text-[16px] leading-[1.7] max-w-xl">
+      What Find Fundi collects about you, who can see it, and how to get it changed or deleted. Each section starts with a short summary, but the full text is what counts.
+    </p>
+    <p class="mt-6 text-[13px] text-white/45 font-medium">Last updated 15 September 2026</p>
+  </div>
+</section>
+
+<div class="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-16 lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-16">
+
+  <aside class="lg:sticky lg:top-24 lg:self-start mb-10 lg:mb-0">
+    <details class="toc lg:hidden rounded-lg border border-navy/10 bg-gray-50">
+      <summary class="cursor-pointer rounded-lg px-4 py-3 text-[14px] font-semibold text-navy">On this page<svg class="w-4 h-4 text-navy/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <ol class="toc-list px-4 pb-3 space-y-0.5 text-[14px]"></ol>
+    </details>
+    <div class="toc hidden lg:block">
+      <p class="font-display font-bold text-[11px] tracking-[0.08em] uppercase text-navy/40">On this page</p>
+      <ol class="toc-list mt-4 space-y-0.5 text-[13.5px]"></ol>
+    </div>
+  </aside>
+
+  <main id="doc" class="max-w-[680px]">
+
+    <section id="who-we-are" class="clause">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">1</span>Who we are</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: Solarian Welfare runs Find Fundi and is responsible for your data.</p>
+      <div class="mt-4">
+        <p>Find Fundi is run by <strong>Solarian Welfare</strong>, a registered self-help group in Kenya ("we", "us"). We decide how the personal data on Find Fundi is used, which makes us the data controller under Kenya's Data Protection Act, 2019.</p>
+        <p>This policy explains what we collect, why, who can see it, and what you can ask us to do with it. For anything about your data, email <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a>.</p>
+      </div>
+    </section>
+
+    <section id="what-we-collect" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">2</span>What we collect</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: what you type, record and upload, plus your location when you choose to share it.</p>
+      <div class="mt-4">
+        <p><strong>Your account.</strong> Your name, email address, phone number, area, and street or building if you add one. A profile photo if you upload one. If you sign in with Google, we receive your name and email address from Google. Passwords are handled by our sign-in provider and we never see them.</p>
+        <p><strong>Jobs you post.</strong> The kind of work, your written description, voice note, photos, urgency, area, and the map location you set for the job. We also keep the price the fundi sends, whether you accepted it, how you said you'd pay, the job's progress, and when each step happened.</p>
+        <p><strong>If you apply as a fundi.</strong> Your trade, national ID number, a photo of your ID, highest qualification, years of experience, certificate if you add one, and a short bio. We also keep your verification status, whether you are online, when your fundi app last checked in, and the dates of jobs you completed so you can see your earnings.</p>
+        <p><strong>Live location.</strong> If you are a fundi and switch on location sharing, your device's location is sent to us while sharing is on. We keep only your latest position.</p>
+        <p><strong>Ratings.</strong> The star rating and comment a customer leaves after a job.</p>
+        <p><strong>Technical details.</strong> Your browser stores a sign-in token so you stay logged in. Our server briefly uses your IP address to block floods of requests, and doesn't store it for anything else. We don't use advertising or tracking cookies.</p>
+      </div>
+    </section>
+
+    <section id="how-we-use-it" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">3</span>How we use it</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: to run bookings, check fundis, and keep the service safe.</p>
+      <div class="mt-4">
+        <p>We use your data to:</p>
+        <ul>
+          <li>create and run your account;</li>
+          <li>show your job to fundis who do that kind of work, and connect you with the fundi you book;</li>
+          <li>let customers and fundis agree a price and track the job;</li>
+          <li>review fundi applications and decide who is verified;</li>
+          <li>show a booked fundi's location to their customer, when the fundi shares it;</li>
+          <li>show fundis their completed jobs and earnings;</li>
+          <li>handle complaints, prevent fraud and misuse, and meet our legal obligations.</li>
+        </ul>
+        <p>We use it this way because it is needed to provide the service you signed up for, because you chose to share it (for example, live location), because we have a legitimate interest in keeping Find Fundi safe, or because the law requires it.</p>
+        <p><strong>We don't sell your personal data</strong>, and we don't use it for advertising.</p>
+      </div>
+    </section>
+
+    <section id="who-sees-what" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">4</span>Who can see what</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: other users see only what they need for a job. Your ID documents stay with us.</p>
+      <div class="mt-4">
+        <p>This is exactly who can see each kind of information on Find Fundi, other than you:</p>
+      </div>
+      <div class="mt-5 rounded-xl border border-navy/10 overflow-hidden">
+        <table class="who-table w-full text-left text-[14px]">
+          <thead class="bg-navy text-white">
+            <tr>
+              <th scope="col" class="font-display font-semibold text-[12px] tracking-[0.04em] uppercase px-4 py-3 w-[38%]">Information</th>
+              <th scope="col" class="font-display font-semibold text-[12px] tracking-[0.04em] uppercase px-4 py-3">Who else can see it</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-navy/10 align-top">
+            <tr class="bg-orange-50">
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">Job description, photos, voice note and job location</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]"><strong class="text-navy font-semibold">Verified fundis in that job's category</strong>, while the job is open. Then the fundi you book.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">Your name, phone number and profile photo</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">The other person on a job, once a fundi has been booked for it.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">A verified fundi's name, area, trade, years of experience, bio and whether they're available now</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">Signed-in customers choosing a fundi for a job.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">A fundi's live location</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">Only the customer of a job that fundi is currently booked for, and only while sharing is switched on.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">Price, payment method and job progress</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">The customer and the booked fundi.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">Ratings and review comments</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">The customer and the fundi on that job.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">National ID number, ID photo, qualification and certificate</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">No other users. Only Find Fundi's admin team, to review applications.</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3.5 font-semibold text-navy">Your email address, and a customer's area and street</th>
+              <td class="px-4 py-3.5 text-navy/75 leading-[1.6]">No other users. Only Find Fundi's admin team.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-5">
+        <p>Find Fundi's admin team can access account and job information when they need to, for example to review a fundi application, handle a complaint or investigate misuse.</p>
+      </div>
+    </section>
+
+    <section id="service-providers" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">5</span>Services we rely on</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: a few trusted companies store and deliver the service for us, sometimes outside Kenya.</p>
+      <div class="mt-4">
+        <p>We use these providers to run Find Fundi. They handle data on our behalf and only as needed to provide their service:</p>
+        <ul>
+          <li><strong>Supabase</strong> stores our database, your uploaded files and handles sign-in.</li>
+          <li><strong>Google</strong> provides "Continue with Google" sign-in, and maps for showing locations.</li>
+          <li><strong>Google Fonts and jsDelivr</strong> deliver the fonts and code the pages load, which means they receive your IP address when you visit.</li>
+        </ul>
+        <p>Some of these providers store or process data on servers outside Kenya. Where that happens, we rely on the safeguards the Data Protection Act requires for transfers out of the country.</p>
+        <p>We may also share information if the law requires it, such as a valid request from the police or a court.</p>
+      </div>
+    </section>
+
+    <section id="retention" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">6</span>How long we keep it</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: while your account is open, unless you ask us to delete it.</p>
+      <div class="mt-4">
+        <p>We keep your data for as long as your account is open. If you ask us to delete your account, we delete your personal data, uploads and jobs, except for anything we must keep to meet a legal obligation or deal with an open complaint or dispute. We keep that only as long as needed.</p>
+        <p>A fundi's live location is overwritten each time a new position is sent, so we hold only the most recent one.</p>
+      </div>
+    </section>
+
+    <section id="your-rights" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">7</span>Your rights</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: you can see, fix, or delete your data, and complain to the Data Commissioner.</p>
+      <div class="mt-4">
+        <p>Under Kenya's Data Protection Act, 2019, you have the right to:</p>
+        <ul>
+          <li>be told how your data is used, which is what this policy is for;</li>
+          <li>get a copy of the personal data we hold about you;</li>
+          <li>have wrong or incomplete data corrected (you can edit most of your profile yourself in Settings);</li>
+          <li>have your data deleted;</li>
+          <li>object to us using your data in a particular way;</li>
+          <li>receive your data in a format you can take elsewhere.</li>
+        </ul>
+        <p>You can stop sharing your live location at any time by switching it off in the fundi app.</p>
+        <p>To use any of these rights, email <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a> from the address on your account. We may ask you to confirm who you are before acting on a request.</p>
+        <p>If you're unhappy with how we've handled your data, you can complain to the <strong>Office of the Data Protection Commissioner</strong> at <a href="https://www.odpc.go.ke" target="_blank" rel="noopener noreferrer">odpc.go.ke</a>.</p>
+      </div>
+    </section>
+
+    <section id="security" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">8</span>Keeping it secure</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: access is locked down by account, but no system is perfect.</p>
+      <div class="mt-4">
+        <p>Data travels to Find Fundi over encrypted connections. Access rules in our database decide which account can read each record and file, so, for example, a fundi's ID documents can't be opened by other users. Job changes such as prices go through our server, which checks that you are allowed to make them.</p>
+        <p>No online service can promise perfect security. If we learn of a breach that puts your data at real risk, we will tell you and the Data Protection Commissioner as the law requires.</p>
+      </div>
+    </section>
+
+    <section id="changes" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">9</span>Changes to this policy</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: if we change how we use your data, we'll update this page and tell you.</p>
+      <div class="mt-4">
+        <p>We'll update this policy when Find Fundi changes how it uses data, for example if we add payments through the app. We'll change the "Last updated" date at the top, and for important changes we'll tell you in the app or by email before they take effect.</p>
+      </div>
+    </section>
+
+    <section id="contact" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">10</span>Contact us</h2>
+      <div class="mt-4">
+        <p>Solarian Welfare, operating Find Fundi<br>Nairobi, Kenya<br>Email: <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a></p>
+        <p>See also our <a href="terms.html">Terms of Service</a>.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="bg-navy-soft text-white/60 border-t border-white/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between text-[13px]">
+    <p class="text-white/40">© 2026 Find Fundi. Run by Solarian Welfare, Nairobi, Kenya.</p>
+    <nav class="flex gap-6" aria-label="Footer">
+      <a href="terms.html" class="hover:text-white active:text-orange-100 transition-colors">Terms of Service</a>
+      <a href="privacy.html" class="hover:text-white active:text-orange-100 transition-colors">Privacy Policy</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/legal-toc.js"></script>
+</body>
+</html>

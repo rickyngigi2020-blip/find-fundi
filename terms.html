@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service | Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { DEFAULT: '#041530', soft: '#0D2547', softer: '#15315C', line: '#1E3E6B' },
+          orange: { DEFAULT: '#FE6902', 50: '#FFF1E6', 100: '#FFE0C7', 400: '#FE8A3D', 600: '#E85A00', 700: '#C24A00' },
+        },
+        fontFamily: {
+          display: ['"Poppins"', 'sans-serif'],
+          body: ['"Inter"', 'sans-serif'],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+  body { -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FE6902; color: #fff; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 3px; border-radius: 2px; }
+
+  .grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay; }
+  .band-glow {
+    background:
+      radial-gradient(50% 80% at 90% 0%, rgba(254,105,2,0.20), transparent 60%),
+      radial-gradient(35% 60% at 0% 100%, rgba(254,105,2,0.08), transparent 60%);
+  }
+
+  .doc-switch a { transition: background-color 160ms ease, color 160ms ease; }
+  .doc-switch a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .doc-switch a:active { transform: scale(0.98); }
+  .doc-switch a[aria-current="page"] { background: #fff; color: #041530; }
+
+  .toc a { transition: color 160ms ease, border-color 160ms ease; }
+  .toc a:hover { color: #041530; border-color: rgba(4,21,48,0.35); }
+  .toc a:active { color: #C24A00; }
+  .toc a.active { color: #041530; border-color: #FE6902; }
+
+  .clause p, .clause li { color: rgba(4,21,48,0.72); font-size: 15.5px; line-height: 1.7; }
+  .clause p + p, .clause p + ul, .clause ul + p { margin-top: 0.85rem; }
+  .clause ul { list-style: none; padding: 0; }
+  .clause ul li { position: relative; padding-left: 1.1rem; }
+  .clause ul li + li { margin-top: 0.4rem; }
+  .clause ul li::before { content: ""; position: absolute; left: 0; top: 0.72em; width: 6px; height: 1.5px; background: #FE6902; }
+  .clause strong { color: #041530; font-weight: 600; }
+  .clause a, .text-link { color: #C24A00; font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .clause a:hover, .text-link:hover { color: #041530; }
+  .clause a:active, .text-link:active { color: #FE6902; }
+
+  .back-link { transition: color 160ms ease, transform 180ms cubic-bezier(.22,1,.36,1); }
+  .back-link:hover { color: #041530; transform: translateX(-2px); }
+  .back-link:active { transform: translateX(0) scale(0.98); }
+
+  details.toc summary { list-style: none; display: flex; align-items: center; justify-content: space-between; transition: background-color 160ms ease; }
+  details.toc summary::-webkit-details-marker { display: none; }
+  details.toc summary:hover { background: rgba(4,21,48,0.04); }
+  details.toc summary:active { background: rgba(4,21,48,0.08); }
+  details.toc summary svg { transition: transform 200ms cubic-bezier(.22,1,.36,1); }
+  details.toc[open] summary svg { transform: rotate(180deg); }
+
+  @media (max-width: 639px) {
+    .who-table thead { display: none; }
+    .who-table, .who-table tbody, .who-table tr, .who-table th, .who-table td { display: block; }
+    .who-table th[scope="row"] { padding-bottom: 0.25rem; }
+    .who-table td { padding-top: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .back-link, .doc-switch a, .toc a { transition: none; }
+  }
+</style>
+</head>
+<body class="bg-white text-navy font-body antialiased">
+
+<header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-navy/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="" class="h-9 w-9 object-contain">
+      <span class="font-display font-bold text-lg tracking-tight"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <a href="index.html" class="back-link inline-flex items-center gap-1.5 text-[14px] font-medium text-navy/65 py-2">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      Back to home
+    </a>
+  </div>
+</header>
+
+<section class="relative bg-navy text-white overflow-hidden">
+  <div class="band-glow absolute inset-0"></div>
+  <svg class="grain" aria-hidden="true"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#noise)"/></svg>
+  <div class="relative max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-16 pb-10 md:pb-12">
+    <nav class="doc-switch inline-grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.06] border border-white/10 text-[13.5px] font-semibold" aria-label="Legal documents">
+      <a href="terms.html" aria-current="page" class="rounded-md px-4 py-2 text-center text-white/70">Terms of Service</a>
+      <a href="privacy.html" class="rounded-md px-4 py-2 text-center text-white/70">Privacy Policy</a>
+    </nav>
+    <h1 class="font-display font-extrabold text-[2.3rem] md:text-[3rem] leading-[1.05] tracking-[-0.03em] mt-8">Terms of Service</h1>
+    <p class="mt-4 text-white/65 text-[16px] leading-[1.7] max-w-xl">
+      The agreement between you and Find Fundi when you book a fundi or work as one. Each section starts with a short summary, but the full text is what counts.
+    </p>
+    <p class="mt-6 text-[13px] text-white/45 font-medium">Last updated 15 September 2026</p>
+  </div>
+</section>
+
+<div class="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-16 lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-16">
+
+  <aside class="lg:sticky lg:top-24 lg:self-start mb-10 lg:mb-0">
+    <details class="toc lg:hidden rounded-lg border border-navy/10 bg-gray-50">
+      <summary class="cursor-pointer rounded-lg px-4 py-3 text-[14px] font-semibold text-navy">On this page<svg class="w-4 h-4 text-navy/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <ol class="toc-list px-4 pb-3 space-y-0.5 text-[14px]"></ol>
+    </details>
+    <div class="toc hidden lg:block">
+      <p class="font-display font-bold text-[11px] tracking-[0.08em] uppercase text-navy/40">On this page</p>
+      <ol class="toc-list mt-4 space-y-0.5 text-[13.5px]"></ol>
+    </div>
+  </aside>
+
+  <main id="doc" class="max-w-[680px]">
+
+    <section id="who-we-are" class="clause">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">1</span>Who we are</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: Find Fundi is run by Solarian Welfare, and you can reach us by email.</p>
+      <div class="mt-4">
+        <p>Find Fundi is a service run by <strong>Solarian Welfare</strong>, a registered self-help group in Kenya ("we", "us"). When these terms say "you", they mean anyone who uses Find Fundi, whether as a customer, a fundi, or both.</p>
+        <p>Questions about these terms can be sent to <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a>.</p>
+        <p>By creating an account or using Find Fundi, you agree to these terms and to our <a href="privacy.html">Privacy Policy</a>. If you don't agree, please don't use the service.</p>
+      </div>
+    </section>
+
+    <section id="what-we-do" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">2</span>What Find Fundi does</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: we connect you with a fundi. The fundi does the work, not us.</p>
+      <div class="mt-4">
+        <p>Find Fundi helps customers who need a repair or installation find a fundi (a skilled technician) who does that kind of work, and helps fundis find jobs.</p>
+        <p>Fundis on Find Fundi are <strong>independent</strong>. They are not our employees or agents. When a customer and a fundi agree on a job, the agreement for that work is between the two of them. We are not a party to it, and we don't carry out, supervise or guarantee the work.</p>
+      </div>
+    </section>
+
+    <section id="accounts" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">3</span>Your account</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: use your real details and keep your login to yourself.</p>
+      <div class="mt-4">
+        <p>You can sign up with an email and password or with your Google account. When you do, you agree to:</p>
+        <ul>
+          <li>give your real name, a phone number you answer, and your correct area;</li>
+          <li>keep your password private and tell us if you think someone else has used your account;</li>
+          <li>take responsibility for what happens on your account.</li>
+        </ul>
+        <p>One account can be used both to book fundis and to work as a fundi.</p>
+      </div>
+    </section>
+
+    <section id="posting-a-job" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">4</span>Posting a job</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: describe a real job, and know that fundis in that trade can see what you post.</p>
+      <div class="mt-4">
+        <p>To post a job you choose the kind of work, describe the problem in writing or with a voice note, and can add photos and your location. Only post real jobs, and only upload photos and recordings you have the right to share.</p>
+      </div>
+      <div class="mt-6 rounded-xl bg-orange-50 border border-orange/25 p-5 md:p-6">
+        <p class="font-display font-bold text-[15px] !text-navy">Who can see the photos and voice notes on your job</p>
+        <p class="mt-2">The photos and voice notes you attach to a job request can be seen by:</p>
+        <ul class="mt-2">
+          <li><strong>verified fundis who work in that job's category</strong>, while the job is still open, so they can understand the job before taking it; and</li>
+          <li><strong>the fundi you book</strong> for the job.</li>
+        </ul>
+        <p class="mt-3">The same applies to your written description and the location you set for the job. Please don't include anything in them that you wouldn't want those fundis to see, such as other people's faces, documents, or valuables you'd rather keep private.</p>
+      </div>
+    </section>
+
+    <section id="price-and-payment" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">5</span>Price and payment</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: you and the fundi agree the price. Find Fundi doesn't take or hold any money.</p>
+      <div class="mt-4">
+        <p>After a customer books a fundi, the two of them can call each other to talk through the job. The fundi then sends a price in the app, and the customer can accept it. The fundi can change the price until the customer accepts it.</p>
+        <p>When you accept a price you also pick how you plan to pay (M-Pesa, card or cash). <strong>Find Fundi does not currently process, collect or hold any payments.</strong> Payment is made directly between the customer and the fundi, and choosing a payment method in the app does not charge you.</p>
+        <p>Any disagreement about the price, extra costs, or whether the work was paid for is between the customer and the fundi. If we add payments through the app in future, we will update these terms before that starts.</p>
+      </div>
+    </section>
+
+    <section id="contact-and-location" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">6</span>Phone numbers and location</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: once a fundi is booked, you can see each other's name, phone and photo.</p>
+      <div class="mt-4">
+        <p>When a customer books a fundi for a job, the customer and that fundi can each see the other's name, phone number and profile photo, so they can arrange the work. Use these details only for that job.</p>
+        <p>Fundis can choose to share their live location. It is only shared while they have it switched on, and only with a customer whose job they are currently booked for. Full details are in our <a href="privacy.html">Privacy Policy</a>.</p>
+      </div>
+    </section>
+
+    <section id="for-fundis" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">7</span>If you work as a fundi</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: you must be 18 or older, send us genuine documents, only take work you can do, and keep your status honest.</p>
+      <div class="mt-4">
+        <p><strong>You must be at least 18 years old to work as a fundi.</strong> We may refuse or remove the verification of anyone under 18.</p>
+        <p>To work as a fundi you apply with your national ID number, a photo of your ID, your trade, your highest qualification, your years of experience and, if you have one, a certificate. We review what you send before we approve you. You agree that:</p>
+        <ul>
+          <li>you are 18 or older;</li>
+          <li>everything you submit is true and the documents are yours;</li>
+          <li>you have any licence or permit the law requires for the work you take on;</li>
+          <li>you will only accept jobs you are able to do safely and properly;</li>
+          <li>you will show yourself as online only when you are actually available for work;</li>
+          <li>you are responsible for your own tools, taxes, and the quality and safety of your work.</li>
+        </ul>
+        <p><strong>What "verified" means:</strong> a verified fundi has had their ID and documents reviewed by us. It is not a guarantee of their skill, conduct or the result of any job.</p>
+      </div>
+    </section>
+
+    <section id="reviews" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">8</span>Ratings and reviews</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: rate honestly, and only for jobs that really happened.</p>
+      <div class="mt-4">
+        <p>Customers can rate and review a fundi after a job is marked complete. Reviews must be honest and about that job. Don't post reviews that are false, abusive, or offer or accept anything in exchange for a rating. We may remove reviews that break these rules.</p>
+      </div>
+    </section>
+
+    <section id="not-allowed" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">9</span>What's not allowed</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: no fraud, harassment, or misuse of other people's details.</p>
+      <div class="mt-4">
+        <p>When using Find Fundi you must not:</p>
+        <ul>
+          <li>pretend to be someone else or submit fake documents;</li>
+          <li>post fake jobs, or accept jobs you have no intention of doing;</li>
+          <li>threaten, harass or discriminate against anyone you meet through the service;</li>
+          <li>use someone's phone number or other details for anything other than the job;</li>
+          <li>upload anything illegal, offensive, or that you don't have the right to share;</li>
+          <li>try to break into, overload or copy the service or other people's accounts.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="safety" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">10</span>Staying safe</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: use your own judgement when meeting someone for a job.</p>
+      <div class="mt-4">
+        <p>Jobs usually mean a fundi visiting a customer's home or business. We can't check everyone's behaviour in person, so use sensible care: confirm who is coming, agree the price before work starts, and don't hand over money or valuables you aren't comfortable with. If someone behaves in a way that puts others at risk, tell us at <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a>, and contact the police if anyone is in danger.</p>
+      </div>
+    </section>
+
+    <section id="liability" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">11</span>Our responsibility</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: we aren't responsible for the work, or for what happens between customers and fundis.</p>
+      <div class="mt-4">
+        <p>We provide Find Fundi as it is and as it is available. We work to keep it running and secure, but we can't promise it will always be available or free of errors.</p>
+        <p>As far as Kenyan law allows, we are not responsible for:</p>
+        <ul>
+          <li>the quality, safety or result of any work a fundi does;</li>
+          <li>loss, damage or injury arising from dealings between customers and fundis;</li>
+          <li>payments made, or not made, between customers and fundis;</li>
+          <li>anything a user says or posts.</li>
+        </ul>
+        <p>Nothing in these terms takes away any right you have under Kenyan law that cannot legally be removed, including your rights under the Consumer Protection Act.</p>
+      </div>
+    </section>
+
+    <section id="suspension" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">12</span>Suspending or closing accounts</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: you can leave any time, and we can remove accounts that break these terms.</p>
+      <div class="mt-4">
+        <p>You can stop using Find Fundi at any time. To have your account and its data deleted, email <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a> from the address on your account.</p>
+        <p>We may refuse or remove a fundi's verification, and suspend or close any account, if it breaks these terms, puts other people at risk, or if we are required to by law.</p>
+      </div>
+    </section>
+
+    <section id="changes" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">13</span>Changes to these terms</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: if we change the terms, the date at the top changes too.</p>
+      <div class="mt-4">
+        <p>We may update these terms as Find Fundi changes. When we do, we'll change the "Last updated" date at the top of this page, and for important changes we'll tell you in the app or by email. If you keep using Find Fundi after a change, you accept the updated terms.</p>
+      </div>
+    </section>
+
+    <section id="law" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">14</span>Law and disputes</h2>
+      <p class="mt-3 !text-navy/55 !text-[14px] border-l-2 border-orange pl-3">In short: Kenyan law applies, and we'd like to hear from you first.</p>
+      <div class="mt-4">
+        <p>These terms are governed by the laws of Kenya. If you have a complaint about Find Fundi, please email us first so we can try to sort it out. Any dispute that can't be settled that way will be handled by the courts of Kenya.</p>
+      </div>
+    </section>
+
+    <section id="contact" class="clause mt-12">
+      <h2 class="font-display font-bold text-[1.35rem] tracking-[-0.02em] text-navy"><span class="text-orange mr-2">15</span>Contact us</h2>
+      <div class="mt-4">
+        <p>Solarian Welfare, operating Find Fundi<br>Nairobi, Kenya<br>Email: <a href="mailto:rickyngigi2020@gmail.com">rickyngigi2020@gmail.com</a></p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="bg-navy-soft text-white/60 border-t border-white/10">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between text-[13px]">
+    <p class="text-white/40">© 2026 Find Fundi. Run by Solarian Welfare, Nairobi, Kenya.</p>
+    <nav class="flex gap-6" aria-label="Footer">
+      <a href="terms.html" class="hover:text-white active:text-orange-100 transition-colors">Terms of Service</a>
+      <a href="privacy.html" class="hover:text-white active:text-orange-100 transition-colors">Privacy Policy</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/legal-toc.js"></script>
+</body>
+</html>
