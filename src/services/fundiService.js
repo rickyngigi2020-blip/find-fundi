@@ -15,9 +15,10 @@ function isAvailableNow(fundi, now = Date.now()) {
     && now - new Date(fundi.last_seen_at).getTime() < AVAILABLE_WINDOW_MS);
 }
 
-async function applyAsFundi(accessToken, userId, payload) {
-  const supabase = clientForUser(accessToken);
-  const { data, error } = await supabase
+// Written with the service role: fundis can no longer edit their own row
+// directly (migration 0008), so a resubmission can't set itself verified.
+async function applyAsFundi(userId, payload) {
+  const { data, error } = await adminClient
     .from('fundi_profiles')
     .upsert({
       id: userId,
@@ -44,9 +45,11 @@ async function getStatus(accessToken, userId) {
 
 // Customers see fundis who are available right now first. Offline fundis are
 // still listed. The raw online flag and check-in time are not passed on.
-async function searchVerifiedFundis(accessToken, { category, area }) {
-  const supabase = clientForUser(accessToken);
-  let query = supabase
+// Users can't read other people's profiles directly (migration 0008), so this
+// uses the service role and returns only the columns selected here: never a
+// fundi's phone, street, national ID or documents.
+async function searchVerifiedFundis({ category, area }) {
+  let query = adminClient
     .from('fundi_profiles')
     .select('id, category, years_experience, bio, is_online, last_seen_at, profiles!inner(full_name, area)')
     .eq('verification_status', 'verified');

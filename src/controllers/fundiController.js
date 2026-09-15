@@ -18,7 +18,13 @@ async function apply(req, res, next) {
       return res.status(400).json({ error: { message: `category must be one of: ${CATEGORIES.join(', ')}`, code: 'invalid_request' } });
     }
 
-    const application = await fundiService.applyAsFundi(req.accessToken, req.user.id, {
+    // Uploads go to the applicant's own folder; don't accept someone else's files.
+    const ownFolder = `${req.user.id}/`;
+    if (!id_document_url.startsWith(ownFolder) || (certificate_url && !certificate_url.startsWith(ownFolder))) {
+      return res.status(400).json({ error: { message: 'Upload your documents again and resubmit.', code: 'invalid_request' } });
+    }
+
+    const application = await fundiService.applyAsFundi(req.user.id, {
       category, national_id, highest_qualification, years_experience, id_document_url, certificate_url, bio,
     });
     res.json({ data: application });
@@ -39,7 +45,7 @@ async function status(req, res, next) {
 async function search(req, res, next) {
   try {
     const { category, area } = req.query;
-    const data = await fundiService.searchVerifiedFundis(req.accessToken, { category, area });
+    const data = await fundiService.searchVerifiedFundis({ category, area });
     res.json({ data });
   } catch (err) {
     next(err);
