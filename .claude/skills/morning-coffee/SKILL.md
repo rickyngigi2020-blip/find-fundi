@@ -27,14 +27,14 @@ more than one session often works on the project.
 - **Servers:** check whether ports 3000 (serve.mjs) and 3001 (API) are listening.
   Don't start them unless Ricky asks.
 - **Open items — verify each one, don't assume:**
-  - Google Maps key: is `assets/map.js` still using `YOUR_GOOGLE_MAPS_API_KEY`?
+  - Google Maps key: is `public/assets/map.js` still using `YOUR_GOOGLE_MAPS_API_KEY`?
   - Legal pages: do Terms & Conditions / Privacy Policy pages exist? (They must
     include the job-media visibility disclaimer from memory.)
   - Payments: any real M-Pesa/Daraja integration in `src/`, or is price still
     agreed in-app with nothing charged?
   - Phone login: any SMS/OTP sign-in, or still email + Google only?
   - Landing page: fake hero stats (e.g. "2,400+") and pill-shaped buttons
-    (`rounded-full` on CTAs) still in `index.html`?
+    (`rounded-full` on CTAs) still in `public/index.html`?
   - Tailwind weights: `font-600/700/800` classes still used site-wide (they
     aren't real Tailwind classes, so headings render semi-bold)?
   - Hosting: any deployment config, or local only with the temporary phone tunnel?

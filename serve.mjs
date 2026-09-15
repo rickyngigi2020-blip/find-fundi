@@ -4,7 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const assetsDir = path.join(root, 'assets');
+// Pages and assets live in public/, which is also what Vercel serves.
+const publicDir = path.join(root, 'public');
+const assetsDir = path.join(publicDir, 'assets');
 const port = 3000;
 
 const mime = {
@@ -19,14 +21,14 @@ const mime = {
   '.ico': 'image/x-icon',
 };
 
-// Only site pages and the assets folder are served. The project root also holds
+// Only site pages and the assets folder in public/ are served. The project root holds
 // .env (with the Supabase service-role key), source code and node_modules, none
 // of which may ever be reachable over HTTP.
 function resolvePublicFile(urlPath) {
-  if (urlPath === '/') return path.join(root, 'index.html');
+  if (urlPath === '/') return path.join(publicDir, 'index.html');
 
   const page = urlPath.match(/^\/([a-z0-9-]+)\.html$/);
-  if (page) return path.join(root, `${page[1]}.html`);
+  if (page) return path.join(publicDir, `${page[1]}.html`);
 
   if (urlPath.startsWith('/assets/')) {
     const segments = urlPath.slice('/assets/'.length).split('/');
@@ -67,5 +69,5 @@ http.createServer((req, res) => {
   });
 // Bound to this computer only, so nothing on the local network can reach it.
 }).listen(port, '127.0.0.1', () => {
-  console.log(`Serving "${root}" at http://localhost:${port}`);
+  console.log(`Serving "${publicDir}" at http://localhost:${port}`);
 });
