@@ -26,7 +26,8 @@ app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 if (missingEnv.length) {
   console.error(`Missing environment variables: ${missingEnv.join(', ')}`);
   app.use('/api/v1', (req, res) => {
-    res.status(503).json({ error: { message: 'The server is missing its Supabase settings.', code: 'not_configured' } });
+    // Names only, never values, so whoever deploys can see what to add.
+    res.status(503).json({ error: { message: `The server is missing its Supabase settings: ${missingEnv.join(', ')}.`, code: 'not_configured' } });
   });
 } else {
   app.use('/api/v1/profile', require('./routes/profile'));
