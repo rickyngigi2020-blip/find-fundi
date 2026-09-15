@@ -30,7 +30,9 @@ function formatClock(seconds) {
 const PLAY_ICON = '<svg class="w-4 h-4 translate-x-[1px]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8v14.4a1 1 0 0 0 1.5.9l11.3-7.2a1 1 0 0 0 0-1.7L8.5 3.9A1 1 0 0 0 7 4.8z"/></svg>';
 const PAUSE_ICON = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
 
-// `source` is a Blob (fresh recording) or a URL (saved voice note).
+// `source` is a Blob (fresh recording) or, for a saved voice note, a function
+// that resolves to a signed URL. Signed URLs expire, so a saved note asks for a
+// URL each time it has to download rather than keeping one from page load.
 function createVoicePlayer(source) {
   const root = document.createElement('div');
   root.className = 'voice-player flex items-center gap-3 rounded-xl border border-navy/10 bg-white py-1.5 pl-1.5 pr-3';
@@ -48,6 +50,7 @@ function createVoicePlayer(source) {
 
   let buffer = null;
   let loading = null;
+  let undecodable = false;
   let node = null;
   let startedAt = 0;
   let offset = 0;
@@ -73,37 +76,58 @@ function createVoicePlayer(source) {
   }
 
   function tick() {
+    // A list that re-renders can remove this player mid-playback; don't keep
+    // playing audio nobody can see or pause.
+    if (!root.isConnected) { pause(); return; }
     render();
     if (playing) frame = requestAnimationFrame(tick);
+  }
+
+  async function download() {
+    if (source instanceof Blob) return source.arrayBuffer();
+    const url = await source();
+    const res = url ? await fetch(url) : null;
+    if (!res || !res.ok) throw new Error(`Voice note download failed (${res ? res.status : 'no link'})`);
+    return res.arrayBuffer();
   }
 
   function load() {
     if (!loading) {
       loading = (async () => {
-        const bytes = source instanceof Blob
-          ? await source.arrayBuffer()
-          : await (await fetch(source)).arrayBuffer();
-        buffer = await decodeVoiceNote(bytes);
+        const bytes = await download();
+        try {
+          buffer = await decodeVoiceNote(bytes);
+        } catch (err) {
+          undecodable = true;
+          throw err;
+        }
         render();
       })();
+      // Don't remember a failure: the next press tries again with a fresh link.
+      loading.catch((err) => {
+        console.warn(err);
+        if (!undecodable) loading = null;
+      });
     }
     return loading;
   }
 
-  // Last resort for a browser that can't decode the recording itself.
-  function fallBackToNativePlayer() {
+  // Last resort for a browser that downloaded the recording but can't decode it.
+  async function fallBackToNativePlayer() {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.className = 'w-full h-10';
-    audio.src = source instanceof Blob ? URL.createObjectURL(source) : source;
+    audio.src = source instanceof Blob ? URL.createObjectURL(source) : await source();
     root.replaceWith(audio);
   }
 
   async function play() {
+    if (!buffer) time.textContent = 'Loading…';
     try {
       await load();
     } catch (err) {
-      fallBackToNativePlayer();
+      if (undecodable) fallBackToNativePlayer();
+      else time.textContent = "Couldn't load";
       return;
     }
     if (playing) return; // a second click landed while the file was loading
@@ -168,7 +192,7 @@ function createVoicePlayer(source) {
   });
 
   const api = { element: root, play, pause, destroy: pause };
-  load().catch(() => { time.textContent = '0:00'; });
+  load().catch(() => { time.textContent = undecodable ? 'Tap to play' : "Couldn't load"; });
   return api;
 }
 
@@ -192,7 +216,14 @@ async function renderJobMedia(container, job) {
     const label = document.createElement('p');
     label.className = 'text-[12px] font-semibold text-navy/50 uppercase tracking-wide';
     label.textContent = 'Voice note';
-    wrap.append(label, createVoicePlayer(urlFor[job.voice_note_path]).element);
+    // Use the link just signed for the first download; ask for a new one after.
+    let firstUrl = urlFor[job.voice_note_path];
+    const signedVoiceUrl = async () => {
+      if (firstUrl) { const url = firstUrl; firstUrl = null; return url; }
+      const { data: fresh } = await sb.storage.from('job-media').createSignedUrl(job.voice_note_path, 60 * 60);
+      return fresh ? fresh.signedUrl : null;
+    };
+    wrap.append(label, createVoicePlayer(signedVoiceUrl).element);
   }
 
   const photoUrls = photos.map((p) => urlFor[p]).filter(Boolean);

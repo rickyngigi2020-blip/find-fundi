@@ -503,13 +503,20 @@
   }
 
   // ---------- jobs ----------
+  // The feed refreshes every minute and on returning to the tab. Cards for
+  // unchanged jobs are kept, so a voice note someone is listening to carries on.
+  let openJobCards = new Map();
   function renderOpenJobs() {
     const list = document.getElementById('openJobsList');
+    const kept = new Map();
     list.replaceChildren(...state.feed.map((job) => {
-      const card = openJobCard(job);
+      const previous = openJobCards.get(job.id);
+      const card = previous && previous.updatedAt === job.updated_at ? previous.card : openJobCard(job);
       card.className = 'surface p-5';
+      kept.set(job.id, { updatedAt: job.updated_at, card });
       return card;
     }));
+    openJobCards = kept;
     document.getElementById('openJobsEmpty').hidden = state.feed.length > 0;
   }
 
