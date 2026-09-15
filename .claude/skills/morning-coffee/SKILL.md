@@ -26,6 +26,12 @@ more than one session often works on the project.
   past sessions). Report any migration that hasn't been applied.
 - **Servers:** check whether ports 3000 (serve.mjs) and 3001 (API) are listening.
   Don't start them unless Ricky asks.
+- **Live site:** `curl https://find-fundi.vercel.app/api/v1/fundi/status`
+  (401 = working, 503 = Supabase keys missing, 500 = crashing).
+- **Vercel sign-in:** run `npx vercel whoami`. If it shows a username, put under
+  **Heads-up**: "The Vercel CLI is still signed in on this PC; revoke it in Vercel >
+  Account Settings > Tokens (or `npx vercel logout`) when you no longer need it."
+  Ricky asked to be reminded about this often.
 - **Open items — verify each one, don't assume:**
   - Google Maps key: is `public/assets/map.js` still using `YOUR_GOOGLE_MAPS_API_KEY`?
   - Legal pages: do Terms & Conditions / Privacy Policy pages exist? (They must
@@ -37,7 +43,7 @@ more than one session often works on the project.
     (`rounded-full` on CTAs) still in `public/index.html`?
   - Tailwind weights: `font-600/700/800` classes still used site-wide (they
     aren't real Tailwind classes, so headings render semi-bold)?
-  - Hosting: any deployment config, or local only with the temporary phone tunnel?
+  - Hosting: live on Vercel (find-fundi.vercel.app); custom domain connected yet?
   - Launch checklist from the `no-vibe-coded` skill: custom domain, favicon,
     "made with AI" badge removed, privacy policy, terms and conditions.
 
