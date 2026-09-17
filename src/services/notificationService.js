@@ -1,0 +1,116 @@
+const { adminClient } = require('../db/supabase');
+const { notifyUsers } = require('./pushService');
+
+// What each job change tells the people involved. Wording matches the pages
+// the notification opens: fundis act in the fundi app, customers in My activity.
+
+// Keep in step with public/assets/categories.js.
+const CATEGORY_LABELS = {
+  phone_electronics: 'Phones & Electronics',
+  computer_laptop: 'Computers & Laptops',
+  appliance: 'Home Appliances',
+  mechanical: 'Vehicles',
+  general_maintenance: 'General Maintenance',
+  installation: 'Installation',
+  electrical: 'General Maintenance',
+};
+const PAYMENT_LABELS = { mpesa: 'M-Pesa', card: 'card', cash: 'cash' };
+
+const FUNDI_URL = '/fundi.html';
+const CUSTOMER_URL = '/my-jobs.html';
+
+const jobTitle = (job) => job.subcategory || CATEGORY_LABELS[job.category] || 'your job';
+const ksh = (amount) => `KSh ${Number(amount).toLocaleString('en-KE')}`;
+
+async function firstName(userId) {
+  const { data } = await adminClient.from('profiles').select('full_name').eq('id', userId).maybeSingle();
+  return (data && data.full_name && data.full_name.trim().split(/\s+/)[0]) || 'Someone';
+}
+
+// Verified, not suspended fundis in the job's category, except the customer
+// (one account can be both).
+async function jobPosted(job) {
+  const { data, error } = await adminClient
+    .from('fundi_profiles')
+    .select('id, profiles!inner(suspended_at)')
+    .eq('verification_status', 'verified')
+    .eq('category', job.category)
+    .is('profiles.suspended_at', null);
+  if (error) return console.error('jobPosted lookup failed', error.message);
+  const summary = job.description ? job.description.slice(0, 90) : 'Described in a voice note';
+  await notifyUsers(data.map((f) => f.id).filter((id) => id !== job.customer_id), {
+    title: `New job in ${job.area}: ${jobTitle(job)}`,
+    body: summary,
+    url: FUNDI_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function fundiBooked(job) {
+  const name = await firstName(job.customer_id);
+  await notifyUsers([job.fundi_id], {
+    title: "You've been booked",
+    body: `${name} booked you for ${jobTitle(job)} in ${job.area}. Call them, then send your price.`,
+    url: FUNDI_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function priceSent(job) {
+  const name = await firstName(job.fundi_id);
+  await notifyUsers([job.customer_id], {
+    title: `${name} sent a price`,
+    body: `${ksh(job.quote_amount)} for ${jobTitle(job)}. Review it in My activity.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function priceAccepted(job) {
+  const name = await firstName(job.customer_id);
+  const pay = job.payment_method ? `, paying by ${PAYMENT_LABELS[job.payment_method]}` : '';
+  await notifyUsers([job.fundi_id], {
+    title: 'Price accepted',
+    body: `${name} accepted ${ksh(job.final_cost)} for ${jobTitle(job)}${pay}.`,
+    url: FUNDI_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function jobCompleted(job) {
+  const name = await firstName(job.fundi_id);
+  await notifyUsers([job.customer_id], {
+    title: 'Job marked complete',
+    body: `${name} marked ${jobTitle(job)} complete. Rate how it went.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+// `fundiId` is the fundi who was booked before the change, if any.
+async function jobCancelled(job, fundiId) {
+  const title = `${jobTitle(job)} was cancelled`;
+  const reason = job.cancel_reason ? ` Reason: ${job.cancel_reason}` : '';
+  if (job.cancelled_by === 'customer') {
+    const name = await firstName(job.customer_id);
+    await notifyUsers([fundiId], { title, body: `${name} cancelled this job.${reason}`, url: FUNDI_URL, tag: `job-${job.id}` });
+    return;
+  }
+  const body = `Find Fundi cancelled this job.${reason}`;
+  await Promise.all([
+    notifyUsers([job.customer_id], { title, body, url: CUSTOMER_URL, tag: `job-${job.id}` }),
+    notifyUsers([fundiId], { title, body, url: FUNDI_URL, tag: `job-${job.id}` }),
+  ]);
+}
+
+async function fundiReleased(job, fundiId) {
+  const name = await firstName(fundiId);
+  await notifyUsers([job.customer_id], {
+    title: `${name} can't take your job`,
+    body: `Choose another fundi for ${jobTitle(job)} in My activity.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+module.exports = { jobPosted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

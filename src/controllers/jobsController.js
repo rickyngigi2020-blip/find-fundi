@@ -115,4 +115,27 @@ async function review(req, res, next) {
   }
 }
 
-module.exports = { create, mine, feed, match, quote, acceptQuote, complete, review };
+// Optional short reason, shown to the other party.
+function cleanReason(value) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : null;
+}
+
+async function cancel(req, res, next) {
+  try {
+    const job = await jobService.cancelJob(req.params.id, { by: 'customer', customerId: req.user.id, reason: cleanReason(req.body.reason) });
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function release(req, res, next) {
+  try {
+    const job = await jobService.releaseJob(req.params.id, req.user.id);
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, mine, feed, match, quote, acceptQuote, complete, cancel, release, review, cleanReason };

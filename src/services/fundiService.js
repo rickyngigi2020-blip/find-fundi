@@ -43,16 +43,33 @@ async function getStatus(accessToken, userId) {
   return data;
 }
 
-// Customers see fundis who are available right now first. Offline fundis are
-// still listed. The raw online flag and check-in time are not passed on.
+// Average star rating and number of reviews for each fundi id.
+async function ratingsFor(fundiIds) {
+  const ratings = Object.fromEntries(fundiIds.map((id) => [id, { average: null, count: 0 }]));
+  if (!fundiIds.length) return ratings;
+  const { data, error } = await adminClient
+    .from('reviews')
+    .select('rating, jobs!inner(fundi_id)')
+    .in('jobs.fundi_id', fundiIds);
+  if (error) throw toApiError(error);
+  const sums = {};
+  data.forEach((r) => { sums[r.jobs.fundi_id] = (sums[r.jobs.fundi_id] || 0) + r.rating; ratings[r.jobs.fundi_id].count += 1; });
+  Object.entries(sums).forEach(([id, sum]) => { ratings[id].average = Math.round((sum / ratings[id].count) * 10) / 10; });
+  return ratings;
+}
+
+// Customers see fundis who are available right now first, then the best
+// rated. Offline fundis are still listed; suspended ones are not. The raw
+// online flag and check-in time are not passed on.
 // Users can't read other people's profiles directly (migration 0008), so this
 // uses the service role and returns only the columns selected here: never a
 // fundi's phone, street, national ID or documents.
 async function searchVerifiedFundis({ category, area }) {
   let query = adminClient
     .from('fundi_profiles')
-    .select('id, category, years_experience, bio, is_online, last_seen_at, profiles!inner(full_name, area)')
-    .eq('verification_status', 'verified');
+    .select('id, category, years_experience, bio, is_online, last_seen_at, profiles!inner(full_name, area, suspended_at)')
+    .eq('verification_status', 'verified')
+    .is('profiles.suspended_at', null);
 
   if (category) query = query.eq('category', category);
   if (area) query = query.eq('profiles.area', area);
@@ -61,12 +78,17 @@ async function searchVerifiedFundis({ category, area }) {
   if (error) throw toApiError(error);
 
   const now = Date.now();
+  const ratings = await ratingsFor(data.map((f) => f.id));
   return data
-    .map(({ is_online, last_seen_at, ...fundi }) => ({
+    .map(({ is_online, last_seen_at, profiles: { full_name, area: fundiArea }, ...fundi }) => ({
       ...fundi,
+      profiles: { full_name, area: fundiArea },
       available_now: isAvailableNow({ is_online, last_seen_at }, now),
+      rating: ratings[fundi.id],
     }))
-    .sort((a, b) => Number(b.available_now) - Number(a.available_now));
+    .sort((a, b) => Number(b.available_now) - Number(a.available_now)
+      || (b.rating.average || 0) - (a.rating.average || 0)
+      || b.rating.count - a.rating.count);
 }
 
 // Going online also serves as the app's periodic check-in.
@@ -149,4 +171,4 @@ async function getDashboard(userId) {
   };
 }
 
-module.exports = { applyAsFundi, getStatus, searchVerifiedFundis, setAvailability, getDashboard };
+module.exports = { applyAsFundi, getStatus, searchVerifiedFundis, setAvailability, getDashboard, ratingsFor };

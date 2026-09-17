@@ -19,13 +19,19 @@ const mime = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
 };
+
+// Files that must sit at the site root: the service worker's scope is its own
+// folder, and the manifest is linked from every page.
+const ROOT_FILES = new Set(['sw.js', 'manifest.webmanifest']);
 
 // Only site pages and the assets folder in public/ are served. The project root holds
 // .env (with the Supabase service-role key), source code and node_modules, none
 // of which may ever be reachable over HTTP.
 function resolvePublicFile(urlPath) {
   if (urlPath === '/') return path.join(publicDir, 'index.html');
+  if (ROOT_FILES.has(urlPath.slice(1))) return path.join(publicDir, urlPath.slice(1));
 
   const page = urlPath.match(/^\/([a-z0-9-]+)\.html$/);
   if (page) return path.join(publicDir, `${page[1]}.html`);

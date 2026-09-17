@@ -307,3 +307,15 @@ function renderContactCard(person, roleLabel) {
   }
   return card;
 }
+
+// Star rating shown next to a fundi's name, e.g. "★ 4.6 (12 reviews)".
+// `rating` is { average, count } from the API.
+function ratingHtml(rating) {
+  if (!rating || !rating.count) {
+    return '<span class="inline-flex items-center gap-1 text-[12.5px] text-navy/45">No reviews yet</span>';
+  }
+  const reviews = `${rating.count} review${rating.count === 1 ? '' : 's'}`;
+  return `<span class="inline-flex items-center gap-1 text-[12.5px] text-navy/70" aria-label="Rated ${rating.average} out of 5 from ${reviews}">`
+    + '<svg class="w-3.5 h-3.5 text-orange" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9L3.4 9.5l6-.8z"/></svg>'
+    + `<span class="font-semibold text-navy tabular-nums">${Number(rating.average).toFixed(1)}</span><span class="text-navy/50">(${reviews})</span></span>`;
+}

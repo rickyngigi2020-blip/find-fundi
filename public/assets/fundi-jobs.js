@@ -170,6 +170,47 @@ function renderFundiQuoteSection(section, job, pill, card) {
   }
 }
 
+// The booked fundi can't do the job: after an inline confirmation it goes
+// back to the open list and the customer is told to choose someone else.
+function renderReleaseSection(section, job) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mt-4 border-t border-navy/10 pt-3';
+  const showButton = () => {
+    wrap.innerHTML = '<button type="button" class="r-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">Can\'t take this job</button>';
+    wrap.querySelector('.r-open').addEventListener('click', showConfirm);
+  };
+  const showConfirm = () => {
+    wrap.innerHTML = `
+      <p class="text-[13.5px] font-semibold text-navy">Turn this job down?</p>
+      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">The job goes back to open and the customer is asked to choose another fundi. Let them know if you can.</p>
+      <p class="r-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+      <div class="mt-2.5 flex flex-wrap gap-2">
+        <button type="button" class="r-yes rounded-lg bg-red-600 px-4 py-2 text-[13.5px] font-semibold text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-55">Yes, turn it down</button>
+        <button type="button" class="r-no btn-outline rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Keep job</button>
+      </div>
+    `;
+    wrap.querySelector('.r-no').addEventListener('click', showButton);
+    const yes = wrap.querySelector('.r-yes');
+    yes.addEventListener('click', async () => {
+      yes.disabled = true;
+      yes.textContent = 'Saving…';
+      try {
+        stopSharing(job.id);
+        await apiFetch(`/jobs/${job.id}/release`, { method: 'POST', body: JSON.stringify({}) });
+        onFundiJobsChanged();
+      } catch (err) {
+        const errorEl = wrap.querySelector('.r-error');
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        yes.disabled = false;
+        yes.textContent = 'Yes, turn it down';
+      }
+    });
+  };
+  showButton();
+  section.appendChild(wrap);
+}
+
 function openJobCard(job) {
   const div = document.createElement('div');
   div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
@@ -211,6 +252,7 @@ function myJobCard(job) {
     <div class="contact-section"></div>
     <div class="quote-section"></div>
     <div class="location-section mt-3 hidden"></div>
+    <div class="release-section"></div>
   `;
   renderJobMedia(div.querySelector('.media-section'), job);
   if (job.counterpart) {
@@ -219,6 +261,11 @@ function myJobCard(job) {
   renderFundiQuoteSection(div.querySelector('.quote-section'), job, div.querySelector('.status-pill'), div);
 
   if (job.status === 'matched' || job.status === 'in_progress') {
+    renderReleaseSection(div.querySelector('.release-section'), job);
+  }
+
+  // Location sharing only shows on a map, which needs a Google Maps key.
+  if ((job.status === 'matched' || job.status === 'in_progress') && hasMapsKey()) {
     const locationSection = div.querySelector('.location-section');
     locationSection.classList.remove('hidden');
     const mapId = `map-${job.id}`;

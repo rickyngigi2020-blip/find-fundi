@@ -34,12 +34,20 @@ if (missingEnv.length) {
   app.use('/api/v1/fundi', require('./routes/fundi'));
   app.use('/api/v1/jobs', require('./routes/jobs'));
   app.use('/api/v1/admin', require('./routes/admin'));
+  app.use('/api/v1/push', require('./routes/push'));
 }
 
 // The site itself, for local use: a single https tunnel then serves pages and
 // API from one origin. On Vercel, public/ is served by its CDN instead (Vercel
 // ignores express.static). Only public/ is exposed; .env, source code and
 // node_modules must never be served.
+// Must be served from the root: a service worker only controls pages at or
+// below its own path.
+app.get(['/sw.js', '/manifest.webmanifest'], (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.type(req.path.endsWith('.js') ? 'text/javascript' : 'application/manifest+json');
+  res.sendFile(path.join(publicDir, req.path.slice(1)));
+});
 app.use('/assets', express.static(path.join(publicDir, 'assets'), { dotfiles: 'deny', index: false, fallthrough: false }));
 app.get(/^\/(?:([a-z0-9-]+)\.html)?$/, (req, res, next) => {
   const file = path.join(publicDir, `${req.params[0] || 'index'}.html`);

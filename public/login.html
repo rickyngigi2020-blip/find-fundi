@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Log in — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -129,7 +132,10 @@
       }
       window.location.href = nextParam || (profile.role === 'fundi' ? 'fundi.html' : 'my-jobs.html');
     } catch (err) {
-      formError.textContent = err.message || 'Something went wrong.';
+      // Supabase reports a suspended (banned) account as "User is banned".
+      formError.textContent = /banned/i.test(err.message || '')
+        ? 'This account has been suspended. Contact Find Fundi if you think this is a mistake.'
+        : err.message || 'Something went wrong.';
       formError.classList.remove('hidden');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Sign in';

@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Find Fundi</title>
+<title>Admin | Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,128 +29,345 @@
     box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
     transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
   }
+  .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
   .btn-outline { transition: background-color 160ms ease; }
+  .btn-outline:hover { background: rgba(4,21,48,0.05); }
+  .btn-outline:active { background: rgba(4,21,48,0.09); }
+  .btn-danger { transition: background-color 160ms ease; }
   button:disabled { opacity: 0.55; pointer-events: none; }
-  .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; white-space: nowrap; }
+  .tab { transition: background-color 160ms ease, color 160ms ease; }
+  .tab:hover { color: #041530; background: rgba(4,21,48,0.04); }
+  .tab:active { background: rgba(4,21,48,0.08); }
+  .tab[aria-selected="true"] { background: #041530; color: #fff; }
+  .doc-link { transition: color 160ms ease; }
+  input:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
 
 <header class="bg-white border-b border-navy/10">
-  <div class="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
+  <div class="max-w-4xl mx-auto px-5 h-16 flex items-center justify-between">
     <a href="index.html" class="flex items-center gap-2.5">
       <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
-      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span> <span class="text-navy/40 font-body font-normal">Admin</span></span>
+      <span class="font-display font-bold text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span> <span class="text-navy/40 font-body font-normal">Admin</span></span>
     </a>
   </div>
 </header>
 
-<main class="max-w-3xl mx-auto px-5 py-10">
+<main class="max-w-4xl mx-auto px-5 py-8">
   <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
-    <h1 class="font-display font-800 text-[1.5rem] text-navy">Sign in required</h1>
+    <h1 class="font-display font-extrabold text-[1.5rem] text-navy">Sign in required</h1>
     <a href="login.html?next=admin.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
   </div>
 
   <div id="forbidden" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
-    <h1 class="font-display font-800 text-[1.5rem] text-navy">Not authorized</h1>
-    <p class="mt-2 text-navy/60 text-[15px]">This account doesn't have admin access.</p>
+    <h1 class="font-display font-extrabold text-[1.5rem] text-navy">Not authorized</h1>
+    <p id="forbiddenText" class="mt-2 text-navy/60 text-[15px]">This account doesn't have admin access.</p>
   </div>
 
   <div id="content" hidden>
-    <h1 class="font-display font-800 text-[1.6rem] text-navy">Fundi Applications</h1>
-    <div id="appList" class="mt-6 space-y-4"></div>
-    <p id="emptyState" hidden class="mt-6 text-navy/60 text-[15px]">No applications yet.</p>
+    <div role="tablist" aria-label="Admin sections" class="inline-flex gap-1 rounded-lg border border-navy/10 bg-white p-1">
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="applications" aria-selected="true">Applications</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
+    </div>
+
+    <!-- ===== applications ===== -->
+    <section data-panel="applications" class="mt-6">
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Fundi applications</h1>
+      <p class="mt-1 text-[14px] text-navy/55">Open the ID and certificate before approving. Links work for 10 minutes; reload the tab for fresh ones.</p>
+      <div id="appList" class="mt-5 space-y-4"></div>
+      <p id="appEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No applications yet.</p>
+    </section>
+
+    <!-- ===== users ===== -->
+    <section data-panel="users" class="mt-6" hidden>
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Users</h1>
+      <p class="mt-1 text-[14px] text-navy/55">A suspended account can't sign in, and a suspended fundi disappears from customers' lists.</p>
+      <label class="mt-4 block max-w-md">
+        <span class="sr-only">Search users</span>
+        <input id="userSearch" type="search" class="w-full rounded-lg border border-navy/15 bg-white px-3.5 py-2.5 text-[15px] outline-none" placeholder="Search by name, email or phone">
+      </label>
+      <div id="userList" class="mt-5 space-y-3"></div>
+      <p id="userEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No users match that search.</p>
+    </section>
+
+    <!-- ===== jobs ===== -->
+    <section data-panel="jobs" class="mt-6" hidden>
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Jobs</h1>
+          <p class="mt-1 text-[14px] text-navy/55">The latest 100 jobs. Cancelling tells the customer and any booked fundi.</p>
+        </div>
+        <label class="block">
+          <span class="sr-only">Show jobs</span>
+          <select id="jobFilter" class="rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[14.5px] outline-none">
+            <option value="active">Not finished</option>
+            <option value="requested">Finding a fundi</option>
+            <option value="matched">Booked</option>
+            <option value="in_progress">Price agreed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="all">All jobs</option>
+          </select>
+        </label>
+      </div>
+      <div id="jobList" class="mt-5 space-y-3"></div>
+      <p id="jobEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No jobs here.</p>
+    </section>
   </div>
 </main>
 
-<template id="appCardTemplate">
-  <div class="app-card bg-white rounded-2xl border border-navy/10 p-5">
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <p class="font-display font-700 text-[15.5px] text-navy full-name"></p>
-        <p class="text-[13.5px] text-navy/55 mt-0.5 details"></p>
-      </div>
-      <span class="status-pill shrink-0"></span>
-    </div>
-    <p class="mt-3 text-[13.5px] text-navy/60 bio"></p>
-    <div class="mt-3 flex flex-wrap gap-2 text-[12.5px] text-navy/50 docs"></div>
-    <div class="actions mt-4 flex gap-2"></div>
-  </div>
-</template>
-
 <script src="assets/supabase-client.js"></script>
 <script src="assets/categories.js"></script>
+<script src="assets/job-media.js"></script>
 <script>
-  const STATUS_STYLES = {
+  const PILL = {
     pending: 'bg-orange-50 text-orange-700', verified: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-600',
+    requested: 'bg-gray-100 text-navy/60', matched: 'bg-orange-50 text-orange-700', in_progress: 'bg-orange-50 text-orange-700',
+    completed: 'bg-green-50 text-green-700', cancelled: 'bg-red-50 text-red-600', suspended: 'bg-red-50 text-red-600',
+    admin: 'bg-navy text-white', customer: 'bg-gray-100 text-navy/60',
   };
+  const JOB_STATUS_LABELS = {
+    requested: 'Finding a fundi', matched: 'Booked', in_progress: 'Price agreed', completed: 'Completed', cancelled: 'Cancelled',
+  };
+  const VERIFICATION_LABELS = { pending: 'Fundi, pending', verified: 'Fundi, verified', rejected: 'Fundi, rejected' };
 
-  async function signedUrlFor(path) {
-    const { data, error } = await sb.storage.from('verification-docs').createSignedUrl(path, 60 * 10);
-    return error ? null : data.signedUrl;
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+  function pill(key, label) {
+    return el('span', `status-pill ${PILL[key] || 'bg-gray-100 text-navy/60'}`, label);
+  }
+  function button(label, variant, onClick) {
+    const styles = {
+      primary: 'btn-primary text-white',
+      outline: 'btn-outline border border-navy/15 text-navy',
+      danger: 'btn-danger bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    };
+    const b = el('button', `${styles[variant]} rounded-lg px-4 py-2 text-[13.5px] font-semibold`, label);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function errorLine() { const p = el('p', 'hidden mt-2 text-[13px] text-red-600'); p.setAttribute('role', 'alert'); return p; }
+  function showError(p, message) { p.textContent = message; p.classList.remove('hidden'); }
+  function shortDate(iso) {
+    return new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
   }
 
-  async function renderApp(app) {
-    const tpl = document.getElementById('appCardTemplate').content.cloneNode(true);
-    const card = tpl.querySelector('.app-card');
-    tpl.querySelector('.full-name').textContent = app.profiles.full_name;
-    tpl.querySelector('.details').textContent = `${CATEGORY_LABELS[app.category] || app.category} · ${app.profiles.area || 'No area'} · ${app.profiles.phone} · ${app.years_experience} yrs · ${app.highest_qualification}`;
-    tpl.querySelector('.bio').textContent = app.bio || '';
-
-    const pill = tpl.querySelector('.status-pill');
-    pill.textContent = app.verification_status;
-    pill.className += ' ' + STATUS_STYLES[app.verification_status];
-
-    const docsEl = tpl.querySelector('.docs');
-    const idUrl = await signedUrlFor(app.id_document_url);
-    if (idUrl) docsEl.innerHTML += `<a href="${idUrl}" target="_blank" rel="noopener" class="underline hover:text-navy">View ID document</a>`;
-    if (app.certificate_url) {
-      const certUrl = await signedUrlFor(app.certificate_url);
-      if (certUrl) docsEl.innerHTML += `<a href="${certUrl}" target="_blank" rel="noopener" class="underline hover:text-navy">View certificate</a>`;
-    }
-
-    const actions = tpl.querySelector('.actions');
-    if (app.verification_status !== 'verified') {
-      const approveBtn = document.createElement('button');
-      approveBtn.className = 'btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg';
-      approveBtn.textContent = 'Approve';
-      approveBtn.addEventListener('click', () => updateStatus(app.id, 'verified', card));
-      actions.appendChild(approveBtn);
-    }
-    if (app.verification_status !== 'rejected') {
-      const rejectBtn = document.createElement('button');
-      rejectBtn.className = 'btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5';
-      rejectBtn.textContent = 'Reject';
-      rejectBtn.addEventListener('click', () => updateStatus(app.id, 'rejected', card));
-      actions.appendChild(rejectBtn);
-    }
-
-    return tpl;
-  }
-
-  async function updateStatus(fundiId, status, card) {
-    card.querySelectorAll('button').forEach(b => b.disabled = true);
-    try {
-      await apiFetch(`/admin/fundi-applications/${fundiId}/status`, {
-        method: 'POST', body: JSON.stringify({ status }),
+  // A button that turns into "Are you sure?" with an optional reason field.
+  function confirmAction(container, { label, question, confirmLabel, withReason, run }) {
+    const showButton = () => container.replaceChildren(button(label, 'outline', showConfirm));
+    const showConfirm = () => {
+      const box = el('div', 'w-full rounded-xl border border-red-200 bg-red-50/60 p-3');
+      box.appendChild(el('p', 'text-[13.5px] font-semibold text-navy', question));
+      let reason = null;
+      if (withReason) {
+        reason = el('input', 'mt-2 w-full rounded-lg border border-navy/15 bg-white px-3 py-2 text-[14px] outline-none');
+        reason.type = 'text'; reason.maxLength = 300; reason.placeholder = 'Reason (optional, shown to the people involved)';
+        box.appendChild(reason);
+      }
+      const err = errorLine();
+      const row = el('div', 'mt-2.5 flex flex-wrap gap-2');
+      const yes = button(confirmLabel, 'danger', async () => {
+        yes.disabled = true; no.disabled = true;
+        try {
+          await run(reason ? reason.value : undefined);
+        } catch (e) {
+          showError(err, e.message);
+          yes.disabled = false; no.disabled = false;
+        }
       });
-      await load();
-    } catch (err) {
-      alert(err.message);
-      card.querySelectorAll('button').forEach(b => b.disabled = false);
-    }
+      const no = button('Keep as is', 'outline', showButton);
+      row.append(yes, no);
+      box.append(err, row);
+      container.replaceChildren(box);
+      if (reason) reason.focus();
+    };
+    showButton();
   }
 
-  async function load() {
-    const apps = await apiFetch('/admin/fundi-applications');
-    const list = document.getElementById('appList');
-    list.innerHTML = '';
-    document.getElementById('emptyState').hidden = apps.length !== 0;
-    for (const app of apps) {
-      list.appendChild(await renderApp(app));
-    }
+  // ---------- applications ----------
+  function docLink(url, label) {
+    if (!url) return el('span', 'text-navy/40', `${label} not available`);
+    const a = el('a', 'doc-link font-semibold text-orange-700 underline underline-offset-2 hover:text-navy', label);
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    return a;
   }
+
+  function renderApp(app) {
+    const card = el('div', 'bg-white rounded-2xl border border-navy/10 p-5');
+    const top = el('div', 'flex items-start justify-between gap-3');
+    const who = el('div');
+    who.appendChild(el('p', 'font-display font-bold text-[15.5px] text-navy', app.profiles.full_name));
+    who.appendChild(el('p', 'text-[13.5px] text-navy/55 mt-0.5',
+      [CATEGORY_LABELS[app.category] || app.category, app.profiles.area || 'No area', app.profiles.phone,
+        `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].join(' · ')));
+    const pills = el('div', 'flex flex-wrap justify-end gap-1.5');
+    if (app.profiles.suspended_at) pills.appendChild(pill('suspended', 'Suspended'));
+    pills.appendChild(pill(app.verification_status, app.verification_status));
+    top.append(who, pills);
+    card.appendChild(top);
+    if (app.bio) card.appendChild(el('p', 'mt-3 text-[13.5px] text-navy/60', app.bio));
+
+    const docs = el('div', 'mt-3 flex flex-wrap gap-4 text-[13.5px]');
+    docs.appendChild(docLink(app.id_document_link, 'View ID document'));
+    if (app.certificate_url) docs.appendChild(docLink(app.certificate_link, 'View certificate'));
+    card.appendChild(docs);
+
+    const actions = el('div', 'mt-4 flex flex-wrap gap-2');
+    const err = errorLine();
+    const setStatus = async (status) => {
+      actions.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      try {
+        await apiFetch(`/admin/fundi-applications/${app.id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
+        await loadApps();
+      } catch (e) {
+        showError(err, e.message);
+        actions.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+      }
+    };
+    if (app.verification_status !== 'verified') actions.appendChild(button('Approve', 'primary', () => setStatus('verified')));
+    if (app.verification_status === 'pending') actions.appendChild(button('Reject', 'outline', () => setStatus('rejected')));
+    card.append(actions, err);
+    if (app.verification_status === 'verified') {
+      confirmAction(actions, {
+        label: 'Remove approval', question: 'Remove this fundi’s approval? They stop appearing to customers and can’t take jobs.',
+        confirmLabel: 'Remove approval', run: async () => { await apiFetch(`/admin/fundi-applications/${app.id}/status`, { method: 'POST', body: JSON.stringify({ status: 'rejected' }) }); await loadApps(); },
+      });
+    }
+    return card;
+  }
+
+  async function loadApps() {
+    const apps = await apiFetch('/admin/fundi-applications');
+    // Pending first, since those need a decision.
+    apps.sort((a, b) => Number(b.verification_status === 'pending') - Number(a.verification_status === 'pending'));
+    document.getElementById('appList').replaceChildren(...apps.map(renderApp));
+    document.getElementById('appEmpty').hidden = apps.length > 0;
+  }
+
+  // ---------- users ----------
+  function renderUser(user) {
+    const card = el('div', 'bg-white rounded-2xl border border-navy/10 p-4');
+    const top = el('div', 'flex flex-wrap items-start justify-between gap-3');
+    const who = el('div', 'min-w-0');
+    who.appendChild(el('p', 'font-display font-bold text-[15px] text-navy', user.full_name || 'No name'));
+    who.appendChild(el('p', 'text-[13.5px] text-navy/60 break-words', [user.email, user.phone, user.area].filter(Boolean).join(' · ')));
+    who.appendChild(el('p', 'text-[12.5px] text-navy/45 mt-0.5', `Joined ${shortDate(user.created_at)}`));
+    const pills = el('div', 'flex flex-wrap gap-1.5');
+    if (user.suspended_at) pills.appendChild(pill('suspended', `Suspended ${shortDate(user.suspended_at)}`));
+    if (user.is_admin) pills.appendChild(pill('admin', 'Admin'));
+    if (user.fundi) pills.appendChild(pill(user.fundi.verification_status, VERIFICATION_LABELS[user.fundi.verification_status]));
+    else pills.appendChild(pill('customer', 'Customer'));
+    top.append(who, pills);
+    card.appendChild(top);
+
+    if (!user.is_admin) {
+      const actions = el('div', 'mt-3 flex flex-wrap gap-2');
+      const setSuspended = async (suspended) => {
+        await apiFetch(`/admin/users/${user.id}/suspension`, { method: 'POST', body: JSON.stringify({ suspended }) });
+        await loadUsers();
+      };
+      if (user.suspended_at) {
+        const err = errorLine();
+        actions.appendChild(button('Reinstate account', 'outline', async (e) => {
+          e.target.disabled = true;
+          try { await setSuspended(false); } catch (ex) { showError(err, ex.message); e.target.disabled = false; }
+        }));
+        card.append(actions, err);
+      } else {
+        confirmAction(actions, {
+          label: 'Suspend account', question: `Suspend ${user.full_name || 'this account'}? They are signed out of the API and can't sign in again until reinstated.`,
+          confirmLabel: 'Suspend', run: () => setSuspended(true),
+        });
+        card.appendChild(actions);
+      }
+    }
+    return card;
+  }
+
+  let userSearchTimer = null;
+  async function loadUsers() {
+    const q = document.getElementById('userSearch').value.trim();
+    const users = await apiFetch(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    document.getElementById('userList').replaceChildren(...users.map(renderUser));
+    document.getElementById('userEmpty').hidden = users.length > 0;
+  }
+  document.getElementById('userSearch').addEventListener('input', () => {
+    clearTimeout(userSearchTimer);
+    userSearchTimer = setTimeout(() => loadUsers().catch((e) => alert(e.message)), 300);
+  });
+
+  // ---------- jobs ----------
+  function personLine(label, person) {
+    const p = el('p', 'text-[13.5px] text-navy/65');
+    p.appendChild(el('span', 'font-semibold text-navy/80', `${label}: `));
+    p.appendChild(document.createTextNode(person ? [person.full_name, person.phone].filter(Boolean).join(' · ') : 'None yet'));
+    return p;
+  }
+
+  function renderJob(job) {
+    const card = el('div', 'bg-white rounded-2xl border border-navy/10 p-4');
+    const top = el('div', 'flex items-start justify-between gap-3');
+    const what = el('div', 'min-w-0');
+    what.appendChild(el('p', 'font-display font-bold text-[15px] text-navy', job.subcategory || CATEGORY_LABELS[job.category] || job.category));
+    what.appendChild(el('p', 'text-[13.5px] text-navy/55 mt-0.5', jobSummaryText(job)));
+    top.append(what, pill(job.status, JOB_STATUS_LABELS[job.status] || job.status));
+    card.appendChild(top);
+
+    const details = el('div', 'mt-3 space-y-0.5');
+    details.appendChild(personLine('Customer', job.customer));
+    details.appendChild(personLine('Fundi', job.fundi));
+    const facts = [job.area, `Posted ${shortDate(job.created_at)}`];
+    if (job.final_cost || job.quote_amount) facts.push(formatKsh(job.final_cost || job.quote_amount));
+    details.appendChild(el('p', 'text-[13px] text-navy/50', facts.join(' · ')));
+    if (job.status === 'cancelled') {
+      const by = job.cancelled_by === 'admin' ? 'an admin' : 'the customer';
+      details.appendChild(el('p', 'text-[13px] text-red-600', `Cancelled by ${by}${job.cancel_reason ? `: ${job.cancel_reason}` : ''}`));
+    }
+    card.appendChild(details);
+
+    if (['requested', 'matched', 'in_progress'].includes(job.status)) {
+      const actions = el('div', 'mt-3 flex flex-wrap gap-2');
+      confirmAction(actions, {
+        label: 'Cancel job', question: 'Cancel this job? The customer and any booked fundi get a notification.',
+        confirmLabel: 'Cancel job', withReason: true,
+        run: async (reason) => {
+          await apiFetch(`/admin/jobs/${job.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
+          await loadJobs();
+        },
+      });
+      card.appendChild(actions);
+    }
+    return card;
+  }
+
+  async function loadJobs() {
+    const filter = document.getElementById('jobFilter').value;
+    const jobs = await apiFetch(`/admin/jobs?status=${encodeURIComponent(filter)}`);
+    document.getElementById('jobList').replaceChildren(...jobs.map(renderJob));
+    document.getElementById('jobEmpty').hidden = jobs.length > 0;
+  }
+  document.getElementById('jobFilter').addEventListener('change', () => loadJobs().catch((e) => alert(e.message)));
+
+  // ---------- tabs ----------
+  const loaders = { applications: loadApps, users: loadUsers, jobs: loadJobs };
+  function showTab(name) {
+    if (!loaders[name]) name = 'applications';
+    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+    document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
+    history.replaceState(null, '', `#${name}`);
+    return loaders[name]().catch((e) => alert(e.message));
+  }
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
   (async function init() {
     const session = await getSession();
@@ -156,11 +376,15 @@
       return;
     }
     try {
-      await load();
-      document.getElementById('content').hidden = false;
+      await loadApps();
     } catch (err) {
+      if (!/admin access/i.test(err.message)) document.getElementById('forbiddenText').textContent = err.message;
       document.getElementById('forbidden').hidden = false;
+      return;
     }
+    document.getElementById('content').hidden = false;
+    const start = window.location.hash.slice(1);
+    if (start && start !== 'applications') showTab(start);
   })();
 </script>
 </body>

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your work | Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -189,6 +192,7 @@
 
     <!-- ===== home ===== -->
     <section id="panelHome" hidden aria-label="Home">
+      <div id="pushPrompt" hidden class="mb-4"></div>
       <div class="metric-card">
         <div id="metricTrack" class="metric-track" aria-roledescription="carousel" aria-label="Your earnings and rating">
           <div class="metric-slide" data-metric="today" aria-roledescription="slide" aria-label="Earned today">
@@ -345,6 +349,7 @@
 <script src="assets/categories.js"></script>
 <script src="assets/job-media.js"></script>
 <script src="assets/fundi-jobs.js"></script>
+<script src="assets/push.js"></script>
 <script>
   // While online, the page checks in this often so customers keep seeing the
   // fundi as available (the API stops counting them after 15 minutes).
@@ -695,6 +700,13 @@
     renderOnline();
     // Coming back to the page while still marked online counts as a check-in.
     if (state.online) checkIn();
+
+    mountPushPrompt(document.getElementById('pushPrompt'), 'Get a notification when a job in your category is posted, a customer books you, or a price is accepted.');
+    // A notification means a job changed: refresh without waiting for the timer.
+    onPushUpdate(() => {
+      loadFeed().catch(() => {});
+      onFundiJobsChanged();
+    });
 
     document.getElementById('statusChip').hidden = false;
     document.getElementById('appNav').hidden = false;

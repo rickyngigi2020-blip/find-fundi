@@ -11,6 +11,8 @@ router.post('/:id/match', requireAuth, controller.match);
 router.post('/:id/quote', requireAuth, controller.quote);
 router.post('/:id/accept-quote', requireAuth, controller.acceptQuote);
 router.post('/:id/complete', requireAuth, controller.complete);
+router.post('/:id/cancel', requireAuth, controller.cancel);
+router.post('/:id/release', requireAuth, controller.release);
 router.post('/:id/review', requireAuth, controller.review);
 
 module.exports = router;

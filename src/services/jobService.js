@@ -1,6 +1,7 @@
 const { adminClient, clientForUser } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
+const notify = require('./notificationService');
 
 // Job writes go through the service-role client, because jobs have no
 // client-side write policies: every change is authorised here instead, so a
@@ -35,6 +36,7 @@ async function createJob(customerId, payload) {
     .select()
     .single();
   if (error) throw toApiError(error);
+  await notify.jobPosted(data);
   return data;
 }
 
@@ -94,15 +96,16 @@ async function matchFundi(jobId, customerId, fundiId) {
 
   const { data: fundi, error } = await adminClient
     .from('fundi_profiles')
-    .select('id, category, verification_status')
+    .select('id, category, verification_status, profiles!inner(suspended_at)')
     .eq('id', fundiId)
     .maybeSingle();
   if (error) throw toApiError(error);
-  if (!fundi || fundi.verification_status !== 'verified' || fundi.category !== job.category) {
+  if (!fundi || fundi.verification_status !== 'verified' || fundi.category !== job.category || fundi.profiles.suspended_at) {
     throw apiError(400, "That fundi isn't available for this kind of job.", 'invalid_request');
   }
 
   const updated = await updateJob(jobId, { fundi_id: fundiId, status: 'matched' }, { status: 'requested' });
+  await notify.fundiBooked(updated);
   const [withContact] = await withCounterparts([updated], 'customer');
   return withContact;
 }
@@ -113,7 +116,9 @@ async function sendQuote(jobId, fundiId, { amount, note }) {
   if (job.status !== 'matched') {
     throw apiError(409, 'The price can only be changed before the customer accepts it.', 'conflict');
   }
-  return updateJob(jobId, { quote_amount: amount, quote_note: note, quoted_at: new Date().toISOString() }, { status: 'matched' });
+  const updated = await updateJob(jobId, { quote_amount: amount, quote_note: note, quoted_at: new Date().toISOString() }, { status: 'matched' });
+  await notify.priceSent(updated);
+  return updated;
 }
 
 async function acceptQuote(jobId, customerId, { payment_method, quoted_at }) {
@@ -124,8 +129,9 @@ async function acceptQuote(jobId, customerId, { payment_method, quoted_at }) {
   if (quoted_at && new Date(quoted_at).getTime() !== new Date(job.quoted_at).getTime()) {
     throw apiError(409, 'Your fundi has changed the price. Check the new price before accepting.', 'quote_changed');
   }
+  let updated;
   try {
-    return await updateJob(jobId, {
+    updated = await updateJob(jobId, {
       status: 'in_progress',
       payment_method,
       final_cost: job.quote_amount,
@@ -137,6 +143,8 @@ async function acceptQuote(jobId, customerId, { payment_method, quoted_at }) {
     }
     throw err;
   }
+  await notify.priceAccepted(updated);
+  return updated;
 }
 
 async function completeJob(jobId, fundiId) {
@@ -145,7 +153,47 @@ async function completeJob(jobId, fundiId) {
   if (job.status !== 'in_progress') {
     throw apiError(409, 'Agree on a price with the customer before marking the job complete.', 'conflict');
   }
-  return updateJob(jobId, { status: 'completed', completed_at: new Date().toISOString() }, { status: 'in_progress' });
+  const updated = await updateJob(jobId, { status: 'completed', completed_at: new Date().toISOString() }, { status: 'in_progress' });
+  await notify.jobCompleted(updated);
+  return updated;
+}
+
+const OPEN_STATUSES = ['requested', 'matched', 'in_progress'];
+
+// Clears everything tied to the booked fundi, so the job can be booked again.
+const UNBOOKED = {
+  fundi_id: null, quote_amount: null, quote_note: null, quoted_at: null,
+  quote_accepted_at: null, final_cost: null, payment_method: null,
+};
+
+// `by` is 'customer' (their own job) or 'admin' (any job not yet finished).
+async function cancelJob(jobId, { by, customerId, reason }) {
+  const job = await loadJob(jobId);
+  if (by === 'customer' && job.customer_id !== customerId) throw apiError(403, 'You can only cancel your own jobs.', 'forbidden');
+  if (!OPEN_STATUSES.includes(job.status)) {
+    throw apiError(409, job.status === 'completed' ? 'This job is already complete.' : 'This job is already cancelled.', 'conflict');
+  }
+  const updated = await updateJob(jobId, {
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancelled_by: by,
+    cancel_reason: reason,
+  }, { status: job.status });
+  await notify.jobCancelled(updated, job.fundi_id);
+  return updated;
+}
+
+// The booked fundi can't do the job: it goes back to open so the customer can
+// choose someone else.
+async function releaseJob(jobId, fundiId) {
+  const job = await loadJob(jobId);
+  if (job.fundi_id !== fundiId) throw apiError(403, 'Only the booked fundi can turn this job down.', 'forbidden');
+  if (job.status !== 'matched' && job.status !== 'in_progress') {
+    throw apiError(409, "This job can't be turned down any more.", 'conflict');
+  }
+  const updated = await updateJob(jobId, { ...UNBOOKED, status: 'requested' }, { status: job.status, fundi_id: fundiId });
+  await notify.fundiReleased(updated, fundiId);
+  return updated;
 }
 
 async function addReview(accessToken, jobId, { rating, comment }) {
@@ -159,4 +207,6 @@ async function addReview(accessToken, jobId, { rating, comment }) {
   return data;
 }
 
-module.exports = { createJob, listMine, listFeed, matchFundi, sendQuote, acceptQuote, completeJob, addReview };
+module.exports = {
+  createJob, listMine, listFeed, matchFundi, sendQuote, acceptQuote, completeJob, cancelJob, releaseJob, addReview,
+};

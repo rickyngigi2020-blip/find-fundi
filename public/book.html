@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Book a fundi — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -263,6 +266,7 @@
       </div>
       <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
       <p id="doneMessage" class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi will call you to discuss the job, then send you a price to accept in My activity.</p>
+      <div id="donePush" hidden class="mt-5 text-left"></div>
       <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My activity</a>
     </section>
   </div>
@@ -271,6 +275,7 @@
 <script src="assets/supabase-client.js"></script>
 <script src="assets/categories.js"></script>
 <script src="assets/job-media.js"></script>
+<script src="assets/push.js"></script>
 <script>
   let selectedCategory = null;
   let selectedFundi = null;
@@ -631,6 +636,7 @@
         <div>
           <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-[15px] text-navy">${escapeHtml(f.profiles.full_name)}${f.available_now ? '<span class="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600"><span class="w-1.5 h-1.5 rounded-sm bg-orange"></span>Available now</span>' : ''}</p>
           <p class="text-[13px] text-navy/55 mt-0.5">${escapeHtml(f.profiles.area)} · ${escapeHtml(f.years_experience)} yrs experience</p>
+          <p class="mt-1">${ratingHtml(f.rating)}</p>
         </div>
         <span class="text-[12.5px] font-semibold text-orange">Select</span>
       `;
@@ -676,6 +682,7 @@
       document.getElementById('doneMessage').textContent =
         `${selectedFundi.profiles.full_name} will call you to discuss the job, then send you a price to accept in My activity.`;
       showStep('stepDone');
+      mountPushPrompt(document.getElementById('donePush'), 'Get a notification when your fundi sends the price.');
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');

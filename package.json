@@ -12,11 +12,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "puppeteer": "25.4.0",
-    "express": "^4.19.2",
     "@supabase/supabase-js": "^2.45.4",
-    "dotenv": "^16.4.5",
     "cors": "^2.8.5",
-    "express-rate-limit": "^7.4.0"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "puppeteer": "25.4.0",
+    "web-push": "^3.6.7"
   }
 }
