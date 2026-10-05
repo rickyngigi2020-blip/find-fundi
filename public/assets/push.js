@@ -50,21 +50,41 @@ function subscriptionMatchesKey(sub, keyBytes) {
 
 // The browser's own wording for these is not something anyone can act on
 // ("Registration failed - push service error"), so it is translated here.
+// Chrome, Edge and Brave all surface the same unhelpful string for this
+// ("Registration failed - push service error"). It means the browser could not
+// register with its push service, which is almost never something about Find
+// Fundi, so the message names the causes that are actually worth checking and
+// keeps the browser's own words for when none of them is it.
 function pushFailureMessage(err) {
-  const raw = `${err && err.name} ${err && err.message}`.toLowerCase();
+  const name = (err && err.name) || '';
+  const message = (err && err.message) || '';
+  const raw = `${name} ${message}`.toLowerCase();
+  const detail = message ? ` (${name ? name + ': ' : ''}${message})` : '';
+
   if (raw.includes('push service error') || raw.includes('aborterror')) {
-    return 'Your browser could not reach its notification service. '
-      + 'On Brave, turn on Settings > Privacy > "Use Google services for push messaging", then try again. '
-      + 'Otherwise check you are not offline or behind a firewall that blocks it, and try Chrome.';
+    const isBrave = Boolean(navigator.brave);
+    const inPrivate = !window.indexedDB;
+    if (isBrave) {
+      return 'Brave blocks notifications until you turn on Settings > Privacy and security > '
+        + '"Use Google services for push messaging", then restart Brave.' + detail;
+    }
+    if (inPrivate) {
+      return 'Notifications do not work in a private or incognito window. Open Find Fundi in a normal window and try again.' + detail;
+    }
+    return 'Your browser could not reach its notification service. This is usually one of: '
+      + 'an incognito or guest window, a network that blocks Google services, or a browser that needs restarting. '
+      + 'Close and reopen the browser, make sure you are in a normal window, then try again.' + detail;
   }
   if (raw.includes('notallowederror') || raw.includes('permission')) {
-    return 'Notifications are blocked. Allow them for this site in your browser settings.';
+    return 'Notifications are blocked for this site. Tap the padlock in the address bar, '
+      + 'set Notifications to Allow, then try again.' + detail;
   }
   if (raw.includes('notsupportederror')) {
-    return 'This browser cannot do notifications. Try Chrome, or add Find Fundi to your home screen on iPhone.';
+    return 'This browser cannot do notifications. On iPhone, add Find Fundi to your home screen first.' + detail;
   }
-  return (err && err.message) || 'Notifications could not be turned on.';
+  return (message || 'Notifications could not be turned on.') + (message ? '' : detail);
 }
+
 
 async function enablePush() {
   const permission = await Notification.requestPermission();
@@ -87,6 +107,7 @@ async function enablePush() {
     }
     await sendSubscription(sub);
   } catch (err) {
+    console.error('Find Fundi: push subscription failed', err);
     throw new Error(pushFailureMessage(err));
   }
 }
