@@ -2,6 +2,7 @@ const { adminClient, clientForUser } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
 const notify = require('./notificationService');
+const matching = require('./matchingService');
 
 // Job writes go through the service-role client, because jobs have no
 // client-side write policies: every change is authorised here instead, so a
@@ -36,7 +37,10 @@ async function createJob(customerId, payload) {
     .select()
     .single();
   if (error) throw toApiError(error);
-  await notify.jobPosted(data);
+  // The customer does not pick a fundi: the job goes straight to the best
+  // candidate as an offer. A failure here must not lose the job the customer
+  // just described, so it is logged and the next poll retries the search.
+  await matching.advance(data).catch((e) => console.error('first offer failed', e.message));
   return data;
 }
 
@@ -74,6 +78,16 @@ async function listMine(accessToken, userId, role) {
     .eq(column, userId)
     .order('created_at', { ascending: false });
   if (error) throw toApiError(error);
+
+  // The customer polls this screen while waiting to be matched, and the free
+  // tier has no background worker, so each poll is what moves a stalled search
+  // on to the next fundi.
+  if (role !== 'fundi') {
+    await Promise.all(data
+      .filter((j) => j.status === 'requested' && !j.fundi_id)
+      .map((j) => matching.advance(j).catch((e) => console.error('advance failed', e.message))));
+  }
+
   return withCounterparts(data, role);
 }
 
@@ -86,28 +100,6 @@ async function listFeed(accessToken) {
     .order('created_at', { ascending: false });
   if (error) throw toApiError(error);
   return data;
-}
-
-async function matchFundi(jobId, customerId, fundiId) {
-  const job = await loadJob(jobId);
-  if (job.customer_id !== customerId) throw apiError(403, 'You can only book fundis for your own jobs.', 'forbidden');
-  if (job.status !== 'requested') throw apiError(409, 'This job has already been booked.', 'conflict');
-  if (fundiId === customerId) throw apiError(400, "You can't book yourself for your own job.", 'invalid_request');
-
-  const { data: fundi, error } = await adminClient
-    .from('fundi_profiles')
-    .select('id, category, verification_status, profiles!inner(suspended_at)')
-    .eq('id', fundiId)
-    .maybeSingle();
-  if (error) throw toApiError(error);
-  if (!fundi || fundi.verification_status !== 'verified' || fundi.category !== job.category || fundi.profiles.suspended_at) {
-    throw apiError(400, "That fundi isn't available for this kind of job.", 'invalid_request');
-  }
-
-  const updated = await updateJob(jobId, { fundi_id: fundiId, status: 'matched' }, { status: 'requested' });
-  await notify.fundiBooked(updated);
-  const [withContact] = await withCounterparts([updated], 'customer');
-  return withContact;
 }
 
 async function sendQuote(jobId, fundiId, { amount, note }) {
@@ -183,8 +175,9 @@ async function cancelJob(jobId, { by, customerId, reason }) {
   return updated;
 }
 
-// The booked fundi can't do the job: it goes back to open so the customer can
-// choose someone else.
+// The booked fundi can't do the job after all: it goes back into the search
+// and is offered to the next candidate. The fundi who dropped it is already
+// excluded, because they hold an accepted offer for this job.
 async function releaseJob(jobId, fundiId) {
   const job = await loadJob(jobId);
   if (job.fundi_id !== fundiId) throw apiError(403, 'Only the booked fundi can turn this job down.', 'forbidden');
@@ -193,6 +186,7 @@ async function releaseJob(jobId, fundiId) {
   }
   const updated = await updateJob(jobId, { ...UNBOOKED, status: 'requested' }, { status: job.status, fundi_id: fundiId });
   await notify.fundiReleased(updated, fundiId);
+  await matching.advance(updated).catch((e) => console.error('re-offer after release failed', e.message));
   return updated;
 }
 
@@ -208,5 +202,5 @@ async function addReview(accessToken, jobId, { rating, comment }) {
 }
 
 module.exports = {
-  createJob, listMine, listFeed, matchFundi, sendQuote, acceptQuote, completeJob, cancelJob, releaseJob, addReview,
+  createJob, listMine, listFeed, sendQuote, acceptQuote, completeJob, cancelJob, releaseJob, addReview,
 };

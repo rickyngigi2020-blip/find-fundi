@@ -125,6 +125,9 @@
 <symbol id="icon-drill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
   <path d="m15 12-8.4 8.4a1 1 0 1 1-3-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.9-1.9A2 2 0 0 1 19 8.2V7l-2.3-1.1a6 6 0 0 0-2.7-.7H13l.9.8A6 6 0 0 1 16 10.5V12l2 2h1.2a2 2 0 0 1 1.4.6L22 16"/>
 </symbol>
+<symbol id="icon-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.12 8.12 20 20"/><path d="M20 4 8.12 15.88"/>
+</symbol>
 <symbol id="icon-phonecall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
   <path d="M21 16.5v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 1.1 3.8 2 2 0 0 1 3.1 1.6h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 9.4a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2.1Z"/>
 </symbol>
@@ -283,8 +286,8 @@
         </div>
         <div class="text-center md:text-left">
           <div class="w-[76px] h-[76px] mx-auto md:mx-0 rounded-full bg-white border-2 border-orange text-navy flex items-center justify-center font-display font-700 text-[13px] relative z-10">02</div>
-          <h3 class="font-display font-700 text-[19px] mt-5 text-navy">Pick your fundi</h3>
-          <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.7]">Choose a verified fundi who does that kind of work. They call you to understand the job.</p>
+          <h3 class="font-display font-700 text-[19px] mt-5 text-navy">We find your fundi</h3>
+          <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.7]">Your job goes to the nearest verified fundi who is online. Whoever takes it calls you to understand it.</p>
         </div>
         <div class="text-center md:text-left">
           <div class="w-[76px] h-[76px] mx-auto md:mx-0 rounded-full bg-white border-2 border-orange text-navy flex items-center justify-center font-display font-700 text-[13px] relative z-10">03</div>
@@ -306,7 +309,7 @@
       </h2>
     </div>
 
-    <div id="serviceStack" class="stack mt-10 md:mt-14" data-total="6">
+    <div id="serviceStack" class="stack mt-10 md:mt-14" data-total="7">
       <div class="stack-item" style="--i:0">
         <article class="stack-card bg-navy text-white rounded-2xl md:rounded-3xl overflow-hidden flex flex-col md:flex-row">
           <div class="flex-1 flex flex-col justify-center p-6 md:p-10 lg:p-12 order-2 md:order-1">
@@ -447,6 +450,30 @@
           <div class="relative h-40 sm:h-52 md:h-auto md:w-[44%] shrink-0 order-1 md:order-2 overflow-hidden">
             <img src="https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1000&q=70" alt="Rows of solar panels under a blue sky" loading="lazy" class="absolute inset-0 w-full h-full object-cover">
             <div class="absolute inset-0 bg-orange mix-blend-multiply opacity-25" aria-hidden="true"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" aria-hidden="true"></div>
+          </div>
+        </article>
+      </div>
+      <div class="stack-item" style="--i:6">
+        <article class="stack-card bg-navy text-white rounded-2xl md:rounded-3xl overflow-hidden flex flex-col md:flex-row">
+          <div class="flex-1 flex flex-col justify-center p-6 md:p-10 lg:p-12 order-2 md:order-1">
+            <div class="flex items-center gap-3">
+              <span class="w-10 h-10 rounded-lg bg-white/10 text-orange flex items-center justify-center shrink-0"><svg class="w-5 h-5" aria-hidden="true"><use href="#icon-scissors"/></svg></span>
+              <p class="font-display font-bold text-[11px] tracking-[0.08em] uppercase text-orange">Maintenance &amp; services</p>
+            </div>
+            <h3 class="font-display font-extrabold text-[1.6rem] md:text-[2.2rem] leading-[1.08] tracking-[-0.03em] mt-4 md:mt-5">Tailoring &amp; Sewing</h3>
+            <p class="mt-2.5 md:mt-3 text-[15px] md:text-[16px] leading-[1.7] text-white/70 max-w-md">A torn seam, a zip that has given up, or a kitenge outfit cut to your measurements.</p>
+            <ul class="mt-4 md:mt-6 flex flex-wrap gap-2" aria-label="Examples">
+              <li class="border border-white/15 text-white/80 rounded-md px-2.5 py-1 text-[12.5px] font-medium">Torn clothes</li>
+              <li class="border border-white/15 text-white/80 rounded-md px-2.5 py-1 text-[12.5px] font-medium">Kitenge outfits</li>
+              <li class="border border-white/15 text-white/80 rounded-md px-2.5 py-1 text-[12.5px] font-medium">Hems and zips</li>
+              <li class="border border-white/15 text-white/80 rounded-md px-2.5 py-1 text-[12.5px] font-medium">School uniforms</li>
+              <li class="border border-white/15 text-white/80 rounded-md px-2.5 py-1 text-[12.5px] font-medium">Curtains</li>
+            </ul>
+          </div>
+          <div class="relative h-40 sm:h-52 md:h-auto md:w-[44%] shrink-0 order-1 md:order-2 overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1533758488827-1ed0f9b03899?auto=format&fit=crop&w=1000&q=70" alt="Hands guiding fabric through a sewing machine" loading="lazy" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-navy mix-blend-multiply opacity-25" aria-hidden="true"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" aria-hidden="true"></div>
           </div>
         </article>

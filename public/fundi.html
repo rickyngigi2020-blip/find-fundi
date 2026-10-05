@@ -246,10 +246,10 @@
       </div>
 
       <div class="mt-7">
-        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Open jobs</h2>
-        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Customers choose who to book. Fundis who are online show first on their list.</p>
-        <div id="openJobsList" class="mt-3 space-y-4"></div>
-        <p id="openJobsEmpty" hidden class="mt-3 text-[14px] text-navy/55">Nothing open in your category right now.</p>
+        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your next job</h2>
+        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Jobs come to you one at a time. Stay online and you get offered the ones nearest you first.</p>
+        <div id="offerSlot" class="mt-3"></div>
+        <p id="offerEmpty" hidden class="mt-3 text-[14px] text-navy/55">No job waiting for you right now.</p>
       </div>
     </section>
 
@@ -508,26 +508,78 @@
   }
 
   // ---------- jobs ----------
-  // The feed refreshes every minute and on returning to the tab. Cards for
-  // unchanged jobs are kept, so a voice note someone is listening to carries on.
-  let openJobCards = new Map();
-  function renderOpenJobs() {
-    const list = document.getElementById('openJobsList');
-    const kept = new Map();
-    list.replaceChildren(...state.feed.map((job) => {
-      const previous = openJobCards.get(job.id);
-      const card = previous && previous.updatedAt === job.updated_at ? previous.card : openJobCard(job);
-      card.className = 'surface p-5';
-      kept.set(job.id, { updatedAt: job.updated_at, card });
-      return card;
-    }));
-    openJobCards = kept;
-    document.getElementById('openJobsEmpty').hidden = state.feed.length > 0;
+  // The matching service offers a job to one fundi at a time. This fundi
+  // either takes it or passes, so there is no list to browse. The feed is
+  // still loaded, but only to draw the demand map above.
+  let offerTimer = null;
+  let countdownTimer = null;
+  let shownOfferId = null;
+
+  function clearOfferTimers() {
+    if (offerTimer) { clearTimeout(offerTimer); offerTimer = null; }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   }
 
+  function renderOffer(offer) {
+    const slot = document.getElementById('offerSlot');
+    const empty = document.getElementById('offerEmpty');
+
+    if (!offer) {
+      shownOfferId = null;
+      slot.replaceChildren();
+      empty.hidden = false;
+      return;
+    }
+
+    empty.hidden = true;
+    // Keep the card while the same offer stands, so a voice note being played
+    // is not cut off by the poll.
+    if (shownOfferId !== offer.id) {
+      shownOfferId = offer.id;
+      slot.replaceChildren(offerCard(offer, { onAccept: takeJob, onDecline: passJob }));
+    }
+
+    const countdown = slot.querySelector('.o-countdown');
+    if (countdown) {
+      if (countdownTimer) clearInterval(countdownTimer);
+      let left = offer.seconds_left;
+      countdown.textContent = left;
+      countdownTimer = setInterval(() => {
+        left -= 1;
+        countdown.textContent = Math.max(0, left);
+        if (left <= 0) { clearInterval(countdownTimer); countdownTimer = null; loadOffer(); }
+      }, 1000);
+    }
+  }
+
+  async function loadOffer() {
+    try {
+      const offer = await apiFetch('/jobs/my-offer');
+      renderOffer(offer);
+    } catch (err) {
+      // A failed poll should not blank a live offer the fundi is reading.
+    }
+    if (offerTimer) clearTimeout(offerTimer);
+    offerTimer = setTimeout(loadOffer, 6000);
+  }
+
+  async function takeJob(jobId) {
+    await apiFetch(`/jobs/${jobId}/offer/accept`, { method: 'POST' });
+    shownOfferId = null;
+    clearOfferTimers();
+    await Promise.all([loadMyJobs(), loadOffer(), loadFeed().catch(() => {})]);
+  }
+
+  async function passJob(jobId) {
+    await apiFetch(`/jobs/${jobId}/offer/decline`, { method: 'POST' });
+    shownOfferId = null;
+    clearOfferTimers();
+    await loadOffer();
+  }
+
+  // Still loaded, but now only to draw "Where the work is".
   async function loadFeed() {
     state.feed = await apiFetch('/jobs/feed');
-    renderOpenJobs();
     renderDemand();
   }
 
@@ -614,6 +666,7 @@
     if (document.visibilityState !== 'visible' || !state.profile) return;
     checkIn();
     loadFeed().catch(() => {});
+    loadOffer();
   });
   setInterval(() => {
     if (document.visibilityState === 'visible' && state.profile) loadFeed().catch(() => {});
@@ -690,6 +743,7 @@
 
       state.profile = profile;
       await Promise.all([loadDashboard(), loadFeed(), loadMyJobs()]);
+      loadOffer();
     } catch (err) {
       document.getElementById('loadErrorText').textContent = err.message;
       return showOnly('loadError');
@@ -701,10 +755,11 @@
     // Coming back to the page while still marked online counts as a check-in.
     if (state.online) checkIn();
 
-    mountPushPrompt(document.getElementById('pushPrompt'), 'Get a notification when a job in your category is posted, a customer books you, or a price is accepted.');
+    mountPushPrompt(document.getElementById('pushPrompt'), 'Get a notification the moment a job is offered to you, and when a price is accepted.');
     // A notification means a job changed: refresh without waiting for the timer.
     onPushUpdate(() => {
       loadFeed().catch(() => {});
+      loadOffer();
       onFundiJobsChanged();
     });
 

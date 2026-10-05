@@ -1,4 +1,5 @@
 const jobService = require('../services/jobService');
+const matching = require('../services/matchingService');
 
 async function create(req, res, next) {
   try {
@@ -53,14 +54,33 @@ async function feed(req, res, next) {
   }
 }
 
-async function match(req, res, next) {
+// Fundis answer the offer the matching service sent them; customers no longer
+// pick anyone.
+async function acceptOffer(req, res, next) {
   try {
-    const { fundi_id } = req.body;
-    if (!fundi_id) {
-      return res.status(400).json({ error: { message: 'fundi_id is required', code: 'invalid_request' } });
-    }
-    const job = await jobService.matchFundi(req.params.id, req.user.id, fundi_id);
+    const job = await matching.acceptOffer(req.params.id, req.user.id);
     res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function declineOffer(req, res, next) {
+  try {
+    const result = await matching.declineOffer(req.params.id, req.user.id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The one job waiting on this fundi right now, with the seconds left to answer.
+async function myOffer(req, res, next) {
+  try {
+    const offer = await matching.offerForFundi(req.user.id);
+    if (!offer) return res.json({ data: null });
+    const { jobs: job, ...rest } = offer;
+    res.json({ data: { ...rest, job, seconds_left: Math.max(0, Math.round((new Date(offer.expires_at) - Date.now()) / 1000)) } });
   } catch (err) {
     next(err);
   }
@@ -138,4 +158,4 @@ async function release(req, res, next) {
   }
 }
 
-module.exports = { create, mine, feed, match, quote, acceptQuote, complete, cancel, release, review, cleanReason };
+module.exports = { create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, review, cleanReason };

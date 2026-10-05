@@ -1,0 +1,33 @@
+# Free-tier Supabase pauses a project after about 7 days with no database
+# activity, which takes the whole site down until it is restored by hand.
+# This calls an endpoint that runs a real query, well inside that window.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # 06:00 UTC every third day. Comfortably under the 7-day pause window even
+    # if one run is skipped or delayed, which GitHub's scheduler does under load.
+    - cron: '0 6 */3 * *'
+  # So it can be run by hand after restoring the project, to confirm it works.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database
+        run: |
+          echo "Pinging https://find-fundi.vercel.app/api/v1/health"
+          status=$(curl --silent --show-error --max-time 30 \
+            --write-out '%{http_code}' --output /tmp/health.json \
+            https://find-fundi.vercel.app/api/v1/health || echo "000")
+
+          echo "HTTP $status"
+          cat /tmp/health.json 2>/dev/null || true
+          echo
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Health check failed with status $status. The Supabase project may be paused — restore it at supabase.com/dashboard."
+            exit 1
+          fi
+          echo "Database answered. Project is awake."

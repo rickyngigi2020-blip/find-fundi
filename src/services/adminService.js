@@ -24,7 +24,7 @@ async function listFundiApplications() {
   return Promise.all(data.map(async (app) => ({
     ...app,
     id_document_link: await signedDocUrl(app.id_document_url),
-    certificate_link: await signedDocUrl(app.certificate_url),
+    certificate_links: await Promise.all((app.certificate_paths || []).map(signedDocUrl)),
   })));
 }
 
@@ -132,6 +132,112 @@ function cancelJob(jobId, reason) {
   return jobService.cancelJob(jobId, { by: 'admin', reason });
 }
 
+// Records that an admin interviewed a fundi with no papers and found them
+// competent. This is Find Fundi's own certification, and it stands in for an
+// uploaded certificate.
+async function certifyFundi(adminId, fundiId, note) {
+  const { data: fundi, error: readError } = await adminClient
+    .from('fundi_profiles')
+    .select('id, certificate_paths, certified_by_find_fundi_at')
+    .eq('id', fundiId)
+    .maybeSingle();
+  if (readError) throw toApiError(readError);
+  if (!fundi) throw apiError(404, 'That application no longer exists.', 'not_found');
+  if ((fundi.certificate_paths || []).length) {
+    throw apiError(400, 'This fundi already uploaded certificates, so they do not need Find Fundi certification.', 'invalid_request');
+  }
+
+  const { data, error } = await adminClient
+    .from('fundi_profiles')
+    .update({
+      certified_by_find_fundi_at: new Date().toISOString(),
+      certified_by: adminId,
+      certification_note: note || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', fundiId)
+    .select()
+    .single();
+  if (error) throw toApiError(error);
+  return data;
+}
+
+// Undoes a certification that was given in error. It does not change the
+// fundi's approval, which is a separate decision.
+async function uncertifyFundi(fundiId) {
+  const { data, error } = await adminClient
+    .from('fundi_profiles')
+    .update({
+      certified_by_find_fundi_at: null,
+      certified_by: null,
+      certification_note: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', fundiId)
+    .select()
+    .single();
+  if (error) throw toApiError(error);
+  return data;
+}
+
+// ---------- admins ----------
+// Admin rights are a flag on the profile. Granting is by email, because that
+// is what one admin knows about another; the account must already exist.
+
+async function listAdmins() {
+  const [{ data, error }, emails] = await Promise.all([
+    adminClient
+      .from('profiles')
+      .select('id, full_name, phone, created_at')
+      .eq('is_admin', true)
+      .order('created_at', { ascending: true }),
+    emailsById(),
+  ]);
+  if (error) throw toApiError(error);
+  return data.map((p) => ({ ...p, email: emails[p.id] || null }));
+}
+
+async function grantAdmin(email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) throw apiError(400, 'Enter the email address of the account to make an admin.', 'invalid_request');
+
+  const emails = await emailsById();
+  const userId = Object.keys(emails).find((id) => (emails[id] || '').toLowerCase() === needle);
+  if (!userId) {
+    throw apiError(404, 'No account uses that email. They need to sign up first, then you can make them an admin.', 'not_found');
+  }
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ is_admin: true })
+    .eq('id', userId)
+    .select('id, full_name')
+    .maybeSingle();
+  if (error) throw toApiError(error);
+  if (!data) {
+    throw apiError(409, 'That account has not finished setting up its profile yet, so it cannot be made an admin.', 'conflict');
+  }
+  return { ...data, email: emails[userId] };
+}
+
+// Removing your own rights would lock you out of this page with no way back,
+// so it is refused outright rather than confirmed.
+async function revokeAdmin(adminId, userId) {
+  if (adminId === userId) throw apiError(400, "You can't remove your own admin access.", 'invalid_request');
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ is_admin: false })
+    .eq('id', userId)
+    .select('id, full_name')
+    .maybeSingle();
+  if (error) throw toApiError(error);
+  if (!data) throw apiError(404, 'That account no longer exists.', 'not_found');
+  return data;
+}
+
 module.exports = {
   listFundiApplications, setVerificationStatus, listUsers, setSuspended, listJobs, cancelJob, JOB_FILTERS,
+  listAdmins, grantAdmin, revokeAdmin, certifyFundi, uncertifyFundi,
 };
+

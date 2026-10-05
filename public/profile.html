@@ -55,7 +55,6 @@
     </a>
     <nav class="flex items-center text-[14px] font-semibold text-navy/70 whitespace-nowrap">
       <a href="my-jobs.html" class="px-2 py-2.5 rounded-md hover:text-navy hover:bg-navy/5">My activity</a>
-      <a id="adminLink" href="admin.html" hidden class="px-2 py-2.5 rounded-md text-orange hover:bg-orange-50">Admin</a>
       <button id="logoutBtn" hidden class="px-2 py-2.5 rounded-md hover:text-navy hover:bg-navy/5">Log out</button>
     </nav>
   </div>
@@ -373,7 +372,6 @@
       return;
     }
 
-    if (profile.is_admin) document.getElementById('adminLink').hidden = false;
 
     currentProfile = profile;
     currentSession = session;

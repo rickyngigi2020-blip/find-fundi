@@ -12,6 +12,7 @@ const CATEGORY_LABELS = {
   mechanical: 'Vehicles',
   general_maintenance: 'General Maintenance',
   installation: 'Installation',
+  tailoring: 'Tailoring & Sewing',
   electrical: 'General Maintenance',
 };
 const PAYMENT_LABELS = { mpesa: 'M-Pesa', card: 'card', cash: 'cash' };
@@ -27,21 +28,25 @@ async function firstName(userId) {
   return (data && data.full_name && data.full_name.trim().split(/\s+/)[0]) || 'Someone';
 }
 
-// Verified, not suspended fundis in the job's category, except the customer
-// (one account can be both).
-async function jobPosted(job) {
-  const { data, error } = await adminClient
-    .from('fundi_profiles')
-    .select('id, profiles!inner(suspended_at)')
-    .eq('verification_status', 'verified')
-    .eq('category', job.category)
-    .is('profiles.suspended_at', null);
-  if (error) return console.error('jobPosted lookup failed', error.message);
+// One fundi at a time gets the job, so this replaces the old broadcast to
+// everyone in the category. It expires, so it says so.
+async function jobOffered(job, fundiId) {
   const summary = job.description ? job.description.slice(0, 90) : 'Described in a voice note';
-  await notifyUsers(data.map((f) => f.id).filter((id) => id !== job.customer_id), {
-    title: `New job in ${job.area}: ${jobTitle(job)}`,
-    body: summary,
+  await notifyUsers([fundiId], {
+    title: `Job for you in ${job.area}: ${jobTitle(job)}`,
+    body: `${summary} — open the app to accept before it passes on.`,
     url: FUNDI_URL,
+    tag: `offer-${job.id}`,
+  });
+}
+
+// Nobody in the category took it. The customer is waiting on a screen that
+// says "finding your fundi", so they need telling.
+async function searchExhausted(job) {
+  await notifyUsers([job.customer_id], {
+    title: 'No fundi available right now',
+    body: `Nobody could take ${jobTitle(job)} in ${job.area}. Open My activity to try again.`,
+    url: CUSTOMER_URL,
     tag: `job-${job.id}`,
   });
 }
@@ -113,4 +118,4 @@ async function fundiReleased(job, fundiId) {
   });
 }
 
-module.exports = { jobPosted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };
+module.exports = { jobOffered, searchExhausted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

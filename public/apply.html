@@ -105,13 +105,34 @@
         <option>0-1</option><option>2-3</option><option>4-5</option><option>6-10</option><option>10+</option>
       </select>
     </div>
-    <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID / Passport (JPG, PNG, or PDF)</label>
-      <input id="idDoc" required type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-[14px]">
-    </div>
-    <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="certDoc">Certificate / Diploma (optional)</label>
-      <input id="certDoc" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-[14px]">
+    <div class="rounded-xl border border-navy/10 bg-gray-50 p-4">
+      <p class="text-[13.5px] font-semibold text-navy">Your documents</p>
+      <p class="mt-1 text-[13px] text-navy/60 leading-[1.6]">Upload them as PDFs. Only the Find Fundi team sees them, and they are never shown to customers.</p>
+
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID or passport (PDF)</label>
+        <input id="idDoc" required type="file" accept="application/pdf,.pdf" class="w-full text-[14px]">
+      </div>
+
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="certDoc">Certificates proving your trade (PDF)</label>
+        <p class="text-[13px] text-navy/55 leading-[1.6] mb-1.5">A trade test, NITA grade, diploma, or a course certificate from a manufacturer. Pick several files at once if you have more than one, up to 5.</p>
+        <input id="certDoc" multiple type="file" accept="application/pdf,.pdf" class="w-full text-[14px]">
+        <p id="certList" class="mt-2 text-[13px] text-navy/60"></p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-navy/10">
+        <label class="flex items-start gap-2.5 cursor-pointer">
+          <input id="noCert" type="checkbox" class="mt-0.5 w-4 h-4 shrink-0 accent-orange">
+          <span class="text-[13.5px] font-semibold text-navy">I don't have a certificate</span>
+        </label>
+        <div id="noCertBlock" hidden class="mt-3">
+          <p class="text-[13px] text-navy/60 leading-[1.6]">Plenty of good fundis learned on the job. Tell us how you learned your trade and where you have worked. We will call you to arrange an interview, watch you work, and issue your Find Fundi certificate.</p>
+          <label class="block text-[13px] font-semibold text-navy/70 mt-3 mb-1.5" for="noCertReason">How you learned the trade</label>
+          <textarea id="noCertReason" rows="4" maxlength="1000" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none resize-none" placeholder="For example: eight years repairing fridges at a workshop in Gikomba, trained under my uncle who ran the shop."></textarea>
+          <p id="noCertCount" class="mt-1 text-[12.5px] text-navy/45"></p>
+        </div>
+      </div>
     </div>
     <div>
       <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="bio">Short bio (optional)</label>
@@ -154,19 +175,81 @@
   const submitBtn = document.getElementById('submitBtn');
   const formError = document.getElementById('formError');
 
+  const MAX_CERTIFICATES = 5;
+  const isPdf = (file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
+  // Named files reassure the applicant that several were picked up, since the
+  // browser's own label only says "5 files".
+  const certInput = document.getElementById('certDoc');
+  certInput.addEventListener('change', () => {
+    const names = [...certInput.files].map((f) => f.name);
+    document.getElementById('certList').textContent = names.length ? names.join(', ') : '';
+  });
+
+  // Uploading papers and asking for an interview are alternatives, so picking
+  // one puts the other away.
+  const MIN_REASON_LENGTH = 40;
+  const noCert = document.getElementById('noCert');
+  const noCertBlock = document.getElementById('noCertBlock');
+  const noCertReason = document.getElementById('noCertReason');
+  const certField = certInput.closest('div');
+
+  noCert.addEventListener('change', () => {
+    noCertBlock.hidden = !noCert.checked;
+    certField.hidden = noCert.checked;
+    if (noCert.checked) {
+      certInput.value = '';
+      document.getElementById('certList').textContent = '';
+      noCertReason.focus();
+    }
+  });
+
+  noCertReason.addEventListener('input', () => {
+    const left = MIN_REASON_LENGTH - noCertReason.value.trim().length;
+    document.getElementById('noCertCount').textContent = left > 0
+      ? `${left} more character${left === 1 ? '' : 's'} needed`
+      : '';
+  });
+
+  const fail = (message) => {
+    formError.textContent = message;
+    formError.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit for Verification';
+    formError.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     formError.classList.add('hidden');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting…';
 
+    const idFileCheck = document.getElementById('idDoc').files[0];
+    const certFilesCheck = noCert.checked ? [] : [...certInput.files];
+    if (idFileCheck && !isPdf(idFileCheck)) return fail('Your ID must be a PDF. Scan or export it as a PDF and try again.');
+
+    if (noCert.checked) {
+      if (noCertReason.value.trim().length < MIN_REASON_LENGTH) {
+        return fail('Tell us a bit more about how you learned the trade, so we know what to ask at the interview.');
+      }
+    } else {
+      if (!certFilesCheck.length) return fail('Attach at least one certificate, or tick the box to say you have none.');
+      if (certFilesCheck.length > MAX_CERTIFICATES) return fail(`Attach at most ${MAX_CERTIFICATES} certificates.`);
+      const notPdf = certFilesCheck.find((f) => !isPdf(f));
+      if (notPdf) return fail(`${notPdf.name} is not a PDF. Every certificate must be a PDF.`);
+    }
+
     try {
       const session = await getSession();
       const idFile = document.getElementById('idDoc').files[0];
-      const certFile = document.getElementById('certDoc').files[0];
+      const certFiles = noCert.checked ? [] : [...certInput.files];
 
       const id_document_url = await uploadPrivateFile('verification-docs', session.user.id, idFile);
-      const certificate_url = certFile ? await uploadPrivateFile('verification-docs', session.user.id, certFile) : null;
+      const certificate_paths = [];
+      for (const file of certFiles) {
+        certificate_paths.push(await uploadPrivateFile('verification-docs', session.user.id, file));
+      }
 
       await apiFetch('/fundi/apply', {
         method: 'POST',
@@ -176,7 +259,8 @@
           highest_qualification: document.getElementById('qualification').value,
           years_experience: document.getElementById('experience').value,
           id_document_url,
-          certificate_url,
+          certificate_paths,
+          no_certificate_reason: noCert.checked ? noCertReason.value.trim() : null,
           bio: document.getElementById('bio').value.trim() || null,
         }),
       });

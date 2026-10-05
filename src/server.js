@@ -30,6 +30,20 @@ if (missingEnv.length) {
     res.status(503).json({ error: { message: `The server is missing its Supabase settings: ${missingEnv.join(', ')}.`, code: 'not_configured' } });
   });
 } else {
+  // Keeps the free-tier Supabase project from pausing after ~7 days idle.
+  // It must actually query the database: Supabase counts database activity,
+  // so hitting a route that never reads a table would not reset the clock.
+  app.get('/api/v1/health', async (req, res) => {
+    try {
+      const { adminClient } = require('./db/supabase');
+      const { error } = await adminClient.from('profiles').select('id').limit(1);
+      if (error) throw error;
+      res.json({ data: { status: 'ok', checked_at: new Date().toISOString() } });
+    } catch (err) {
+      res.status(503).json({ error: { message: 'Database unreachable.', code: 'db_unreachable' } });
+    }
+  });
+
   app.use('/api/v1/profile', require('./routes/profile'));
   app.use('/api/v1/fundi', require('./routes/fundi'));
   app.use('/api/v1/jobs', require('./routes/jobs'));

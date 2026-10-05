@@ -43,6 +43,17 @@
   .btn-outline { transition: background-color 160ms ease; }
   .btn-outline:active { background: rgba(4,21,48,0.09); }
   .btn-danger:disabled, .btn-outline:disabled { opacity: 0.55; pointer-events: none; }
+  /* Matches book.html: shows the search is still running. */
+  .search-pulse { width: 10px; height: 10px; border-radius: 9999px; background: #FE6902; position: relative; }
+  .search-pulse::after {
+    content: ""; position: absolute; inset: 0; border-radius: 9999px; background: #FE6902;
+    animation: searchPulse 1800ms cubic-bezier(.22,1,.36,1) infinite;
+  }
+  @keyframes searchPulse {
+    0% { transform: scale(1); opacity: 0.55; }
+    70%, 100% { transform: scale(2.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .search-pulse::after { animation: none; } }
   .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
   .btn-quiet:hover { background: rgba(4,21,48,0.05); }
   .btn-quiet:active { background: rgba(4,21,48,0.09); }
@@ -252,64 +263,41 @@
 
   const OPEN_STATUSES = ['requested', 'matched', 'in_progress'];
 
-  // A job with no fundi yet (never booked, or the fundi turned it down):
-  // list fundis for the job's category and area and book one here.
+  // A job with no fundi yet (still being offered round, or the fundi who took
+  // it turned it down). The customer does not pick anyone: this just reports
+  // where the search has got to, and can send it round again if it stalled.
   function renderPickSection(section, job) {
     const box = document.createElement('div');
     box.className = 'mt-3 rounded-xl border border-navy/10 px-4 py-3';
+    const stalled = Boolean(job.search_exhausted_at);
     box.innerHTML = `
-      <p class="text-[13.5px] text-navy/65 leading-[1.55]">No fundi is booked for this job yet.</p>
-      <button type="button" class="pick-open btn-primary mt-2.5 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg">Choose a fundi</button>
+      <div class="flex items-start gap-2.5">
+        ${stalled ? '' : '<span class="search-pulse shrink-0 mt-1.5" aria-hidden="true"></span>'}
+        <div>
+          <p class="text-[13.5px] font-semibold text-navy">${stalled ? 'No fundi free right now' : 'Finding your fundi'}</p>
+          <p class="text-[13.5px] text-navy/60 leading-[1.55] mt-0.5">${stalled
+            ? 'Nobody in this category could take it. Send it round again and we will start from the top.'
+            : 'It is with the nearest fundi who is online. If they cannot take it, it passes to the next one.'}</p>
+        </div>
+      </div>
+      <button type="button" class="pick-retry btn-primary mt-3 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg"${stalled ? '' : ' hidden'}>Send it round again</button>
       <p class="pick-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
-      <div class="pick-list mt-3 space-y-2" hidden></div>
     `;
-    const openBtn = box.querySelector('.pick-open');
-    const list = box.querySelector('.pick-list');
+    const retry = box.querySelector('.pick-retry');
     const errorEl = box.querySelector('.pick-error');
-    const showError = (message) => { errorEl.textContent = message; errorEl.classList.remove('hidden'); };
-
-    openBtn.addEventListener('click', async () => {
+    retry.addEventListener('click', async () => {
       errorEl.classList.add('hidden');
-      openBtn.disabled = true;
-      openBtn.textContent = 'Finding fundis…';
+      retry.disabled = true;
+      retry.textContent = 'Sending…';
       try {
-        const fundis = await apiFetch(`/fundi/search?category=${encodeURIComponent(job.category)}&area=${encodeURIComponent(job.area)}`);
-        openBtn.remove();
-        list.hidden = false;
-        if (!fundis.length) {
-          list.innerHTML = '<p class="text-[13.5px] text-navy/60">No verified fundis in this area right now. Check back soon.</p>';
-          return;
-        }
-        fundis.forEach((f) => {
-          const row = document.createElement('div');
-          row.className = 'flex items-center justify-between gap-3 rounded-lg border border-navy/10 px-3 py-2.5';
-          row.innerHTML = `
-            <div class="min-w-0">
-              <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14.5px] font-semibold text-navy">${escapeHtml(f.profiles.full_name)}${f.available_now ? '<span class="rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-700">Available now</span>' : ''}</p>
-              <p class="text-[12.5px] text-navy/55">${escapeHtml(f.profiles.area)} · ${escapeHtml(f.years_experience)} yrs experience</p>
-              <p class="mt-0.5">${ratingHtml(f.rating)}</p>
-            </div>
-            <button type="button" class="pick-book btn-outline shrink-0 rounded-lg border border-navy/15 px-3.5 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Book</button>
-          `;
-          const bookBtn = row.querySelector('.pick-book');
-          bookBtn.addEventListener('click', async () => {
-            list.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-            bookBtn.textContent = 'Booking…';
-            try {
-              await apiFetch(`/jobs/${job.id}/match`, { method: 'POST', body: JSON.stringify({ fundi_id: f.id }) });
-              await loadJobs();
-            } catch (err) {
-              showError(err.message);
-              list.querySelectorAll('button').forEach((b) => { b.disabled = false; });
-              bookBtn.textContent = 'Book';
-            }
-          });
-          list.appendChild(row);
-        });
+        // Reloading is what advances a stalled search: the API offers the job
+        // on when the customer next reads their jobs.
+        await loadJobs();
       } catch (err) {
-        showError(err.message);
-        openBtn.disabled = false;
-        openBtn.textContent = 'Choose a fundi';
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        retry.disabled = false;
+        retry.textContent = 'Send it round again';
       }
     });
     section.appendChild(box);

@@ -73,6 +73,8 @@ To build:
 **Heads-up** (only if there is something: unsaved work, a migration not run,
 something broken, servers down)
 
+**Your freelance rates** (always include; copy from "Freelance pricing" below)
+
 **Suggested next step:** one recommendation and why, then ask what he wants to tackle.
 ```
 
@@ -81,6 +83,41 @@ Rules:
   but uncommitted or not yet migrated under **Heads-up**.
 - Don't pad. If a section is empty, drop it.
 - Don't start building anything as part of the briefing. Wait for Ricky's pick.
+
+## Freelance pricing
+
+Ricky builds sites and apps for clients too (first quote: KES 50,000 online shop
+website + Android app, 29 Sep 2026: KES 20,000 labour + KES 30,000 setup and
+running costs). Show this block in every briefing, as is:
+
+- **Day rate:** a KES 20,000 build is about 8–10 working days, so roughly
+  KES 2,000–2,500 a day. Quote extra work so it doesn't fall below that.
+- **Included:** 2 rounds of changes. A round = one combined list of feedback,
+  fixed together.
+- **Extra changes** (charged per round, not per change; paid upfront):
+  - Small tweaks (wording, colours, photos, moving a button): KES 2,000–3,000 per round
+  - Medium changes (new page, checkout redesign, product filter): KES 4,000–6,000 each
+  - New features (discount codes, map tracking, loyalty points): quote separately
+- **Agree upfront:** a "change" adjusts something built; a "feature" is new.
+- **Backend options for client builds** (KES 50,000 online-shop quotes, Google Sheets
+  in Ricky's Drive, one file per option; your labour / what the client pays from year 2):
+  - [A: Own server (PocketBase on a VPS)](https://docs.google.com/spreadsheets/d/1lpBllIqIduX7hnbOY7R_eXaiGiWWw4KWbwX5FhOFouA/edit):
+    30,000 / ~12,300 a year. SQL-style, cheap, but you maintain the server; charge monthly maintenance, set up off-server backups day one.
+  - [B: Kenyan shared hosting](https://docs.google.com/spreadsheets/d/1lmLYPN4t7hydgIEizbNOiojWFJ-agVc-3wewi-ZlYkI/edit):
+    39,000 / ~5,500 a year. Domain + email bundled, paid by M-Pesa, but PHP, logins built by hand, no live updates.
+  - [C: Supabase Pro, client's own plan](https://docs.google.com/spreadsheets/d/1JO_Np0uJAcZeYVM14VUad3qUcf-WCXhZUaa0uZGkBFo/edit):
+    20,000 / ~41,000 a year. No upkeep, expensive for a small shop.
+  - [D: Supabase, project on Ricky's own Pro plan](https://docs.google.com/spreadsheets/d/1L9rm-UJH2-NsfqDhzYarobdgAQOxp6ufjI2VQVVkaTI/edit):
+    24,000 / ~1,290 a month. Pro is $25/month per organisation (includes one small
+    project); each extra project ~$10/month. **Catch:** only pays off once Ricky has
+    several clients (or Find Fundi) on the plan; with one client he's ~KES 1,900/month
+    out of pocket. Client projects in his org belong to him; put ownership in the
+    agreement (projects can be transferred out).
+  - Client-facing package names: Basic = B, Pro = A, Pro Max = D, Pro Max Ultra = C.
+    All four quotes plus a client guide doc live in the Drive folder
+    [Online Shop Quotations](https://drive.google.com/drive/folders/1xth8OI1F6DvMHMoMLNHmQHtZlb3s6Bb4).
+  - Firebase ruled out: Firestore isn't SQL, reports are hard.
+  - Prices are estimates from 29 Sep 2026 (KES 129/USD); check before quoting.
 
 ## 3. After the briefing
 

@@ -43,6 +43,13 @@ const FUNDI_CATEGORIES = [
     examples: ['TV mounting', 'CCTV', 'Solar panels', 'Water heaters', 'Satellite dishes', 'Curtain rails', 'Shelves'],
     icon: '<path d="m15 12-8.4 8.4a1 1 0 1 1-3-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.9-1.9A2 2 0 0 1 19 8.2V7l-2.3-1.1a6 6 0 0 0-2.7-.7H13l.9.8A6 6 0 0 1 16 10.5V12l2 2h1.2a2 2 0 0 1 1.4.6L22 16"/>',
   },
+  {
+    key: 'tailoring',
+    label: 'Tailoring & Sewing',
+    group: 'services',
+    examples: ['Torn clothes', 'Kitenge outfits', 'Hems and zips', 'Taking in or letting out', 'School uniforms', 'Curtains', 'Cushion covers'],
+    icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.12 8.12 20 20"/><path d="M20 4 8.12 15.88"/>',
+  },
 ];
 
 const CATEGORY_GROUPS = [

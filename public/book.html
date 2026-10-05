@@ -36,9 +36,20 @@
   .btn-quiet:hover { background: rgba(4,21,48,0.05); }
   .btn-quiet:active { background: rgba(4,21,48,0.09); }
   input:focus, textarea:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
-  .fundi-card { transition: border-color 160ms ease, box-shadow 160ms ease; }
-  .fundi-card:hover { border-color: rgba(4,21,48,0.28); }
-  .fundi-card[aria-pressed="true"] { border-color: #FE6902; box-shadow: 0 0 0 2px rgba(254,105,2,0.18); }
+  /* Shows the search is still running without a spinner that implies a wait
+     the customer can measure. */
+  .search-pulse { width: 12px; height: 12px; border-radius: 9999px; background: #FE6902; position: relative; }
+  .search-pulse::after {
+    content: ""; position: absolute; inset: 0; border-radius: 9999px; background: #FE6902;
+    animation: searchPulse 1800ms cubic-bezier(.22,1,.36,1) infinite;
+  }
+  @keyframes searchPulse {
+    0% { transform: scale(1); opacity: 0.55; }
+    70%, 100% { transform: scale(2.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .search-pulse::after { animation: none; }
+  }
   .step { display: none; }
   .step.active { display: block; }
   [hidden] { display: none !important; }
@@ -132,9 +143,8 @@
 
   <div id="flow" hidden>
     <div class="flex items-center gap-2 mb-8 text-[13px] font-semibold text-navy/40">
-      <span class="text-orange">1. Describe</span><span aria-hidden="true">·</span>
-      <span>2. Match</span><span aria-hidden="true">·</span>
-      <span>3. Confirm</span>
+      <span id="crumb1" class="text-orange">1. Describe</span><span aria-hidden="true">·</span>
+      <span id="crumb2">2. Match</span>
     </div>
 
     <!-- STEP 1: describe -->
@@ -225,38 +235,35 @@
       </button>
     </section>
 
-    <!-- STEP 2: match -->
-    <section id="step2" class="step bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
-      <h1 class="font-display font-800 text-[1.4rem] text-navy">Choose a fundi</h1>
-      <p class="mt-1.5 text-navy/60 text-[14.5px]">Verified fundis matching your category and area.</p>
+    <!-- STEP 2: searching -->
+    <section id="stepSearching" class="step bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+      <div id="searchingState">
+        <div class="flex items-center gap-3">
+          <span class="search-pulse shrink-0" aria-hidden="true"></span>
+          <h1 class="font-display font-800 text-[1.4rem] text-navy">Finding your fundi</h1>
+        </div>
+        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Your job goes to the nearest fundi who is online. If they cannot take it, it passes straight to the next one.</p>
+      </div>
 
-      <div id="fundiList" class="mt-5 space-y-3"></div>
-      <p id="noFundis" hidden class="mt-5 text-[14.5px] text-navy/60">No verified fundis are available in your area for this category yet. Try again shortly, or pick a nearby area.</p>
+      <div id="exhaustedState" hidden>
+        <h1 class="font-display font-800 text-[1.4rem] text-navy">No fundi free right now</h1>
+        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Nobody in this category could take it. Your job is saved, so you can send it round again now or leave it and open My activity later.</p>
+        <button id="retrySearch" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">Send it round again</button>
+      </div>
 
-      <button id="toStep3" disabled class="btn-primary w-full mt-6 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-        Continue
-      </button>
-    </section>
-
-    <!-- STEP 3: confirm -->
-    <section id="step3" class="step bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
-      <h1 class="font-display font-800 text-[1.4rem] text-navy">Confirm your booking</h1>
-      <div id="jobSummary" class="mt-4 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
+      <div id="searchSummary" class="mt-5 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
 
       <div class="mt-5 rounded-xl border border-navy/10 p-4">
         <p class="text-[13.5px] font-semibold text-navy">What happens next</p>
         <ol class="mt-2.5 space-y-2 text-[13.5px] text-navy/65 leading-[1.55]">
-          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">1</span><span id="nextStepCall">Your fundi calls you to understand the job.</span></li>
+          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">1</span><span>The fundi who takes it calls you to understand the job.</span></li>
           <li class="flex gap-2.5"><span class="font-display font-700 text-orange">2</span><span>They send you a price in My activity.</span></li>
           <li class="flex gap-2.5"><span class="font-display font-700 text-orange">3</span><span>You accept it and choose how to pay. Nothing is agreed until you do.</span></li>
         </ol>
       </div>
 
-      <p id="step3Error" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
-
-      <button id="confirmBtn" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-        Confirm booking
-      </button>
+      <p id="searchError" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
+      <a href="my-jobs.html" class="block text-center mt-4 py-2 text-[13.5px] font-semibold text-navy/60 hover:text-navy focus-visible:text-navy rounded-lg">Wait in My activity instead</a>
     </section>
 
     <!-- DONE -->
@@ -278,12 +285,14 @@
 <script src="assets/push.js"></script>
 <script>
   let selectedCategory = null;
-  let selectedFundi = null;
   let currentJob = null;
 
   function showStep(id) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    const onStep1 = id === 'step1';
+    document.getElementById('crumb1').className = onStep1 ? 'text-orange' : '';
+    document.getElementById('crumb2').className = onStep1 ? '' : 'text-orange';
     window.scrollTo({ top: 0 });
   }
 
@@ -607,9 +616,10 @@
         });
       }
 
-      const fundis = await apiFetch(`/fundi/search?category=${encodeURIComponent(currentJob.category)}&area=${encodeURIComponent(currentJob.area)}`);
-      renderFundis(fundis);
-      showStep('step2');
+      renderSearchSummary();
+      showSearching();
+      showStep('stepSearching');
+      pollForMatch();
     } catch (err) {
       fail(err.message || 'Something went wrong. Try again.');
     } finally {
@@ -618,78 +628,79 @@
     }
   });
 
-  function renderFundis(fundis) {
-    const list = document.getElementById('fundiList');
-    const noFundis = document.getElementById('noFundis');
-    list.innerHTML = '';
-    if (!fundis.length) {
-      noFundis.hidden = false;
-      return;
-    }
-    noFundis.hidden = true;
-    fundis.forEach(f => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.setAttribute('aria-pressed', 'false');
-      card.className = 'fundi-card w-full text-left border border-navy/15 rounded-xl p-4 flex items-center justify-between';
-      card.innerHTML = `
-        <div>
-          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-[15px] text-navy">${escapeHtml(f.profiles.full_name)}${f.available_now ? '<span class="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600"><span class="w-1.5 h-1.5 rounded-sm bg-orange"></span>Available now</span>' : ''}</p>
-          <p class="text-[13px] text-navy/55 mt-0.5">${escapeHtml(f.profiles.area)} · ${escapeHtml(f.years_experience)} yrs experience</p>
-          <p class="mt-1">${ratingHtml(f.rating)}</p>
-        </div>
-        <span class="text-[12.5px] font-semibold text-orange">Select</span>
-      `;
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.fundi-card').forEach(c => c.setAttribute('aria-pressed', 'false'));
-        card.setAttribute('aria-pressed', 'true');
-        selectedFundi = f;
-        document.getElementById('toStep3').disabled = false;
-      });
-      list.appendChild(card);
-    });
-  }
+  // ---------- waiting to be matched ----------
+  // The customer does not choose: the API offers the job to one fundi at a
+  // time. Polling is also what moves a stalled search on to the next fundi,
+  // because there is no background worker on the free tier.
+  let pollTimer = null;
 
-  document.getElementById('toStep3').addEventListener('click', () => {
+  function renderSearchSummary() {
     const extras = [];
     if (currentJob.voice_note_path) extras.push('Voice note attached');
     if (currentJob.photo_paths && currentJob.photo_paths.length) {
       extras.push(`${currentJob.photo_paths.length} photo${currentJob.photo_paths.length === 1 ? '' : 's'} attached`);
     }
-    document.getElementById('jobSummary').innerHTML = `
+    document.getElementById('searchSummary').innerHTML = `
       <p><span class="text-navy font-semibold">${escapeHtml(CATEGORY_LABELS[currentJob.category] || currentJob.category)}</span></p>
       ${currentJob.description ? `<p>${escapeHtml(currentJob.description)}</p>` : ''}
       ${extras.length ? `<p>${escapeHtml(extras.join(' · '))}</p>` : ''}
-      <p>Fundi: <span class="text-navy font-semibold">${escapeHtml(selectedFundi.profiles.full_name)}</span></p>
       <p>Area: ${escapeHtml(currentJob.area)}</p>
     `;
-    document.getElementById('nextStepCall').textContent = `${selectedFundi.profiles.full_name} calls you to understand the job.`;
-    showStep('step3');
-  });
+  }
 
-  document.getElementById('confirmBtn').addEventListener('click', async () => {
-    const errorEl = document.getElementById('step3Error');
-    errorEl.classList.add('hidden');
-    const btn = document.getElementById('confirmBtn');
-    btn.disabled = true;
-    btn.textContent = 'Confirming…';
+  function showSearching() {
+    document.getElementById('searchingState').hidden = false;
+    document.getElementById('exhaustedState').hidden = true;
+  }
 
+  function showExhausted() {
+    document.getElementById('searchingState').hidden = true;
+    document.getElementById('exhaustedState').hidden = false;
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  }
+
+  async function pollForMatch() {
     try {
-      await apiFetch(`/jobs/${currentJob.id}/match`, {
-        method: 'POST',
-        body: JSON.stringify({ fundi_id: selectedFundi.id }),
-      });
-      document.getElementById('doneMessage').textContent =
-        `${selectedFundi.profiles.full_name} will call you to discuss the job, then send you a price to accept in My activity.`;
-      showStep('stepDone');
-      mountPushPrompt(document.getElementById('donePush'), 'Get a notification when your fundi sends the price.');
+      const jobs = await apiFetch('/jobs/mine');
+      const job = jobs.find((j) => j.id === currentJob.id);
+      if (!job) return schedulePoll();
+
+      if (job.status !== 'requested' && job.fundi_id) {
+        stopPolling();
+        currentJob = job;
+        const name = job.fundi && job.fundi.full_name ? job.fundi.full_name : 'Your fundi';
+        document.getElementById('doneMessage').textContent =
+          `${name} took the job. They will call you to discuss it, then send you a price to accept in My activity.`;
+        showStep('stepDone');
+        mountPushPrompt(document.getElementById('donePush'), 'Get a notification when your fundi sends the price.');
+        return;
+      }
+
+      if (job.search_exhausted_at) showExhausted();
+      else showSearching();
+      schedulePoll();
     } catch (err) {
-      errorEl.textContent = err.message;
-      errorEl.classList.remove('hidden');
-      btn.disabled = false;
-      btn.textContent = 'Confirm booking';
+      document.getElementById('searchError').textContent = err.message;
+      document.getElementById('searchError').classList.remove('hidden');
+      schedulePoll();
     }
+  }
+
+  function schedulePoll() {
+    stopPolling();
+    pollTimer = setTimeout(pollForMatch, 4000);
+  }
+
+  document.getElementById('retrySearch').addEventListener('click', () => {
+    document.getElementById('searchError').classList.add('hidden');
+    showSearching();
+    pollForMatch();
   });
+
+  window.addEventListener('beforeunload', stopPolling);
 
   (async function init() {
     renderCategories();

@@ -58,14 +58,27 @@
 </header>
 
 <main class="max-w-4xl mx-auto px-5 py-8">
-  <div id="signedOutNotice" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
-    <h1 class="font-display font-extrabold text-[1.5rem] text-navy">Sign in required</h1>
-    <a href="login.html?next=admin.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Sign in</a>
+  <div id="signedOutNotice" hidden class="max-w-sm mx-auto bg-white rounded-2xl border border-navy/10 p-7">
+    <h1 class="font-display font-extrabold text-[1.5rem] text-navy">Admin sign in</h1>
+    <p class="mt-1.5 text-[14px] text-navy/55 leading-[1.6]">For the Find Fundi team. Customers and fundis sign in on the main site.</p>
+    <form id="adminLoginForm" class="mt-5 space-y-4">
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="adminEmail">Email</label>
+        <input id="adminEmail" type="email" required autocomplete="username" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="adminPassword">Password</label>
+        <input id="adminPassword" type="password" required autocomplete="current-password" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
+      </div>
+      <p id="adminLoginError" class="hidden text-[13.5px] text-red-600" role="alert"></p>
+      <button id="adminLoginBtn" type="submit" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-2.5 rounded-lg">Sign in</button>
+    </form>
   </div>
 
   <div id="forbidden" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
     <h1 class="font-display font-extrabold text-[1.5rem] text-navy">Not authorized</h1>
     <p id="forbiddenText" class="mt-2 text-navy/60 text-[15px]">This account doesn't have admin access.</p>
+    <button type="button" id="forbiddenSignOut" class="mt-5 rounded-lg border border-navy/15 px-4 py-2 text-[14px] font-semibold text-navy/70 hover:bg-navy/5 focus-visible:bg-navy/5">Sign in as someone else</button>
   </div>
 
   <div id="content" hidden>
@@ -73,12 +86,13 @@
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="applications" aria-selected="true">Applications</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="admins" aria-selected="false">Admins</button>
     </div>
 
     <!-- ===== applications ===== -->
     <section data-panel="applications" class="mt-6">
       <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Fundi applications</h1>
-      <p class="mt-1 text-[14px] text-navy/55">Open the ID and certificate before approving. Links work for 10 minutes; reload the tab for fresh ones.</p>
+      <p class="mt-1 text-[14px] text-navy/55">Open the ID and every certificate before approving. All are PDFs. Links work for 10 minutes; reload the tab for fresh ones.</p>
       <div id="appList" class="mt-5 space-y-4"></div>
       <p id="appEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No applications yet.</p>
     </section>
@@ -117,6 +131,25 @@
       </div>
       <div id="jobList" class="mt-5 space-y-3"></div>
       <p id="jobEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No jobs here.</p>
+    </section>
+
+    <!-- ===== admins ===== -->
+    <section data-panel="admins" hidden class="mt-6">
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Admins</h1>
+      <p class="mt-1 text-[14px] text-navy/55 leading-[1.6]">Anyone here can verify fundis, suspend accounts and cancel jobs. Give it only to people you trust with that.</p>
+
+      <form id="addAdminForm" class="mt-5 bg-white rounded-xl border border-navy/10 p-5">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="adminAddEmail">Add an admin by email</label>
+        <p class="text-[13px] text-navy/55 leading-[1.6] mb-2">They need a Find Fundi account already. Ask them to sign up first, then add the email they used.</p>
+        <div class="flex flex-col sm:flex-row gap-2.5">
+          <input id="adminAddEmail" type="email" required placeholder="name@example.com" class="flex-1 rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
+          <button id="addAdminBtn" type="submit" class="btn-primary shrink-0 text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Make admin</button>
+        </div>
+        <p id="addAdminError" class="hidden mt-2.5 text-[13.5px] text-red-600" role="alert"></p>
+        <p id="addAdminOk" class="hidden mt-2.5 text-[13.5px] text-orange-700" role="status"></p>
+      </form>
+
+      <div id="adminList" class="mt-5 space-y-3"></div>
     </section>
   </div>
 </main>
@@ -211,7 +244,10 @@
       [CATEGORY_LABELS[app.category] || app.category, app.profiles.area || 'No area', app.profiles.phone,
         `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].join(' · ')));
     const pills = el('div', 'flex flex-wrap justify-end gap-1.5');
+    const noPapers = !(app.certificate_links || []).length;
     if (app.profiles.suspended_at) pills.appendChild(pill('suspended', 'Suspended'));
+    if (noPapers && !app.certified_by_find_fundi_at) pills.appendChild(pill('pending', 'Needs interview'));
+    if (app.certified_by_find_fundi_at) pills.appendChild(pill('verified', 'Find Fundi certified'));
     pills.appendChild(pill(app.verification_status, app.verification_status));
     top.append(who, pills);
     card.appendChild(top);
@@ -219,8 +255,24 @@
 
     const docs = el('div', 'mt-3 flex flex-wrap gap-4 text-[13.5px]');
     docs.appendChild(docLink(app.id_document_link, 'View ID document'));
-    if (app.certificate_url) docs.appendChild(docLink(app.certificate_link, 'View certificate'));
+    // An applicant can attach several certificates, so they are numbered when
+    // there is more than one.
+    (app.certificate_links || []).forEach((link, i, all) => {
+      docs.appendChild(docLink(link, all.length > 1 ? `View certificate ${i + 1}` : 'View certificate'));
+    });
     card.appendChild(docs);
+
+    // An applicant with no papers explains how they learned the trade. That
+    // text is what the interview is built from, so it is shown in full.
+    if (app.no_certificate_reason) {
+      const box = el('div', 'mt-3 rounded-lg border border-orange/25 bg-orange-50 p-3.5');
+      box.appendChild(el('p', 'text-[12.5px] font-semibold uppercase tracking-[0.06em] text-orange-700', 'No certificate — how they learned the trade'));
+      box.appendChild(el('p', 'mt-1.5 text-[13.5px] text-navy/70 leading-[1.6]', app.no_certificate_reason));
+      if (app.certification_note) {
+        box.appendChild(el('p', 'mt-2.5 text-[13px] text-navy/60 leading-[1.6]', `Interview note: ${app.certification_note}`));
+      }
+      card.appendChild(box);
+    }
 
     const actions = el('div', 'mt-4 flex flex-wrap gap-2');
     const err = errorLine();
@@ -234,6 +286,35 @@
         actions.querySelectorAll('button').forEach((b) => { b.disabled = false; });
       }
     };
+    // Certification is a separate decision from approval: you interview first,
+    // certify, then approve.
+    if (noPapers && !app.certified_by_find_fundi_at) {
+      actions.appendChild(button('Certify after interview', 'outline', async () => {
+        const note = prompt('What did the interview show? (optional, saved on the application)');
+        if (note === null) return;
+        actions.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        try {
+          await apiFetch(`/admin/fundi-applications/${app.id}/certify`, { method: 'POST', body: JSON.stringify({ note }) });
+          await loadApps();
+        } catch (e) {
+          showError(err, e.message);
+          actions.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+        }
+      }));
+    }
+    if (app.certified_by_find_fundi_at) {
+      actions.appendChild(button('Undo certification', 'outline', async () => {
+        if (!confirm('Remove the Find Fundi certification from this fundi?')) return;
+        actions.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        try {
+          await apiFetch(`/admin/fundi-applications/${app.id}/uncertify`, { method: 'POST' });
+          await loadApps();
+        } catch (e) {
+          showError(err, e.message);
+          actions.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+        }
+      }));
+    }
     if (app.verification_status !== 'verified') actions.appendChild(button('Approve', 'primary', () => setStatus('verified')));
     if (app.verification_status === 'pending') actions.appendChild(button('Reject', 'outline', () => setStatus('rejected')));
     card.append(actions, err);
@@ -358,8 +439,78 @@
   }
   document.getElementById('jobFilter').addEventListener('change', () => loadJobs().catch((e) => alert(e.message)));
 
+  // ---------- admins ----------
+  // Admin rights are granted by email, because that is what one admin knows
+  // about another. The account has to exist first.
+  let currentUserId = null;
+
+  async function loadAdmins() {
+    const admins = await apiFetch('/admin/admins');
+    const list = document.getElementById('adminList');
+    list.replaceChildren(...admins.map((a) => {
+      const row = document.createElement('div');
+      row.className = 'bg-white rounded-xl border border-navy/10 p-4 flex items-center justify-between gap-3';
+      const isYou = a.id === currentUserId;
+      row.innerHTML = `
+        <div class="min-w-0">
+          <p class="text-[14.5px] font-semibold text-navy">${escapeHtml(a.full_name || 'Unnamed account')}${isYou ? '<span class="ml-2 rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-700">You</span>' : ''}</p>
+          <p class="text-[13px] text-navy/55 truncate">${escapeHtml(a.email || 'No email on file')}</p>
+        </div>
+      `;
+      if (!isYou) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'shrink-0 rounded-lg border border-navy/15 px-3.5 py-2 text-[13.5px] font-semibold text-navy/70 hover:bg-navy/5 focus-visible:bg-navy/5';
+        btn.textContent = 'Remove';
+        btn.addEventListener('click', async () => {
+          if (!confirm(`Remove admin access from ${a.full_name || a.email}?`)) return;
+          btn.disabled = true;
+          btn.textContent = 'Removing…';
+          try {
+            await apiFetch(`/admin/admins/${a.id}/revoke`, { method: 'POST' });
+            await loadAdmins();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+            btn.textContent = 'Remove';
+          }
+        });
+        row.appendChild(btn);
+      }
+      return row;
+    }));
+  }
+
+  document.getElementById('addAdminForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('addAdminBtn');
+    const errorEl = document.getElementById('addAdminError');
+    const okEl = document.getElementById('addAdminOk');
+    errorEl.classList.add('hidden');
+    okEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    try {
+      const input = document.getElementById('adminAddEmail');
+      const added = await apiFetch('/admin/admins', {
+        method: 'POST',
+        body: JSON.stringify({ email: input.value.trim() }),
+      });
+      okEl.textContent = `${added.full_name || added.email} can now sign in to this page.`;
+      okEl.classList.remove('hidden');
+      input.value = '';
+      await loadAdmins();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Make admin';
+    }
+  });
+
   // ---------- tabs ----------
-  const loaders = { applications: loadApps, users: loadUsers, jobs: loadJobs };
+  const loaders = { applications: loadApps, users: loadUsers, jobs: loadJobs, admins: loadAdmins };
   function showTab(name) {
     if (!loaders[name]) name = 'applications';
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
@@ -369,23 +520,60 @@
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
-  (async function init() {
+  // Admins sign in here rather than through the customer app, so this page
+  // stands on its own.
+  document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('adminLoginBtn');
+    const errorEl = document.getElementById('adminLoginError');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    try {
+      const { error } = await sb.auth.signInWithPassword({
+        email: document.getElementById('adminEmail').value.trim(),
+        password: document.getElementById('adminPassword').value,
+      });
+      if (error) throw error;
+      await start();
+    } catch (err) {
+      errorEl.textContent = err.message === 'Invalid login credentials'
+        ? 'That email and password do not match an account.'
+        : err.message;
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  });
+
+  document.getElementById('forbiddenSignOut').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.reload();
+  });
+
+  async function start() {
     const session = await getSession();
     if (!session) {
       document.getElementById('signedOutNotice').hidden = false;
       return;
     }
+    currentUserId = session.user.id;
     try {
       await loadApps();
     } catch (err) {
       if (!/admin access/i.test(err.message)) document.getElementById('forbiddenText').textContent = err.message;
+      document.getElementById('signedOutNotice').hidden = true;
       document.getElementById('forbidden').hidden = false;
       return;
     }
+    document.getElementById('signedOutNotice').hidden = true;
+    document.getElementById('forbidden').hidden = true;
     document.getElementById('content').hidden = false;
-    const start = window.location.hash.slice(1);
-    if (start && start !== 'applications') showTab(start);
-  })();
+    const startTab = window.location.hash.slice(1);
+    if (startTab && startTab !== 'applications') showTab(startTab);
+  }
+
+  start();
 </script>
 </body>
 </html>

@@ -226,6 +226,59 @@ function openJobCard(job) {
   return div;
 }
 
+// A job the matching service has put in front of this fundi. They take it or
+// pass, and either way it moves on: there is no browsing a list any more.
+function offerCard(offer, { onAccept, onDecline }) {
+  const job = offer.job;
+  const div = document.createElement('div');
+  div.className = 'bg-white rounded-2xl border-2 border-orange p-5';
+  div.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-orange">Job for you</p>
+        <p class="font-display font-700 text-[15.5px] text-navy mt-1">${escapeHtml(jobTitle(job))}</p>
+      </div>
+      ${job.urgency === 'urgent' ? URGENT_TAG : ''}
+    </div>
+    <p class="text-[13.5px] text-navy/55 mt-1">${escapeHtml(jobSummaryText(job))}</p>
+    <p class="mt-2 text-[13px] text-navy/50">${escapeHtml(jobDetailsLine(job))}</p>
+    <p class="mt-3 text-[13px] font-semibold text-navy/70">
+      <span class="o-countdown tabular-nums">${offer.seconds_left}</span>s to answer before it passes to the next fundi
+    </p>
+    <p class="o-error hidden mt-3 text-[13px] text-red-600" role="alert"></p>
+    <div class="mt-4 flex gap-2.5">
+      <button type="button" class="o-accept btn-primary flex-1 text-white font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Take this job</button>
+      <button type="button" class="o-decline btn-quiet border border-navy/15 text-navy font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Pass</button>
+    </div>
+  `;
+  renderJobMedia(div, job);
+
+  const accept = div.querySelector('.o-accept');
+  const decline = div.querySelector('.o-decline');
+  const errorEl = div.querySelector('.o-error');
+
+  const run = async (btn, label, action) => {
+    errorEl.classList.add('hidden');
+    accept.disabled = true;
+    decline.disabled = true;
+    btn.textContent = label;
+    try {
+      await action();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+      accept.disabled = false;
+      decline.disabled = false;
+      accept.textContent = 'Take this job';
+      decline.textContent = 'Pass';
+    }
+  };
+
+  accept.addEventListener('click', () => run(accept, 'Taking…', () => onAccept(job.id)));
+  decline.addEventListener('click', () => run(decline, 'Passing…', () => onDecline(job.id)));
+  return div;
+}
+
 // job.id -> browser geolocation watchId, so toggles can be cleanly stopped.
 const activeWatchers = {};
 

@@ -64,4 +64,51 @@ async function cancelJob(req, res, next) {
   }
 }
 
-module.exports = { listFundiApplications, setVerificationStatus, listUsers, setSuspension, listJobs, cancelJob };
+async function listAdmins(req, res, next) {
+  try {
+    const data = await adminService.listAdmins();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function grantAdmin(req, res, next) {
+  try {
+    const data = await adminService.grantAdmin(req.body.email);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function revokeAdmin(req, res, next) {
+  try {
+    const data = await adminService.revokeAdmin(req.user.id, req.params.id);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function certifyFundi(req, res, next) {
+  try {
+    const note = typeof req.body.note === 'string' && req.body.note.trim()
+      ? req.body.note.trim().slice(0, 500) : null;
+    const data = await adminService.certifyFundi(req.user.id, req.params.id, note);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function uncertifyFundi(req, res, next) {
+  try {
+    const data = await adminService.uncertifyFundi(req.params.id);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
