@@ -59,7 +59,7 @@ async function listUsers({ query }) {
   const [{ data, error }, emails] = await Promise.all([
     adminClient
       .from('profiles')
-      .select('id, full_name, phone, role, area, is_admin, suspended_at, created_at, fundi_profiles(verification_status, category)')
+      .select('id, full_name, phone, role, area, is_admin, suspended_at, created_at, fundi_profiles!fundi_profiles_id_fkey(verification_status, category)')
       .order('created_at', { ascending: false }),
     emailsById(),
   ]);
