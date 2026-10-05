@@ -8,6 +8,7 @@ router.post('/', requireAuth, controller.create);
 router.get('/mine', requireAuth, controller.mine);
 router.get('/feed', requireAuth, controller.feed);
 router.get('/my-offer', requireAuth, controller.myOffer);
+router.get('/release-reasons', requireAuth, controller.releaseReasons);
 router.post('/:id/offer/accept', requireAuth, controller.acceptOffer);
 router.post('/:id/offer/decline', requireAuth, controller.declineOffer);
 router.post('/:id/quote', requireAuth, controller.quote);

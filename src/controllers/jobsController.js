@@ -1,5 +1,6 @@
 const jobService = require('../services/jobService');
 const matching = require('../services/matchingService');
+const { RELEASE_REASONS } = require('../utils/releaseReasons');
 
 async function create(req, res, next) {
   try {
@@ -151,11 +152,18 @@ async function cancel(req, res, next) {
 
 async function release(req, res, next) {
   try {
-    const job = await jobService.releaseJob(req.params.id, req.user.id);
+    const note = typeof req.body.note === 'string' && req.body.note.trim()
+      ? req.body.note.trim().slice(0, 500) : null;
+    const job = await jobService.releaseJob(req.params.id, req.user.id, { reason: req.body.reason, note });
     res.json({ data: job });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, review, cleanReason };
+// The list the fundi app shows, so the wording lives in one place.
+function releaseReasons(req, res) {
+  res.json({ data: RELEASE_REASONS });
+}
+
+module.exports = { create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, releaseReasons, review, cleanReason };

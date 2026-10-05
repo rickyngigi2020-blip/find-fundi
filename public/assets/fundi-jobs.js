@@ -175,41 +175,89 @@ function renderFundiQuoteSection(section, job, pill, card) {
 function renderReleaseSection(section, job) {
   const wrap = document.createElement('div');
   wrap.className = 'mt-4 border-t border-navy/10 pt-3';
+
   const showButton = () => {
-    wrap.innerHTML = '<button type="button" class="r-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">Can\'t take this job</button>';
+    wrap.innerHTML = `<button type="button" class="r-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">Can&rsquo;t take this job</button>`;
     wrap.querySelector('.r-open').addEventListener('click', showConfirm);
   };
+
   const showConfirm = () => {
     wrap.innerHTML = `
       <p class="text-[13.5px] font-semibold text-navy">Turn this job down?</p>
-      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">The job goes back to open and the customer is asked to choose another fundi. Let them know if you can.</p>
+      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">It goes straight to the next fundi. Tell us why so we send you better jobs.</p>
+      <label class="block text-[12.5px] font-semibold text-navy/70 mt-3 mb-1" for="r-reason-${job.id}">Reason</label>
+      <select id="r-reason-${job.id}" class="r-reason w-full rounded-lg border border-navy/15 bg-white px-3 py-2 text-[14px] outline-none">
+        <option value="">Choose a reason</option>
+        ${RELEASE_REASONS.map((r) => `<option value="${r.key}">${escapeHtml(r.label)}</option>`).join('')}
+      </select>
+      <textarea class="r-note hidden mt-2 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none resize-none" rows="2" maxlength="500" placeholder="Tell us what happened"></textarea>
       <p class="r-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
       <div class="mt-2.5 flex flex-wrap gap-2">
-        <button type="button" class="r-yes rounded-lg bg-red-600 px-4 py-2 text-[13.5px] font-semibold text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-55">Yes, turn it down</button>
+        <button type="button" class="r-yes rounded-lg bg-red-600 px-4 py-2 text-[13.5px] font-semibold text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-55">Turn it down</button>
         <button type="button" class="r-no btn-outline rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Keep job</button>
       </div>
     `;
+
+    const reason = wrap.querySelector('.r-reason');
+    const note = wrap.querySelector('.r-note');
+    // "Other" is the only one that needs typing; the rest are one tap.
+    reason.addEventListener('change', () => {
+      note.classList.toggle('hidden', reason.value !== 'other');
+      if (reason.value === 'other') note.focus();
+    });
+
     wrap.querySelector('.r-no').addEventListener('click', showButton);
     const yes = wrap.querySelector('.r-yes');
     yes.addEventListener('click', async () => {
+      const errorEl = wrap.querySelector('.r-error');
+      errorEl.classList.add('hidden');
+      if (!reason.value) {
+        errorEl.textContent = 'Choose a reason first.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      if (reason.value === 'other' && !note.value.trim()) {
+        errorEl.textContent = 'Tell us what happened.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
       yes.disabled = true;
       yes.textContent = 'Saving…';
       try {
         stopSharing(job.id);
-        await apiFetch(`/jobs/${job.id}/release`, { method: 'POST', body: JSON.stringify({}) });
+        await apiFetch(`/jobs/${job.id}/release`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: reason.value, note: note.value.trim() || null }),
+        });
         onFundiJobsChanged();
       } catch (err) {
-        const errorEl = wrap.querySelector('.r-error');
         errorEl.textContent = err.message;
         errorEl.classList.remove('hidden');
         yes.disabled = false;
-        yes.textContent = 'Yes, turn it down';
+        yes.textContent = 'Turn it down';
       }
     });
   };
+
   showButton();
   section.appendChild(wrap);
 }
+
+
+// Mirrors src/utils/releaseReasons.js. Kept here so the picker needs no extra
+// request before it can open.
+const RELEASE_REASONS = [
+  { key: 'too_far', label: 'The job is too far from me' },
+  { key: 'already_booked', label: "I'm already booked" },
+  { key: 'no_tools', label: "I don't have the right tools for this" },
+  { key: 'no_parts', label: "I can't get the parts or materials" },
+  { key: 'wrong_work', label: "This isn't the kind of work I do" },
+  { key: 'bigger_than_described', label: 'The job is bigger than described' },
+  { key: 'no_answer', label: "The customer isn't answering" },
+  { key: 'no_price_agreement', label: "We couldn't agree on a price" },
+  { key: 'emergency', label: 'Something came up' },
+  { key: 'other', label: 'Other' },
+];
 
 function openJobCard(job) {
   const div = document.createElement('div');
@@ -313,7 +361,9 @@ function myJobCard(job) {
   }
   renderFundiQuoteSection(div.querySelector('.quote-section'), job, div.querySelector('.status-pill'), div);
 
-  if (job.status === 'matched' || job.status === 'in_progress') {
+  // Turning a job down is only possible before a price is agreed. After that
+  // the customer has arranged their day around it.
+  if (job.status === 'matched' && !job.quote_accepted_at) {
     renderReleaseSection(div.querySelector('.release-section'), job);
   }
 

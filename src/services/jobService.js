@@ -3,6 +3,7 @@ const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
 const notify = require('./notificationService');
 const matching = require('./matchingService');
+const { RELEASE_REASON_KEYS } = require('../utils/releaseReasons');
 
 // Job writes go through the service-role client, because jobs have no
 // client-side write policies: every change is authorised here instead, so a
@@ -196,13 +197,33 @@ async function cancelJob(jobId, { by, customerId, reason }) {
 // The booked fundi can't do the job after all: it goes back into the search
 // and is offered to the next candidate. The fundi who dropped it is already
 // excluded, because they hold an accepted offer for this job.
-async function releaseJob(jobId, fundiId) {
+//
+// Only possible before the customer accepts a price. Once a price is agreed
+// the work is agreed, and walking away then is a broken promise to someone who
+// has arranged their day around it, not a pass on an offer.
+async function releaseJob(jobId, fundiId, { reason, note }) {
   const job = await loadJob(jobId);
   if (job.fundi_id !== fundiId) throw apiError(403, 'Only the booked fundi can turn this job down.', 'forbidden');
-  if (job.status !== 'matched' && job.status !== 'in_progress') {
+  if (job.status === 'in_progress' || job.quote_accepted_at) {
+    throw apiError(409, 'You agreed a price for this job, so it can no longer be turned down. Call the customer to sort it out.', 'conflict');
+  }
+  if (job.status !== 'matched') {
     throw apiError(409, "This job can't be turned down any more.", 'conflict');
   }
-  const updated = await updateJob(jobId, { ...UNBOOKED, status: 'requested' }, { status: job.status, fundi_id: fundiId });
+  if (!RELEASE_REASON_KEYS.includes(reason)) {
+    throw apiError(400, 'Choose a reason for turning this job down.', 'invalid_request');
+  }
+
+  const updated = await updateJob(jobId, { ...UNBOOKED, status: 'requested' }, { status: 'matched', fundi_id: fundiId });
+
+  // Kept on the offer this fundi accepted, so the job carries the history of
+  // everyone who passed on it and why.
+  await adminClient
+    .from('job_offers')
+    .update({ release_reason: reason, release_note: note || null, released_at: new Date().toISOString() })
+    .eq('job_id', jobId)
+    .eq('fundi_id', fundiId);
+
   await notify.fundiReleased(updated, fundiId);
   await matching.advance(updated).catch((e) => console.error('re-offer after release failed', e.message));
   return updated;
