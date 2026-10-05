@@ -44,6 +44,15 @@ more than one session often works on the project.
   - Tailwind weights: `font-600/700/800` classes still used site-wide (they
     aren't real Tailwind classes, so headings render semi-bold)?
   - Hosting: live on Vercel (find-fundi.vercel.app); custom domain connected yet?
+  - The "app": Find Fundi is **not a real app** and is in no app store. It is the
+    website plus `public/manifest.webmanifest` and `public/sw.js`, which let a
+    phone save it to the home screen and open it full screen (`"display":
+    "standalone"`). Installing copies a shortcut, nothing downloads, and the
+    service worker caches nothing — it exists so push notifications work, which
+    iPhone only allows once the site is on the home screen. Ricky knows and is
+    happy with this for now. **A real native app is a separate build from
+    scratch and has not been started.** When that decision is made, this line
+    and the briefing's "Access" wording both need rewriting.
   - Launch checklist from the `no-vibe-coded` skill: custom domain, favicon,
     "made with AI" badge removed, privacy policy, terms and conditions.
 
