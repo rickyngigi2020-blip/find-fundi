@@ -166,4 +166,42 @@ function releaseReasons(req, res) {
   res.json({ data: RELEASE_REASONS });
 }
 
-module.exports = { create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, releaseReasons, review, cleanReason };
+async function revisePrice(req, res, next) {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+      return res.status(400).json({ error: { message: 'Enter the new price in whole shillings', code: 'invalid_request' } });
+    }
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    if (reason.length < 10) {
+      return res.status(400).json({ error: { message: 'Say what changed, so the customer can decide fairly.', code: 'invalid_request' } });
+    }
+    const data = await jobService.revisePrice(req.params.id, req.user.id, { amount, reason: reason.slice(0, 500) });
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function answerPriceChange(req, res, next) {
+  try {
+    const data = await jobService.answerPriceChange(req.params.id, req.user.id, req.body.accept === true);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function materials(req, res, next) {
+  try {
+    const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim().slice(0, 300) : null;
+    const data = req.body.done === true
+      ? await jobService.clearMaterialsPause(req.params.id, req.user.id)
+      : await jobService.setMaterialsPause(req.params.id, req.user.id, { note, expectedBack: req.body.expected_back || null });
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { revisePrice, answerPriceChange, materials, create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, releaseReasons, review, cleanReason };

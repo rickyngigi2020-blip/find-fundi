@@ -172,6 +172,128 @@ function renderFundiQuoteSection(section, job, pill, card) {
 
 // The booked fundi can't do the job: after an inline confirmation it goes
 // back to the open list and the customer is told to choose someone else.
+// Changing an agreed price, and saying you have gone for parts. Both exist so a
+// job that turns out bigger than it looked stays on the rails, instead of being
+// settled by an argument on the doorstep.
+function renderRevisionSection(section, job) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mt-4 border-t border-navy/10 pt-3';
+  const agreed = job.final_cost || job.quote_amount;
+
+  const showError = (message) => {
+    const el = wrap.querySelector('.v-error');
+    el.textContent = message;
+    el.classList.remove('hidden');
+  };
+
+  const render = () => {
+    if (job.pending_price_change) {
+      const c = job.pending_price_change;
+      wrap.innerHTML = `
+        <p class="text-[13.5px] font-semibold text-navy">New price sent: ${formatKsh(c.amount)}</p>
+        <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Was ${formatKsh(c.previous_amount)}. Waiting for the customer to accept. Carry on at the agreed price until they do.</p>
+      `;
+      return;
+    }
+
+    if (job.materials_since) {
+      wrap.innerHTML = `
+        <p class="text-[13.5px] font-semibold text-navy">Marked as getting materials</p>
+        <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">${escapeHtml(job.materials_note || 'The customer knows you have gone for parts.')}</p>
+        <button type="button" class="m-back btn-outline mt-2.5 rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">I am back on the job</button>
+        <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+      `;
+      wrap.querySelector('.m-back').addEventListener('click', async (e) => {
+        e.target.disabled = true;
+        try {
+          await apiFetch(`/jobs/${job.id}/materials`, { method: 'POST', body: JSON.stringify({ done: true }) });
+          onFundiJobsChanged();
+        } catch (err) {
+          showError(err.message);
+          e.target.disabled = false;
+        }
+      });
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="v-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">The price needs to change</button>
+        <button type="button" class="m-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">I have gone for materials</button>
+      </div>
+      <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+    `;
+    wrap.querySelector('.v-open').addEventListener('click', showRevise);
+    wrap.querySelector('.m-open').addEventListener('click', showMaterials);
+  };
+
+  const showRevise = () => {
+    wrap.innerHTML = `
+      <p class="text-[13.5px] font-semibold text-navy">Send a new price</p>
+      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">The customer agreed ${formatKsh(agreed)}. Say exactly what changed: they have to accept it before it counts.</p>
+      <input type="number" inputmode="numeric" min="1" class="v-amount mt-2.5 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none" placeholder="New total in KSh">
+      <textarea class="v-reason mt-2 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none resize-none" rows="3" maxlength="500" placeholder="What changed? For example: the pipe under the sink is cracked and needs replacing, parts cost KSh 1,200"></textarea>
+      <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+      <div class="mt-2.5 flex flex-wrap gap-2">
+        <button type="button" class="v-send btn-primary rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Send new price</button>
+        <button type="button" class="v-cancel btn-outline rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Back</button>
+      </div>
+    `;
+    wrap.querySelector('.v-cancel').addEventListener('click', render);
+    const send = wrap.querySelector('.v-send');
+    send.addEventListener('click', async () => {
+      wrap.querySelector('.v-error').classList.add('hidden');
+      const amount = Number(wrap.querySelector('.v-amount').value);
+      const reason = wrap.querySelector('.v-reason').value.trim();
+      if (!amount || amount < 1) return showError('Enter the new total.');
+      if (reason.length < 10) return showError('Say what changed, in a sentence.');
+      send.disabled = true;
+      send.textContent = 'Sending...';
+      try {
+        await apiFetch(`/jobs/${job.id}/revise-price`, { method: 'POST', body: JSON.stringify({ amount, reason }) });
+        onFundiJobsChanged();
+      } catch (err) {
+        showError(err.message);
+        send.disabled = false;
+        send.textContent = 'Send new price';
+      }
+    });
+  };
+
+  const showMaterials = () => {
+    wrap.innerHTML = `
+      <p class="text-[13.5px] font-semibold text-navy">Gone for materials</p>
+      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">The customer sees this instead of a job that looks abandoned.</p>
+      <textarea class="m-note mt-2.5 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none resize-none" rows="2" maxlength="300" placeholder="What you are getting, and when you expect to be back"></textarea>
+      <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+      <div class="mt-2.5 flex flex-wrap gap-2">
+        <button type="button" class="m-send btn-primary rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Tell the customer</button>
+        <button type="button" class="m-cancel btn-outline rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Back</button>
+      </div>
+    `;
+    wrap.querySelector('.m-cancel').addEventListener('click', render);
+    const send = wrap.querySelector('.m-send');
+    send.addEventListener('click', async () => {
+      send.disabled = true;
+      send.textContent = 'Sending...';
+      try {
+        await apiFetch(`/jobs/${job.id}/materials`, {
+          method: 'POST',
+          body: JSON.stringify({ note: wrap.querySelector('.m-note').value.trim() || null }),
+        });
+        onFundiJobsChanged();
+      } catch (err) {
+        showError(err.message);
+        send.disabled = false;
+        send.textContent = 'Tell the customer';
+      }
+    });
+  };
+
+  render();
+  section.appendChild(wrap);
+}
+
 function renderReleaseSection(section, job) {
   const wrap = document.createElement('div');
   wrap.className = 'mt-4 border-t border-navy/10 pt-3';
@@ -352,6 +474,7 @@ function myJobCard(job) {
     <div class="media-section"></div>
     <div class="contact-section"></div>
     <div class="quote-section"></div>
+    <div class="revision-section"></div>
     <div class="location-section mt-3 hidden"></div>
     <div class="release-section"></div>
   `;
@@ -360,6 +483,11 @@ function myJobCard(job) {
     div.querySelector('.contact-section').appendChild(renderContactCard(job.counterpart, 'Customer'));
   }
   renderFundiQuoteSection(div.querySelector('.quote-section'), job, div.querySelector('.status-pill'), div);
+
+  // Agreed work can turn out to need more than anyone could see at the start.
+  if (job.status === 'in_progress') {
+    renderRevisionSection(div.querySelector('.revision-section'), job);
+  }
 
   // Turning a job down is only possible before a price is agreed. After that
   // the customer has arranged their day around it.

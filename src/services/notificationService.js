@@ -51,6 +51,57 @@ async function searchExhausted(job) {
   });
 }
 
+async function priceRevised(job, change) {
+  const name = await firstName(job.fundi_id);
+  await notifyUsers([job.customer_id], {
+    title: 'Your fundi has sent a new price',
+    body: `${name} now says ${ksh(change.amount)} instead of ${ksh(change.previous_amount)}. Open My activity to read why and decide.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function priceRevisionAccepted(job, change) {
+  await notifyUsers([job.fundi_id], {
+    title: 'New price accepted',
+    body: `The customer agreed ${ksh(change.amount)} for ${jobTitle(job)}.`,
+    url: FUNDI_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function priceRevisionDeclined(job, change) {
+  await notifyUsers([job.fundi_id], {
+    title: 'New price turned down',
+    body: `The customer kept the agreed ${ksh(change.previous_amount)} for ${jobTitle(job)}. Call them before going further.`,
+    url: FUNDI_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function gettingMaterials(job) {
+  const name = await firstName(job.fundi_id);
+  const back = job.materials_expected_back
+    ? ` Back ${new Date(job.materials_expected_back).toLocaleString('en-KE', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}.`
+    : '';
+  await notifyUsers([job.customer_id], {
+    title: `${name} has gone for materials`,
+    body: `${job.materials_note || 'They are getting what the job needs.'}${back}`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
+async function backOnSite(job) {
+  const name = await firstName(job.fundi_id);
+  await notifyUsers([job.customer_id], {
+    title: `${name} is back on the job`,
+    body: `Work has started again on ${jobTitle(job)}.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
 async function fundiBooked(job) {
   const name = await firstName(job.customer_id);
   await notifyUsers([job.fundi_id], {
@@ -118,4 +169,4 @@ async function fundiReleased(job, fundiId) {
   });
 }
 
-module.exports = { jobOffered, searchExhausted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };
+module.exports = { jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

@@ -44,6 +44,22 @@ if (missingEnv.length) {
     }
   });
 
+  // Moves every waiting job on to its next fundi. Called by a schedule, so a
+  // search keeps running when nobody has a page open. Guarded by a shared
+  // secret: it writes, so it must not be callable by anyone who finds the URL.
+  app.post('/api/v1/tick', async (req, res) => {
+    const secret = process.env.TICK_SECRET;
+    if (!secret) return res.status(503).json({ error: { message: 'No TICK_SECRET is set.', code: 'not_configured' } });
+    const given = (req.get('authorization') || '').replace(/^Bearer /i, '');
+    if (given !== secret) return res.status(401).json({ error: { message: 'Not authorised.', code: 'unauthorized' } });
+    try {
+      const matching = require('./services/matchingService');
+      res.json({ data: await matching.advanceAllWaiting() });
+    } catch (err) {
+      res.status(500).json({ error: { message: err.message, code: 'tick_failed' } });
+    }
+  });
+
   app.use('/api/v1/profile', require('./routes/profile'));
   app.use('/api/v1/fundi', require('./routes/fundi'));
   app.use('/api/v1/jobs', require('./routes/jobs'));

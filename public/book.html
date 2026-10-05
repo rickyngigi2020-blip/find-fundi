@@ -245,10 +245,14 @@
         <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Your job goes to the nearest fundi who is online. If they cannot take it, it passes straight to the next one.</p>
       </div>
 
+      <div id="stillLookingState" hidden>
+        <h1 class="font-display font-800 text-[1.4rem] text-navy">Still looking</h1>
+        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Nobody has taken it yet, but the search keeps running. You can close this page: we will notify you the moment a fundi takes the job, and it stays in My activity either way.</p>
+      </div>
+
       <div id="exhaustedState" hidden>
-        <h1 class="font-display font-800 text-[1.4rem] text-navy">No fundi free right now</h1>
-        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Nobody in this category could take it. Your job is saved, so you can send it round again now or leave it and open My activity later.</p>
-        <button id="retrySearch" class="btn-primary w-full mt-5 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">Send it round again</button>
+        <h1 class="font-display font-800 text-[1.4rem] text-navy">No fundi for this trade yet</h1>
+        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">There is no approved fundi in this category at the moment, so nobody can be sent. Your job is saved in My activity and we will keep trying as fundis join.</p>
       </div>
 
       <div id="searchSummary" class="mt-5 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
@@ -617,6 +621,7 @@
       }
 
       renderSearchSummary();
+      watchingSince = Date.now();
       showSearching();
       showStep('stepSearching');
       pollForMatch();
@@ -648,15 +653,20 @@
     `;
   }
 
-  function showSearching() {
-    document.getElementById('searchingState').hidden = false;
-    document.getElementById('exhaustedState').hidden = true;
+  // The search itself never stops; this screen does. After a quarter of an
+  // hour there is nothing useful left to watch, so it says so and lets them
+  // get on with their day rather than sitting on a spinner.
+  const WATCH_LIMIT_MS = 15 * 60 * 1000;
+  let watchingSince = Date.now();
+
+  function showState(id) {
+    ['searchingState', 'stillLookingState', 'exhaustedState'].forEach((s) => {
+      document.getElementById(s).hidden = s !== id;
+    });
   }
 
-  function showExhausted() {
-    document.getElementById('searchingState').hidden = true;
-    document.getElementById('exhaustedState').hidden = false;
-  }
+  const showSearching = () => showState('searchingState');
+  const showExhausted = () => showState('exhaustedState');
 
   function stopPolling() {
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
@@ -679,8 +689,17 @@
         return;
       }
 
-      if (job.search_exhausted_at) showExhausted();
-      else showSearching();
+      if (job.search_exhausted_at) {
+        showExhausted();
+        stopPolling();
+        return;
+      }
+      if (Date.now() - watchingSince > WATCH_LIMIT_MS) {
+        showState('stillLookingState');
+        stopPolling();
+        return;
+      }
+      showSearching();
       schedulePoll();
     } catch (err) {
       document.getElementById('searchError').textContent = err.message;
@@ -693,12 +712,6 @@
     stopPolling();
     pollTimer = setTimeout(pollForMatch, 4000);
   }
-
-  document.getElementById('retrySearch').addEventListener('click', () => {
-    document.getElementById('searchError').classList.add('hidden');
-    showSearching();
-    pollForMatch();
-  });
 
   window.addEventListener('beforeunload', stopPolling);
 

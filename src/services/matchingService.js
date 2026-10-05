@@ -37,11 +37,14 @@ function distanceKm(aLat, aLng, bLat, bLng) {
 
 // Everyone who could do this job, best first. Excludes the customer (one
 // account can be both customer and fundi) and anyone already offered it.
-async function rankCandidates(job) {
+async function rankCandidates(job, round = job.search_round || 1) {
+  // Only this round's offers exclude a fundi. Passing in an earlier round does
+  // not bar them from the next pass.
   const { data: offers, error: offersError } = await adminClient
     .from('job_offers')
     .select('fundi_id')
-    .eq('job_id', job.id);
+    .eq('job_id', job.id)
+    .eq('round', round);
   if (offersError) throw toApiError(offersError);
   const alreadyOffered = new Set(offers.map((o) => o.fundi_id));
 
@@ -127,17 +130,22 @@ async function advance(job) {
   const live = await pendingOffer(job.id);
   if (live) return live;
 
-  const candidates = await rankCandidates(job);
+  let round = job.search_round || 1;
+  let candidates = await rankCandidates(job, round);
+
+  // Everyone in this round has had their turn. Go round again rather than
+  // stopping: the customer is still waiting and fundis come online all day.
   if (!candidates.length) {
-    if (!job.search_exhausted_at) {
-      const { error } = await adminClient
-        .from('jobs')
-        .update({ search_exhausted_at: new Date().toISOString() })
-        .eq('id', job.id);
-      if (error) throw toApiError(error);
-      await notify.searchExhausted(job).catch((e) => console.error('searchExhausted failed', e.message));
+    const anyone = await eligibleFundiCount(job);
+    if (!anyone) {
+      await markExhausted(job);
+      return null;
     }
-    return null;
+    round += 1;
+    const { error } = await adminClient.from('jobs').update({ search_round: round }).eq('id', job.id);
+    if (error) throw toApiError(error);
+    candidates = await rankCandidates(job, round);
+    if (!candidates.length) return null;
   }
 
   const fundiId = candidates[0];
@@ -146,13 +154,13 @@ async function advance(job) {
     .insert({
       job_id: job.id,
       fundi_id: fundiId,
+      round,
       expires_at: new Date(Date.now() + OFFER_WINDOW_MS).toISOString(),
     })
     .select()
     .single();
   if (error) throw toApiError(error);
 
-  // A job that had given up and now has a candidate again is searching afresh.
   if (job.search_exhausted_at) {
     await adminClient.from('jobs').update({ search_exhausted_at: null }).eq('id', job.id);
   }
@@ -160,6 +168,52 @@ async function advance(job) {
   await notify.jobOffered(job, fundiId).catch((e) => console.error('jobOffered failed', e.message));
   return data;
 }
+
+// Could anyone at all do this job? Distinguishes "nobody is free right now"
+// from "this category has no verified fundis", which are different problems
+// and only the second is worth telling the customer about.
+async function eligibleFundiCount(job) {
+  const { data, error } = await adminClient
+    .from('fundi_profiles')
+    .select('id, profiles!fundi_profiles_id_fkey!inner(suspended_at)')
+    .eq('verification_status', 'verified')
+    .eq('category', job.category)
+    .is('profiles.suspended_at', null);
+  if (error) throw toApiError(error);
+  return data.filter((f) => f.id !== job.customer_id).length;
+}
+
+async function markExhausted(job) {
+  if (job.search_exhausted_at) return;
+  const { error } = await adminClient
+    .from('jobs')
+    .update({ search_exhausted_at: new Date().toISOString() })
+    .eq('id', job.id);
+  if (error) throw toApiError(error);
+  await notify.searchExhausted(job).catch((e) => console.error('searchExhausted failed', e.message));
+}
+
+// Every job still waiting for a fundi, moved on one step. This is what the
+// scheduled ping calls, so a search keeps running with nobody's page open.
+async function advanceAllWaiting() {
+  const { data, error } = await adminClient
+    .from('jobs')
+    .select('*')
+    .eq('status', 'requested')
+    .is('fundi_id', null);
+  if (error) throw toApiError(error);
+
+  let offered = 0;
+  for (const job of data) {
+    try {
+      if (await advance(job)) offered += 1;
+    } catch (err) {
+      console.error('advanceAllWaiting failed for job', job.id, err.message);
+    }
+  }
+  return { waiting: data.length, offered };
+}
+
 
 // The one job currently sitting in front of this fundi, if any.
 async function offerForFundi(fundiId) {
@@ -237,6 +291,7 @@ async function declineOffer(jobId, fundiId) {
 
 module.exports = {
   advance,
+  advanceAllWaiting,
   offerForFundi,
   acceptOffer,
   declineOffer,

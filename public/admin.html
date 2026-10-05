@@ -418,6 +418,34 @@
     }
     card.appendChild(details);
 
+    // How the price moved and why. This is the only check on a fundi quoting
+    // low to win a job and raising it once they are on site, so every revision
+    // shows, including ones the customer turned down.
+    if ((job.price_changes || []).length) {
+      const history = el('div', 'mt-3 rounded-lg border border-navy/10 bg-gray-50 p-3');
+      history.appendChild(el('p', 'text-[12px] font-semibold uppercase tracking-[0.06em] text-navy/45', 'Price history'));
+
+      const first = job.price_changes[0];
+      history.appendChild(el('p', 'mt-1.5 text-[13px] text-navy/70', `Agreed ${formatKsh(first.previous_amount)}`));
+
+      job.price_changes.forEach((c) => {
+        const answered = c.accepted_at ? 'accepted' : (c.declined_at ? 'turned down' : 'waiting');
+        const tone = c.accepted_at ? 'text-navy/70' : (c.declined_at ? 'text-navy/45 line-through' : 'text-orange-700 font-semibold');
+        const row = el('div', 'mt-1.5');
+        row.appendChild(el('p', `text-[13px] ${tone}`,
+          `${formatKsh(c.previous_amount)} to ${formatKsh(c.amount)} (${answered}, ${shortDate(c.created_at)})`));
+        row.appendChild(el('p', 'text-[12.5px] text-navy/55 leading-[1.5]', c.reason));
+        history.appendChild(row);
+      });
+
+      card.appendChild(history);
+    }
+
+    if (job.materials_since) {
+      card.appendChild(el('p', 'mt-2 text-[13px] text-navy/60',
+        `Fundi away for materials since ${shortDate(job.materials_since)}${job.materials_note ? `: ${job.materials_note}` : ''}`));
+    }
+
     if (['requested', 'matched', 'in_progress'].includes(job.status)) {
       const actions = el('div', 'mt-3 flex flex-wrap gap-2');
       confirmAction(actions, {

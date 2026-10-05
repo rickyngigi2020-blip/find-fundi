@@ -102,6 +102,20 @@ async function listMine(accessToken, userId, role) {
     data.forEach((j) => { j.review = byJob[j.id] || null; });
   }
 
+  // A price waiting to be answered belongs on both sides' screens.
+  const live = data.filter((j) => j.status === 'in_progress').map((j) => j.id);
+  if (live.length) {
+    const { data: changes, error: changeError } = await adminClient
+      .from('job_price_changes')
+      .select('*')
+      .in('job_id', live)
+      .is('accepted_at', null)
+      .is('declined_at', null);
+    if (changeError) throw toApiError(changeError);
+    const byJob = Object.fromEntries(changes.map((c) => [c.job_id, c]));
+    data.forEach((j) => { j.pending_price_change = byJob[j.id] || null; });
+  }
+
   // The reason someone gave for cancelling is for the fundi who lost the work
   // and for admins, not for the person who wrote it or for the other side to
   // re-read afterwards. It never leaves the API on this route.
@@ -229,6 +243,101 @@ async function releaseJob(jobId, fundiId, { reason, note }) {
   return updated;
 }
 
+
+// ---------- price revisions ----------
+// Only the fundi doing agreed work can revise its price, and only upward or
+// downward with a reason the customer gets to read. Work carries on at the old
+// price until they accept, so nobody is committed to a number they have not seen.
+
+async function pendingPriceChange(jobId) {
+  const { data, error } = await adminClient
+    .from('job_price_changes')
+    .select('*')
+    .eq('job_id', jobId)
+    .is('accepted_at', null)
+    .is('declined_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw toApiError(error);
+  return data[0] || null;
+}
+
+async function revisePrice(jobId, fundiId, { amount, reason }) {
+  const job = await loadJob(jobId);
+  if (job.fundi_id !== fundiId) throw apiError(403, 'Only the fundi on this job can change its price.', 'forbidden');
+  if (job.status !== 'in_progress') {
+    throw apiError(409, 'A price can only be revised after the customer has accepted the first one and before the job is finished.', 'conflict');
+  }
+  if (await pendingPriceChange(jobId)) {
+    throw apiError(409, 'You already sent a new price. Wait for the customer to answer it.', 'conflict');
+  }
+
+  const previous = job.final_cost || job.quote_amount;
+  if (amount === previous) throw apiError(400, 'That is the same price the customer already agreed.', 'invalid_request');
+
+  const { data, error } = await adminClient
+    .from('job_price_changes')
+    .insert({ job_id: jobId, fundi_id: fundiId, previous_amount: previous, amount, reason })
+    .select()
+    .single();
+  if (error) throw toApiError(error);
+
+  await notify.priceRevised(job, data).catch((e) => console.error('priceRevised failed', e.message));
+  return data;
+}
+
+async function answerPriceChange(jobId, customerId, accept) {
+  const job = await loadJob(jobId);
+  if (job.customer_id !== customerId) throw apiError(403, 'Only the customer can answer a new price.', 'forbidden');
+
+  const change = await pendingPriceChange(jobId);
+  if (!change) throw apiError(409, 'There is no new price waiting on this job.', 'conflict');
+
+  const now = new Date().toISOString();
+  const { error } = await adminClient
+    .from('job_price_changes')
+    .update(accept ? { accepted_at: now } : { declined_at: now })
+    .eq('id', change.id);
+  if (error) throw toApiError(error);
+
+  // Declining leaves the agreed price standing. The customer can cancel if
+  // they would rather not go on, which is a separate, deliberate step.
+  if (!accept) {
+    await notify.priceRevisionDeclined(job, change).catch((e) => console.error('notify failed', e.message));
+    return { ...job, pending_price_change: null };
+  }
+
+  const updated = await updateJob(jobId, { final_cost: change.amount }, { status: 'in_progress' });
+  await notify.priceRevisionAccepted(updated, change).catch((e) => console.error('notify failed', e.message));
+  return updated;
+}
+
+// The fundi has left to buy parts. Says so on the customer's screen instead of
+// leaving a job that looks abandoned.
+async function setMaterialsPause(jobId, fundiId, { note, expectedBack }) {
+  const job = await loadJob(jobId);
+  if (job.fundi_id !== fundiId) throw apiError(403, 'Only the fundi on this job can update it.', 'forbidden');
+  if (job.status !== 'in_progress') throw apiError(409, 'This job is not in progress.', 'conflict');
+
+  const updated = await updateJob(jobId, {
+    materials_since: new Date().toISOString(),
+    materials_note: note || null,
+    materials_expected_back: expectedBack || null,
+  }, { status: 'in_progress' });
+  await notify.gettingMaterials(updated).catch((e) => console.error('gettingMaterials failed', e.message));
+  return updated;
+}
+
+async function clearMaterialsPause(jobId, fundiId) {
+  const job = await loadJob(jobId);
+  if (job.fundi_id !== fundiId) throw apiError(403, 'Only the fundi on this job can update it.', 'forbidden');
+  const updated = await updateJob(jobId, {
+    materials_since: null, materials_note: null, materials_expected_back: null,
+  }, { status: 'in_progress' });
+  await notify.backOnSite(updated).catch((e) => console.error('backOnSite failed', e.message));
+  return updated;
+}
+
 async function addReview(accessToken, jobId, { rating, comment }) {
   const supabase = clientForUser(accessToken);
   const { data, error } = await supabase
@@ -241,5 +350,5 @@ async function addReview(accessToken, jobId, { rating, comment }) {
 }
 
 module.exports = {
-  createJob, listMine, listFeed, sendQuote, acceptQuote, completeJob, cancelJob, releaseJob, addReview,
+  createJob, listMine, listFeed, sendQuote, revisePrice, answerPriceChange, pendingPriceChange, setMaterialsPause, clearMaterialsPause, acceptQuote, completeJob, cancelJob, releaseJob, addReview,
 };

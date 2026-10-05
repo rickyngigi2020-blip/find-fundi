@@ -79,6 +79,22 @@ async function listUsers({ query }) {
     .slice(0, USER_LIMIT);
 }
 
+// Admins see how a price moved and why, which is the only check on a fundi
+// quoting low to win a job and raising it once they are on site.
+async function priceHistory(jobIds) {
+  if (!jobIds.length) return {};
+  const { data, error } = await adminClient
+    .from('job_price_changes')
+    .select('*')
+    .in('job_id', jobIds)
+    .order('created_at', { ascending: true });
+  if (error) throw toApiError(error);
+  return data.reduce((acc, c) => {
+    (acc[c.job_id] = acc[c.job_id] || []).push(c);
+    return acc;
+  }, {});
+}
+
 async function setSuspended(adminId, userId, suspended) {
   if (userId === adminId) throw apiError(400, "You can't suspend your own account.", 'invalid_request');
   const { data: profile, error } = await adminClient.from('profiles').select('id, is_admin').eq('id', userId).maybeSingle();
@@ -125,7 +141,13 @@ async function listJobs({ filter }) {
     if (peopleError) throw toApiError(peopleError);
     data.forEach((p) => { people[p.id] = { full_name: p.full_name, phone: p.phone }; });
   }
-  return jobs.map((j) => ({ ...j, customer: people[j.customer_id] || null, fundi: people[j.fundi_id] || null }));
+  const changes = await priceHistory(jobs.map((j) => j.id));
+  return jobs.map((j) => ({
+    ...j,
+    customer: people[j.customer_id] || null,
+    fundi: people[j.fundi_id] || null,
+    price_changes: changes[j.id] || [],
+  }));
 }
 
 function cancelJob(jobId, reason) {

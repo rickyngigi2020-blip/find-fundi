@@ -1,23 +1,53 @@
-# Free-tier Supabase pauses a project after about 7 days with no database
-# activity, which takes the whole site down until it is restored by hand.
-# This calls an endpoint that runs a real query, well inside that window.
-name: Keep Supabase awake
+# Two jobs on one schedule.
+#
+# The search for a fundi has to keep running when nobody has a page open, and
+# the free tiers give us no background worker, so this stands in for one. It
+# also keeps Supabase from pausing, which it does after about 7 days idle.
+#
+# GitHub's scheduler is best-effort and runs late under load, so nothing here
+# depends on exact timing.
+name: Keep Find Fundi running
 
 on:
   schedule:
-    # 06:00 UTC every third day. Comfortably under the 7-day pause window even
-    # if one run is skipped or delayed, which GitHub's scheduler does under load.
-    - cron: '0 6 */3 * *'
-  # So it can be run by hand after restoring the project, to confirm it works.
+    # Every 10 minutes: often enough that a waiting customer is not left long,
+    # cheap enough to stay well inside the free allowance.
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
-  ping:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move waiting jobs on to the next fundi
+        env:
+          TICK_SECRET: ${{ secrets.TICK_SECRET }}
+        run: |
+          if [ -z "$TICK_SECRET" ]; then
+            echo "::warning::TICK_SECRET is not set, so waiting jobs are only advanced when someone opens the app."
+            exit 0
+          fi
+
+          status=$(curl --silent --show-error --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer $TICK_SECRET" \
+            --write-out '%{http_code}' --output /tmp/tick.json \
+            https://find-fundi.vercel.app/api/v1/tick || echo "000")
+
+          echo "HTTP $status"
+          cat /tmp/tick.json 2>/dev/null || true
+          echo
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Tick failed with status $status."
+            exit 1
+          fi
+
+  keep-awake:
     runs-on: ubuntu-latest
     steps:
       - name: Ping the database
         run: |
-          echo "Pinging https://find-fundi.vercel.app/api/v1/health"
           status=$(curl --silent --show-error --max-time 30 \
             --write-out '%{http_code}' --output /tmp/health.json \
             https://find-fundi.vercel.app/api/v1/health || echo "000")
@@ -30,4 +60,3 @@ jobs:
             echo "::error::Health check failed with status $status. The Supabase project may be paused — restore it at supabase.com/dashboard."
             exit 1
           fi
-          echo "Database answered. Project is awake."

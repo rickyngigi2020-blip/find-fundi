@@ -110,6 +110,7 @@
     <div class="contact-section"></div>
     <div class="pick-section"></div>
     <div class="quote-section"></div>
+    <div class="revision-section"></div>
     <div class="tracking-section mt-4 hidden"></div>
     <div class="review-section mt-4 hidden pt-4 border-t border-navy/10"></div>
     <div class="cancel-section"></div>
@@ -266,45 +267,86 @@
   // A job with no fundi yet (still being offered round, or the fundi who took
   // it turned it down). The customer does not pick anyone: this just reports
   // where the search has got to, and can send it round again if it stalled.
+  // A job with no fundi yet. The customer does not pick anyone and has nothing
+  // to press: the search runs on its own until someone takes it.
   function renderPickSection(section, job) {
     const box = document.createElement('div');
     box.className = 'mt-3 rounded-xl border border-navy/10 px-4 py-3';
-    const stalled = Boolean(job.search_exhausted_at);
+    const dead = Boolean(job.search_exhausted_at);
     box.innerHTML = `
       <div class="flex items-start gap-2.5">
-        ${stalled ? '' : '<span class="search-pulse shrink-0 mt-1.5" aria-hidden="true"></span>'}
+        ${dead ? '' : '<span class="search-pulse shrink-0 mt-1.5" aria-hidden="true"></span>'}
         <div>
-          <p class="text-[13.5px] font-semibold text-navy">${stalled ? 'No fundi free right now' : 'Finding your fundi'}</p>
-          <p class="text-[13.5px] text-navy/60 leading-[1.55] mt-0.5">${stalled
-            ? 'Nobody in this category could take it. Send it round again and we will start from the top.'
-            : 'It is with the nearest fundi who is online. If they cannot take it, it passes to the next one.'}</p>
+          <p class="text-[13.5px] font-semibold text-navy">${dead ? 'No fundi for this trade yet' : 'Finding your fundi'}</p>
+          <p class="text-[13.5px] text-navy/60 leading-[1.55] mt-0.5">${dead
+            ? 'There is no approved fundi in this category at the moment. We keep trying as fundis join, and will notify you.'
+            : 'Your job is being offered to fundis one at a time. We will notify you as soon as someone takes it.'}</p>
         </div>
       </div>
-      <button type="button" class="pick-retry btn-primary mt-3 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg"${stalled ? '' : ' hidden'}>Send it round again</button>
-      <p class="pick-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
     `;
-    const retry = box.querySelector('.pick-retry');
-    const errorEl = box.querySelector('.pick-error');
-    retry.addEventListener('click', async () => {
-      errorEl.classList.add('hidden');
-      retry.disabled = true;
-      retry.textContent = 'Sending…';
-      try {
-        // Reloading is what advances a stalled search: the API offers the job
-        // on when the customer next reads their jobs.
-        await loadJobs();
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove('hidden');
-        retry.disabled = false;
-        retry.textContent = 'Send it round again';
-      }
-    });
     section.appendChild(box);
   }
 
   // Cancelling asks for confirmation inline, with an optional reason that is
   // passed on to the booked fundi.
+  // The fundi has found the job is bigger than the price covers. The customer
+  // reads why and decides. Nothing changes until they do, and turning it down
+  // leaves the agreed price standing rather than ending the job.
+  function renderRevisionSection(section, job) {
+    const change = job.pending_price_change;
+
+    if (!change) {
+      if (!job.materials_since) return;
+      const note = document.createElement('div');
+      note.className = 'mt-3 rounded-xl border border-navy/10 bg-gray-50 px-4 py-3';
+      note.innerHTML = `
+        <p class="text-[13.5px] font-semibold text-navy">Your fundi has gone for materials</p>
+        <p class="mt-0.5 text-[13.5px] text-navy/60 leading-[1.55]">${escapeHtml(job.materials_note || 'They are getting what the job needs and will be back.')}</p>
+      `;
+      section.appendChild(note);
+      return;
+    }
+
+    const up = change.amount > change.previous_amount;
+    const box = document.createElement('div');
+    box.className = 'mt-3 rounded-xl border-2 border-orange bg-orange-50 px-4 py-3.5';
+    box.innerHTML = `
+      <p class="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-orange-700">New price to agree</p>
+      <div class="mt-1.5 flex items-baseline gap-2.5 flex-wrap">
+        <span class="font-display font-800 text-[1.35rem] text-navy tabular-nums">${formatKsh(change.amount)}</span>
+        <span class="text-[13.5px] text-navy/50">was <span class="line-through">${formatKsh(change.previous_amount)}</span></span>
+      </div>
+      <p class="mt-2 text-[13.5px] text-navy/70 leading-[1.6]">${escapeHtml(change.reason)}</p>
+      <p class="mt-2 text-[12.5px] text-navy/55 leading-[1.5]">${up
+        ? 'You only pay the new amount if you accept it. Turn it down and the price you already agreed stands.'
+        : 'Your fundi has lowered the price.'}</p>
+      <p class="pc-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button type="button" class="pc-yes btn-primary rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Accept ${formatKsh(change.amount)}</button>
+        <button type="button" class="pc-no btn-quiet rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy">Keep the old price</button>
+      </div>
+    `;
+
+    const errorEl = box.querySelector('.pc-error');
+    const answer = async (btn, accept, label) => {
+      errorEl.classList.add('hidden');
+      box.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      btn.textContent = label;
+      try {
+        await apiFetch(`/jobs/${job.id}/answer-price`, { method: 'POST', body: JSON.stringify({ accept }) });
+        await loadJobs();
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        box.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+      }
+    };
+
+    box.querySelector('.pc-yes').addEventListener('click', (e) => answer(e.target, true, 'Accepting...'));
+    box.querySelector('.pc-no').addEventListener('click', (e) => answer(e.target, false, 'Saving...'));
+    section.appendChild(box);
+  }
+
   function renderCancelSection(section, job) {
     const wrap = document.createElement('div');
     wrap.className = 'mt-4 border-t border-navy/10 pt-3';
@@ -372,6 +414,11 @@
       tpl.querySelector('.contact-section').appendChild(renderContactCard(job.counterpart, 'Your fundi'));
     }
     renderQuoteSection(tpl.querySelector('.quote-section'), job, pill);
+
+    // A price the fundi wants to change, and whether they have gone for parts.
+    if (job.status === 'in_progress') {
+      renderRevisionSection(tpl.querySelector('.revision-section'), job);
+    }
     if (job.status === 'requested') renderPickSection(tpl.querySelector('.pick-section'), job);
     if (OPEN_STATUSES.includes(job.status)) renderCancelSection(tpl.querySelector('.cancel-section'), job);
     if (job.status === 'cancelled') renderCancelledNote(tpl.querySelector('.cancel-section'), job);
