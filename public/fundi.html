@@ -514,6 +514,34 @@
   let offerTimer = null;
   let countdownTimer = null;
   let shownOfferId = null;
+  let firstOfferLoad = true;
+
+  // A short double beep and a buzz. Deliberately not a file: no download, and
+  // it works offline. Silently does nothing where the browser will not allow
+  // sound without a tap, which is not worth interrupting anyone over.
+  function alertNewOffer() {
+    try {
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    } catch (err) { /* vibration is a nicety */ }
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      [0, 0.28].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.22);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + offset);
+        osc.stop(ctx.currentTime + offset + 0.24);
+      });
+      setTimeout(() => ctx.close().catch(() => {}), 1200);
+    } catch (err) { /* no sound available */ }
+  }
 
   function clearOfferTimers() {
     if (offerTimer) { clearTimeout(offerTimer); offerTimer = null; }
@@ -535,9 +563,15 @@
     // Keep the card while the same offer stands, so a voice note being played
     // is not cut off by the poll.
     if (shownOfferId !== offer.id) {
+      const isNew = shownOfferId !== null || !firstOfferLoad;
       shownOfferId = offer.id;
       slot.replaceChildren(offerCard(offer, { onAccept: takeJob, onDecline: passJob }));
+      // Browser notifications do not reach every phone: some cannot register
+      // with the push service at all. A fundi with the app open should still
+      // know a job has landed, so the page makes its own noise.
+      if (isNew) alertNewOffer();
     }
+    firstOfferLoad = false;
 
     const countdown = slot.querySelector('.o-countdown');
     if (countdown) {
