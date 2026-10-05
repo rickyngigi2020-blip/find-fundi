@@ -47,7 +47,7 @@ async function rankCandidates(job) {
 
   const { data: fundis, error } = await adminClient
     .from('fundi_profiles')
-    .select('id, is_online, last_seen_at, profiles!inner(area, suspended_at)')
+    .select('id, is_online, last_seen_at, profiles!fundi_profiles_id_fkey!inner(area, suspended_at)')
     .eq('verification_status', 'verified')
     .eq('category', job.category)
     .is('profiles.suspended_at', null);

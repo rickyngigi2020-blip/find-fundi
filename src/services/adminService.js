@@ -18,7 +18,7 @@ async function signedDocUrl(path) {
 async function listFundiApplications() {
   const { data, error } = await adminClient
     .from('fundi_profiles')
-    .select('*, profiles!inner(full_name, phone, area, suspended_at)')
+    .select('*, profiles!fundi_profiles_id_fkey!inner(full_name, phone, area, suspended_at)')
     .order('created_at', { ascending: true });
   if (error) throw toApiError(error);
   return Promise.all(data.map(async (app) => ({
