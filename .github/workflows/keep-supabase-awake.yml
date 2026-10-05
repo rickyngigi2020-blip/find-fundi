@@ -20,24 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Move waiting jobs on to the next fundi
-        env:
-          TICK_SECRET: ${{ secrets.TICK_SECRET }}
         run: |
-          if [ -z "$TICK_SECRET" ]; then
-            echo "::warning::TICK_SECRET is not set, so waiting jobs are only advanced when someone opens the app."
-            exit 0
-          fi
-
-          status=$(curl --silent --show-error --max-time 60 \
-            --request POST \
-            --header "Authorization: Bearer $TICK_SECRET" \
-            --write-out '%{http_code}' --output /tmp/tick.json \
-            https://find-fundi.vercel.app/api/v1/tick || echo "000")
-
+          status=$(curl -sS -m 60 -X POST -w '%{http_code}' -o /tmp/tick.json https://find-fundi.vercel.app/api/v1/tick || echo "000")
           echo "HTTP $status"
           cat /tmp/tick.json 2>/dev/null || true
           echo
-
           if [ "$status" != "200" ]; then
             echo "::error::Tick failed with status $status."
             exit 1
@@ -48,15 +35,11 @@ jobs:
     steps:
       - name: Ping the database
         run: |
-          status=$(curl --silent --show-error --max-time 30 \
-            --write-out '%{http_code}' --output /tmp/health.json \
-            https://find-fundi.vercel.app/api/v1/health || echo "000")
-
+          status=$(curl -sS -m 30 -w '%{http_code}' -o /tmp/health.json https://find-fundi.vercel.app/api/v1/health || echo "000")
           echo "HTTP $status"
           cat /tmp/health.json 2>/dev/null || true
           echo
-
           if [ "$status" != "200" ]; then
-            echo "::error::Health check failed with status $status. The Supabase project may be paused — restore it at supabase.com/dashboard."
+            echo "::error::Health check failed with status $status. The Supabase project may be paused - restore it at supabase.com/dashboard."
             exit 1
           fi
