@@ -354,8 +354,9 @@
   function renderCancelledNote(section, job) {
     const p = document.createElement('p');
     p.className = 'mt-3 rounded-xl bg-gray-50 px-4 py-3 text-[13.5px] text-navy/65';
-    const who = job.cancelled_by === 'admin' ? 'Cancelled by Find Fundi' : 'You cancelled this job';
-    p.textContent = job.cancel_reason ? `${who}. Reason: ${job.cancel_reason}` : `${who}.`;
+    // The reason is kept for the fundi who was told and for admins. Showing it
+    // back to the person who wrote it adds nothing.
+    p.textContent = job.cancelled_by === 'admin' ? 'Cancelled by Find Fundi.' : 'You cancelled this job.';
     section.appendChild(p);
   }
 
@@ -388,7 +389,20 @@
       setupTracking(job, mapId, trackingSection.querySelector('.waiting-note'));
     }
 
-    if (job.status === 'completed') {
+    // A job that has already been rated shows that rating back, rather than
+    // offering the form again and failing on a second submission.
+    if (job.status === 'completed' && job.review) {
+      const section = tpl.querySelector('.review-section');
+      section.classList.remove('hidden');
+      section.innerHTML = `
+        <p class="text-[13px] font-semibold text-navy/70 mb-2">You rated this job</p>
+        <div class="flex gap-1 items-center">
+          ${[1, 2, 3, 4, 5].map((n) => `<span class="text-2xl ${n <= job.review.rating ? 'text-orange' : 'text-navy/15'}" aria-hidden="true">★</span>`).join('')}
+          <span class="sr-only">${job.review.rating} out of 5</span>
+        </div>
+        ${job.review.comment ? `<p class="mt-2 text-[13.5px] text-navy/65 leading-[1.6]">${escapeHtml(job.review.comment)}</p>` : ''}
+      `;
+    } else if (job.status === 'completed') {
       const section = tpl.querySelector('.review-section');
       section.classList.remove('hidden');
       section.innerHTML = `

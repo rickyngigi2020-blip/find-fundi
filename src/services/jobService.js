@@ -88,6 +88,24 @@ async function listMine(accessToken, userId, role) {
       .map((j) => matching.advance(j).catch((e) => console.error('advance failed', e.message))));
   }
 
+  // A completed job carries the review it already has, so the page can show
+  // the rating that was given instead of offering the form a second time.
+  const completed = data.filter((j) => j.status === 'completed').map((j) => j.id);
+  if (completed.length) {
+    const { data: reviews, error: reviewError } = await supabase
+      .from('reviews')
+      .select('job_id, rating, comment, created_at')
+      .in('job_id', completed);
+    if (reviewError) throw toApiError(reviewError);
+    const byJob = Object.fromEntries(reviews.map((r) => [r.job_id, r]));
+    data.forEach((j) => { j.review = byJob[j.id] || null; });
+  }
+
+  // The reason someone gave for cancelling is for the fundi who lost the work
+  // and for admins, not for the person who wrote it or for the other side to
+  // re-read afterwards. It never leaves the API on this route.
+  data.forEach((j) => { delete j.cancel_reason; });
+
   return withCounterparts(data, role);
 }
 
