@@ -38,16 +38,57 @@ async function sendSubscription(sub) {
   await apiFetch('/push/subscriptions', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
 }
 
+// A subscription is tied to the key it was created with. If the server's key
+// has changed since, reusing the old subscription silently breaks delivery and
+// re-subscribing over it throws, so the stale one is dropped first.
+function subscriptionMatchesKey(sub, keyBytes) {
+  const existing = sub.options && sub.options.applicationServerKey;
+  if (!existing) return false;
+  const bytes = new Uint8Array(existing);
+  return bytes.length === keyBytes.length && bytes.every((b, i) => b === keyBytes[i]);
+}
+
+// The browser's own wording for these is not something anyone can act on
+// ("Registration failed - push service error"), so it is translated here.
+function pushFailureMessage(err) {
+  const raw = `${err && err.name} ${err && err.message}`.toLowerCase();
+  if (raw.includes('push service error') || raw.includes('aborterror')) {
+    return 'Your browser could not reach its notification service. '
+      + 'On Brave, turn on Settings > Privacy > "Use Google services for push messaging", then try again. '
+      + 'Otherwise check you are not offline or behind a firewall that blocks it, and try Chrome.';
+  }
+  if (raw.includes('notallowederror') || raw.includes('permission')) {
+    return 'Notifications are blocked. Allow them for this site in your browser settings.';
+  }
+  if (raw.includes('notsupportederror')) {
+    return 'This browser cannot do notifications. Try Chrome, or add Find Fundi to your home screen on iPhone.';
+  }
+  return (err && err.message) || 'Notifications could not be turned on.';
+}
+
 async function enablePush() {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error(permission === 'denied'
     ? 'Notifications are blocked. Allow them for this site in your browser settings.'
     : 'Notifications were not turned on.');
+
   const { publicKey } = await apiFetch('/push/public-key');
+  const keyBytes = base64UrlToBytes(publicKey);
   const reg = await pushRegistration();
-  const sub = (await reg.pushManager.getSubscription())
-    || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(publicKey) });
-  await sendSubscription(sub);
+
+  try {
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && !subscriptionMatchesKey(sub, keyBytes)) {
+      await sub.unsubscribe().catch(() => {});
+      sub = null;
+    }
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes });
+    }
+    await sendSubscription(sub);
+  } catch (err) {
+    throw new Error(pushFailureMessage(err));
+  }
 }
 
 // Re-sends an existing subscription, so this browser's notifications follow
