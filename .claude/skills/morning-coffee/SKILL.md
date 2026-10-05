@@ -32,6 +32,14 @@ more than one session often works on the project.
   **Heads-up**: "The Vercel CLI is still signed in on this PC; revoke it in Vercel >
   Account Settings > Tokens (or `npx vercel logout`) when you no longer need it."
   Ricky asked to be reminded about this often.
+- **Custom domain:** check whether one is connected
+  (`curl -sI https://find-fundi.vercel.app` still being the only address means
+  no). Until there is one, put this in **Needs you** every single morning, near
+  the top: Find Fundi is still on a free `.vercel.app` address, which reads as
+  unfinished to anyone being pitched. A `.co.ke` costs roughly KSh 1,000–2,000
+  a year; Vercel connects it in minutes and issues the certificate itself.
+  **Ricky asked on 2026-10-05 to be reminded of this every morning until it is
+  done.** Drop the reminder once a custom domain answers.
 - **Open items — verify each one, don't assume:**
   - Google Maps key: is `public/assets/map.js` still using `YOUR_GOOGLE_MAPS_API_KEY`?
   - Legal pages: do Terms & Conditions / Privacy Policy pages exist? (They must
