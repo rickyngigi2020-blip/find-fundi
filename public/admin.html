@@ -244,7 +244,7 @@
       [CATEGORY_LABELS[app.category] || app.category, app.profiles.area || 'No area', app.profiles.phone,
         `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].join(' · ')));
     const pills = el('div', 'flex flex-wrap justify-end gap-1.5');
-    const noPapers = !(app.certificate_links || []).length;
+    const noPapers = app.no_certificate || !(app.certificate_links || []).length;
     if (app.profiles.suspended_at) pills.appendChild(pill('suspended', 'Suspended'));
     if (noPapers && !app.certified_by_find_fundi_at) pills.appendChild(pill('pending', 'Needs interview'));
     if (app.certified_by_find_fundi_at) pills.appendChild(pill('verified', 'Find Fundi certified'));
@@ -262,12 +262,14 @@
     });
     card.appendChild(docs);
 
-    // An applicant with no papers explains how they learned the trade. That
-    // text is what the interview is built from, so it is shown in full.
-    if (app.no_certificate_reason) {
+    // No papers means this one is judged by interview, not by documents.
+    if (noPapers) {
       const box = el('div', 'mt-3 rounded-lg border border-orange/25 bg-orange-50 p-3.5');
-      box.appendChild(el('p', 'text-[12.5px] font-semibold uppercase tracking-[0.06em] text-orange-700', 'No certificate — how they learned the trade'));
-      box.appendChild(el('p', 'mt-1.5 text-[13.5px] text-navy/70 leading-[1.6]', app.no_certificate_reason));
+      box.appendChild(el('p', 'text-[12.5px] font-semibold uppercase tracking-[0.06em] text-orange-700', 'No certificate'));
+      box.appendChild(el('p', 'mt-1.5 text-[13.5px] text-navy/70 leading-[1.6]',
+        app.certified_by_find_fundi_at
+          ? 'Interviewed and certified by Find Fundi.'
+          : `Call ${app.profiles.phone || 'them'} to arrange a time to watch them work, then certify below.`));
       if (app.certification_note) {
         box.appendChild(el('p', 'mt-2.5 text-[13px] text-navy/60 leading-[1.6]', `Interview note: ${app.certification_note}`));
       }

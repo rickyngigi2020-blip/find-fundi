@@ -127,10 +127,7 @@
           <span class="text-[13.5px] font-semibold text-navy">I don't have a certificate</span>
         </label>
         <div id="noCertBlock" hidden class="mt-3">
-          <p class="text-[13px] text-navy/60 leading-[1.6]">Plenty of good fundis learned on the job. Tell us how you learned your trade and where you have worked. We will call you to arrange an interview, watch you work, and issue your Find Fundi certificate.</p>
-          <label class="block text-[13px] font-semibold text-navy/70 mt-3 mb-1.5" for="noCertReason">How you learned the trade</label>
-          <textarea id="noCertReason" rows="4" maxlength="1000" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none resize-none" placeholder="For example: eight years repairing fridges at a workshop in Gikomba, trained under my uncle who ran the shop."></textarea>
-          <p id="noCertCount" class="mt-1 text-[12.5px] text-navy/45"></p>
+          <p class="text-[13px] text-navy/60 leading-[1.6]">Plenty of good fundis learned on the job. We will call you on the number on your account, arrange a time to watch you work, and issue your Find Fundi certificate. Nothing else to fill in here.</p>
         </div>
       </div>
     </div>
@@ -188,10 +185,8 @@
 
   // Uploading papers and asking for an interview are alternatives, so picking
   // one puts the other away.
-  const MIN_REASON_LENGTH = 40;
   const noCert = document.getElementById('noCert');
   const noCertBlock = document.getElementById('noCertBlock');
-  const noCertReason = document.getElementById('noCertReason');
   const certField = certInput.closest('div');
 
   noCert.addEventListener('change', () => {
@@ -200,15 +195,7 @@
     if (noCert.checked) {
       certInput.value = '';
       document.getElementById('certList').textContent = '';
-      noCertReason.focus();
     }
-  });
-
-  noCertReason.addEventListener('input', () => {
-    const left = MIN_REASON_LENGTH - noCertReason.value.trim().length;
-    document.getElementById('noCertCount').textContent = left > 0
-      ? `${left} more character${left === 1 ? '' : 's'} needed`
-      : '';
   });
 
   const fail = (message) => {
@@ -229,11 +216,7 @@
     const certFilesCheck = noCert.checked ? [] : [...certInput.files];
     if (idFileCheck && !isPdf(idFileCheck)) return fail('Your ID must be a PDF. Scan or export it as a PDF and try again.');
 
-    if (noCert.checked) {
-      if (noCertReason.value.trim().length < MIN_REASON_LENGTH) {
-        return fail('Tell us a bit more about how you learned the trade, so we know what to ask at the interview.');
-      }
-    } else {
+    if (!noCert.checked) {
       if (!certFilesCheck.length) return fail('Attach at least one certificate, or tick the box to say you have none.');
       if (certFilesCheck.length > MAX_CERTIFICATES) return fail(`Attach at most ${MAX_CERTIFICATES} certificates.`);
       const notPdf = certFilesCheck.find((f) => !isPdf(f));
@@ -260,7 +243,7 @@
           years_experience: document.getElementById('experience').value,
           id_document_url,
           certificate_paths,
-          no_certificate_reason: noCert.checked ? noCertReason.value.trim() : null,
+          no_certificate: noCert.checked,
           bio: document.getElementById('bio').value.trim() || null,
         }),
       });

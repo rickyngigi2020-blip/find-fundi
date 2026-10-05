@@ -4,10 +4,6 @@ const fundiService = require('../services/fundiService');
 // private documents bucket.
 const MAX_CERTIFICATES = 5;
 
-// An applicant with no papers has to say something real about how they learned
-// the trade, since that is what the interview is booked from.
-const MIN_REASON_LENGTH = 40;
-const MAX_REASON_LENGTH = 1000;
 
 const CATEGORIES = ['phone_electronics', 'computer_laptop', 'appliance', 'mechanical', 'general_maintenance', 'installation', 'tailoring'];
 
@@ -15,7 +11,7 @@ async function apply(req, res, next) {
   try {
     const {
       category, national_id, highest_qualification, years_experience,
-      id_document_url, certificate_paths, no_certificate_reason, bio,
+      id_document_url, certificate_paths, no_certificate, bio,
     } = req.body;
 
     if (!category || !national_id || !highest_qualification || !years_experience || !id_document_url) {
@@ -27,16 +23,14 @@ async function apply(req, res, next) {
       return res.status(400).json({ error: { message: `category must be one of: ${CATEGORIES.join(', ')}`, code: 'invalid_request' } });
     }
 
-    // Qualification must be shown one way or the other: certificates, or a
-    // written explanation that sends the applicant to a Find Fundi interview.
+    // Qualification is shown one way or the other: certificates, or asking for
+    // an interview. Nothing has to be written, so the route stays open to
+    // applicants who do not read or write comfortably.
     const certificates = Array.isArray(certificate_paths) ? certificate_paths.filter(Boolean) : [];
-    const reason = typeof no_certificate_reason === 'string' ? no_certificate_reason.trim() : '';
+    const wantsInterview = no_certificate === true;
 
-    if (!certificates.length && !reason) {
-      return res.status(400).json({ error: { message: 'Attach a certificate, or tell us how you learned the trade so we can arrange an interview.', code: 'invalid_request' } });
-    }
-    if (!certificates.length && reason.length < MIN_REASON_LENGTH) {
-      return res.status(400).json({ error: { message: `Tell us a bit more about how you learned the trade, at least ${MIN_REASON_LENGTH} characters.`, code: 'invalid_request' } });
+    if (!certificates.length && !wantsInterview) {
+      return res.status(400).json({ error: { message: 'Attach a certificate, or tick the box to say you have none.', code: 'invalid_request' } });
     }
     if (certificates.length > MAX_CERTIFICATES) {
       return res.status(400).json({ error: { message: `Attach at most ${MAX_CERTIFICATES} certificates.`, code: 'invalid_request' } });
@@ -56,7 +50,7 @@ async function apply(req, res, next) {
     const application = await fundiService.applyAsFundi(req.user.id, {
       category, national_id, highest_qualification, years_experience, id_document_url,
       certificate_paths: certificates,
-      no_certificate_reason: certificates.length ? null : reason.slice(0, MAX_REASON_LENGTH),
+      no_certificate: !certificates.length,
       bio,
     });
     res.json({ data: application });
