@@ -300,6 +300,36 @@
     document.getElementById('copyBtn').textContent = 'Copied';
   });
 
+  // Whether a sign-in is stored and still current, without the token itself.
+  // A stored but expired sign-in that cannot be renewed looks signed out to
+  // the page while the person believes they are signed in.
+  function signInFacts() {
+    const facts = { session_found: Boolean(session) };
+    try {
+      const stored = JSON.parse(localStorage.getItem(`sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`) || 'null');
+      facts.token_stored = Boolean(stored);
+      if (stored && stored.expires_at) {
+        facts.token_expires_at = new Date(stored.expires_at * 1000).toISOString();
+        facts.token_expired = stored.expires_at * 1000 < Date.now();
+      }
+    } catch (err) {
+      facts.storage_error = describeError(err);
+    }
+    return facts;
+  }
+
+  // Failures the app noted on this device before the check ran, such as the
+  // booking that sent someone here. Sent with the report, then cleared.
+  function takeNotedFailures() {
+    try {
+      const list = JSON.parse(localStorage.getItem(NET_LOG_KEY) || '[]');
+      localStorage.removeItem(NET_LOG_KEY);
+      return list;
+    } catch (err) {
+      return [];
+    }
+  }
+
   async function pushFacts() {
     const facts = { supported: pushSupported(), permission: 'Notification' in window ? Notification.permission : 'none', ios_browser_tab: isIosBrowserTab() };
     if ('serviceWorker' in navigator) {
@@ -319,7 +349,13 @@
     btn.textContent = 'Checking…';
     document.getElementById('sendState').hidden = true;
     document.getElementById('copyBox').hidden = true;
-    const report = { kind: 'connection-check', device: deviceFacts(), push: await pushFacts().catch(() => null) };
+    const report = {
+      kind: 'connection-check',
+      device: deviceFacts(),
+      sign_in: signInFacts(),
+      push: await pushFacts().catch(() => null),
+      noted_failures: takeNotedFailures(),
+    };
     await runSteps(document.getElementById('results'), CHECKS, report);
     btn.textContent = 'Sending results…';
     showSent(document.getElementById('sendState'), await sendReport(report), report);
@@ -391,7 +427,7 @@
     btn.textContent = 'Testing…';
     const state = document.getElementById('pushSendState');
     state.hidden = true;
-    const report = { kind: 'notifications-check', device: deviceFacts(), push: await pushFacts().catch(() => null) };
+    const report = { kind: 'notifications-check', device: deviceFacts(), sign_in: signInFacts(), push: await pushFacts().catch(() => null) };
     await runSteps(document.getElementById('pushResults'), PUSH_STEPS, report, { stopOnFailure: true });
     const allWorked = report.results.every((r) => r.ok);
     btn.textContent = 'Sending results…';
@@ -409,9 +445,12 @@
 
   (async function init() {
     session = await getSession().catch(() => null);
-    document.getElementById('accountLine').textContent = session
-      ? `Signed in as ${session.user.email}.`
-      : 'You are not signed in, so the checks that need an account will be skipped.';
+    const line = document.getElementById('accountLine');
+    if (session) {
+      line.textContent = `Signed in as ${session.user.email}.`;
+      return;
+    }
+    line.innerHTML = 'You are not signed in here, so the checks that need an account will be skipped. <a href="login.html?next=check.html" class="font-semibold text-orange underline underline-offset-2">Sign in</a> and you will come back to this page.';
   })();
 </script>
 </body>

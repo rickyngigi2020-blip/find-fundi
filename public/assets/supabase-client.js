@@ -38,7 +38,9 @@ async function requireSession(redirectTo) {
 // drops: mobile data fading, the phone locking mid-request, Wi-Fi handing over
 // to data. The browser's own wording ("Failed to fetch" in Chrome, "Load
 // failed" in Safari) means nothing to a customer, so it is replaced with this.
-const NETWORK_ERROR_MESSAGE = "Couldn't reach Find Fundi. Check your internet connection and try again.";
+// It says only what is known: the request got no answer. On Ricky's phone the
+// connection itself tested fine, so telling people to check theirs misleads.
+const NETWORK_ERROR_MESSAGE = "Your request didn't get through to Find Fundi. Try again in a moment.";
 
 function isNetworkError(err) {
   return err instanceof TypeError
