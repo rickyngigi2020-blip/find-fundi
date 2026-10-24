@@ -34,12 +34,46 @@ async function requireSession(redirectTo) {
   return session;
 }
 
+// fetch() rejects without any answer from the server when the connection
+// drops: mobile data fading, the phone locking mid-request, Wi-Fi handing over
+// to data. The browser's own wording ("Failed to fetch" in Chrome, "Load
+// failed" in Safari) means nothing to a customer, so it is replaced with this.
+const NETWORK_ERROR_MESSAGE = "Couldn't reach Find Fundi. Check your internet connection and try again.";
+
+function isNetworkError(err) {
+  return err instanceof TypeError
+    || /failed to fetch|load failed|networkerror|network request failed/i.test((err && err.message) || '');
+}
+
+function networkError() {
+  const err = new Error(NETWORK_ERROR_MESSAGE);
+  err.code = 'network';
+  return err;
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function apiFetch(path, options = {}) {
   const session = await getSession();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (session) headers.Authorization = `Bearer ${session.access_token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const send = () => fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res;
+  try {
+    res = await send();
+  } catch (err) {
+    if (!isNetworkError(err)) throw err;
+    // A read is safe to repeat after a blip. A write is not: it may have
+    // reached the server before the line dropped, so the caller decides.
+    if ((options.method || 'GET').toUpperCase() !== 'GET') throw networkError();
+    await wait(1500);
+    try {
+      res = await send();
+    } catch (retryErr) {
+      throw isNetworkError(retryErr) ? networkError() : retryErr;
+    }
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((body && body.error && body.error.message) || 'Something went wrong.');
   return body.data;
@@ -47,12 +81,18 @@ async function apiFetch(path, options = {}) {
 
 // Uploads into the user's own folder and returns the storage path (not a URL).
 // Filenames are sanitised because Storage rejects many characters in keys.
+// A dropped connection gets one more try under a fresh name, since the first
+// attempt may have landed and Storage refuses to overwrite.
 async function uploadPrivateFile(bucket, userId, file) {
   const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
-  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
-  const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
-  if (error) throw error;
-  return path;
+  for (let attempt = 1; ; attempt += 1) {
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+    const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
+    if (!error) return path;
+    if (!isNetworkError(error)) throw error;
+    if (attempt === 2) throw networkError();
+    await wait(1500);
+  }
 }
 
 // For any user-supplied text placed into innerHTML (descriptions, names, areas).

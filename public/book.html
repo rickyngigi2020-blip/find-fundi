@@ -574,6 +574,40 @@
     });
   }
 
+  // Media already in Storage, keyed by the blob or file it came from, so a
+  // retry after a dropped connection does not upload everything again.
+  const uploadedPaths = new WeakMap();
+  async function uploadOnce(userId, blob, file) {
+    if (!uploadedPaths.has(blob)) uploadedPaths.set(blob, await uploadPrivateFile('job-media', userId, file));
+    return uploadedPaths.get(blob);
+  }
+
+  // When the connection drops during POST /jobs the job may or may not have
+  // been saved. Look for it before sending again, or a retry would book the
+  // same work twice.
+  async function findJustCreatedJob(payload, since) {
+    const jobs = await apiFetch('/jobs/mine');
+    return jobs.find((j) => j.status === 'requested'
+      && j.category === payload.category
+      && (j.description || null) === payload.description
+      && new Date(j.created_at).getTime() >= since) || null;
+  }
+
+  async function createJob(payload) {
+    // Phone and server clocks differ; ten minutes is wide enough for that and
+    // still too narrow to mistake an older request for this one.
+    const since = Date.now() - 10 * 60 * 1000;
+    try {
+      return await apiFetch('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (err) {
+      if (err.code !== 'network') throw err;
+      await wait(1500);
+      const saved = await findJustCreatedJob(payload, since);
+      if (saved) return saved;
+      return apiFetch('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+    }
+  }
+
   document.getElementById('toStep2').addEventListener('click', async () => {
     const errorEl = document.getElementById('step1Error');
     errorEl.classList.add('hidden');
@@ -598,25 +632,22 @@
         btn.textContent = hasMedia ? 'Uploading…' : 'Finding fundis…';
 
         const voice_note_path = voiceBlob
-          ? await uploadPrivateFile('job-media', session.user.id, new File([voiceBlob], `voice-note.${voiceFileExtension(voiceBlob.type)}`, { type: voiceBlob.type }))
+          ? await uploadOnce(session.user.id, voiceBlob, new File([voiceBlob], `voice-note.${voiceFileExtension(voiceBlob.type)}`, { type: voiceBlob.type }))
           : null;
-        const photo_paths = await Promise.all(photos.map((p) => uploadPrivateFile('job-media', session.user.id, p.file)));
+        const photo_paths = await Promise.all(photos.map((p) => uploadOnce(session.user.id, p.file, p.file)));
 
         btn.textContent = 'Finding fundis…';
         const location = await getBrowserLocation();
-        currentJob = await apiFetch('/jobs', {
-          method: 'POST',
-          body: JSON.stringify({
-            category: selectedCategory,
-            subcategory: document.getElementById('subcategory').value.trim() || null,
-            description: description || null,
-            voice_note_path,
-            photo_paths,
-            area,
-            urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
-            customer_lat: location ? location.lat : null,
-            customer_lng: location ? location.lng : null,
-          }),
+        currentJob = await createJob({
+          category: selectedCategory,
+          subcategory: document.getElementById('subcategory').value.trim() || null,
+          description: description || null,
+          voice_note_path,
+          photo_paths,
+          area,
+          urgency: document.getElementById('urgent').checked ? 'urgent' : 'normal',
+          customer_lat: location ? location.lat : null,
+          customer_lng: location ? location.lng : null,
         });
       }
 
@@ -673,8 +704,12 @@
   }
 
   async function pollForMatch() {
+    const searchError = document.getElementById('searchError');
     try {
       const jobs = await apiFetch('/jobs/mine');
+      // A failed check is retried every few seconds, so its message must go
+      // once one gets through, or a single blip reads as a permanent fault.
+      searchError.classList.add('hidden');
       const job = jobs.find((j) => j.id === currentJob.id);
       if (!job) return schedulePoll();
 
@@ -702,8 +737,10 @@
       showSearching();
       schedulePoll();
     } catch (err) {
-      document.getElementById('searchError').textContent = err.message;
-      document.getElementById('searchError').classList.remove('hidden');
+      searchError.textContent = err.code === 'network'
+        ? "Connection lost. The search carries on, and this screen will update when you're back online."
+        : err.message;
+      searchError.classList.remove('hidden');
       schedulePoll();
     }
   }
