@@ -2,6 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+  // A Google sign-in or email link that comes back to the home page (Supabase
+  // falls back to its Site URL when the return address is not on its list)
+  // carries the sign-in in the address. This page does not sign anyone in,
+  // so hand it to the one that does.
+  (function () {
+    var signIn = /(^|[#&])(access_token|error_description)=/.test(window.location.hash)
+      || /[?&](code|error_description)=/.test(window.location.search);
+    if (signIn) window.location.replace('profile.html' + window.location.search + window.location.hash);
+  })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find Fundi | Skilled People. Fast Solutions.</title>
 <link rel="icon" href="assets/logo-mark.png">
