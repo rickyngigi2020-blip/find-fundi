@@ -30,6 +30,15 @@ async function removeSubscription(userId, endpoint) {
   if (error) throw toApiError(error);
 }
 
+async function subscriptionCount(userId) {
+  const { count, error } = await adminClient
+    .from('push_subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if (error) throw toApiError(error);
+  return count || 0;
+}
+
 // payload: { title, body, url, tag }. Failures never reach the caller: a job
 // change has already happened and must not be reported as failed.
 async function notifyUsers(userIds, payload) {
@@ -59,4 +68,4 @@ async function notifyUsers(userIds, payload) {
   }
 }
 
-module.exports = { publicKey, saveSubscription, removeSubscription, notifyUsers };
+module.exports = { publicKey, saveSubscription, removeSubscription, subscriptionCount, notifyUsers };

@@ -658,6 +658,13 @@
       pollForMatch();
     } catch (err) {
       fail(err.message || 'Something went wrong. Try again.');
+      if (err.code === 'network') {
+        const link = document.createElement('a');
+        link.href = 'check.html';
+        link.className = 'block mt-1 font-semibold underline underline-offset-2';
+        link.textContent = 'Still failing? Run a connection check';
+        errorEl.appendChild(link);
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Find a fundi';

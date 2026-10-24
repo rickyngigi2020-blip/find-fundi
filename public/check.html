@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connection check — Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902', 50: '#FFF1E6' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.04); }
+  .btn-primary:active { transform: translateY(0); filter: brightness(0.96); }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
+  .btn-quiet:hover { background: rgba(4,21,48,0.05); }
+  .btn-quiet:active { background: rgba(4,21,48,0.09); }
+  .pill { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 6px; white-space: nowrap; }
+  .pill-ok { background: #E6F4EC; color: #0E6B44; }
+  .pill-fail { background: #FDECEA; color: #B42318; }
+  .pill-skip { background: rgba(4,21,48,0.06); color: rgba(4,21,48,0.55); }
+  .pill-run { background: #FFF1E6; color: #B84A00; }
+  @media (prefers-reduced-motion: reduce) { .btn-primary { transition: none; } .btn-primary:hover { transform: none; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
+
+<header class="bg-white border-b border-navy/10">
+  <div class="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
+      <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+    </a>
+    <nav class="flex items-center text-[14px] font-semibold text-navy/70 whitespace-nowrap">
+      <a href="my-jobs.html" class="btn-quiet px-2 py-2.5 rounded-md hover:text-navy">My activity</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-5 py-10 space-y-6">
+  <section class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+    <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.01em] text-navy">Connection check</h1>
+    <p class="mt-2 text-[14.5px] leading-[1.7] text-navy/65">Tests each part of Find Fundi from this device, one at a time, and sends the results to the Find Fundi team. Nothing is booked and nobody is contacted. It takes under a minute.</p>
+    <p id="accountLine" class="mt-3 text-[13.5px] text-navy/55"></p>
+    <button id="runBtn" type="button" class="btn-primary mt-5 text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Run the check</button>
+
+    <ol id="results" class="mt-6 divide-y divide-navy/[0.07]" hidden></ol>
+
+    <div id="sendState" hidden class="mt-5 rounded-xl border border-navy/10 bg-gray-50 px-4 py-3 text-[14px] leading-[1.6]"></div>
+    <div id="copyBox" hidden class="mt-4">
+      <p class="text-[13.5px] text-navy/70">The results could not be sent from this device. Copy them and send them on WhatsApp or by email instead.</p>
+      <textarea id="copyText" readonly rows="6" class="mt-2 w-full rounded-lg border border-navy/15 px-3 py-2 text-[12px] font-mono"></textarea>
+      <button id="copyBtn" type="button" class="btn-quiet mt-2 rounded-lg border border-navy/15 px-3.5 py-2 text-[13.5px] font-semibold">Copy results</button>
+    </div>
+  </section>
+
+  <section class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7">
+    <h2 class="font-display font-700 text-[1.15rem] text-navy">Notifications</h2>
+    <p class="mt-2 text-[14.5px] leading-[1.7] text-navy/65">Turns on notifications for this device step by step, then sends it a test notification. If a step fails, the check stops there and reports which one.</p>
+    <button id="pushBtn" type="button" class="btn-primary mt-5 text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Test notifications</button>
+    <ol id="pushResults" class="mt-6 divide-y divide-navy/[0.07]" hidden></ol>
+    <div id="pushSendState" hidden class="mt-5 rounded-xl border border-navy/10 bg-gray-50 px-4 py-3 text-[14px] leading-[1.6]"></div>
+  </section>
+</main>
+
+<script src="assets/supabase-client.js"></script>
+<script src="assets/push.js"></script>
+<script>
+  const TIMEOUT_MS = 15000;
+  // The same server under its other address. If only one of the two works,
+  // the problem is the address (DNS or a filter), not the phone or the server.
+  const OTHER_ORIGIN = window.location.hostname === 'find-fundi.vercel.app' ? 'https://www.findfundi.com' : 'https://find-fundi.vercel.app';
+
+  let session = null;
+
+  // fetch with a deadline, so a request that hangs is reported as hanging
+  // instead of leaving the check spinning.
+  async function timedFetch(url, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      return await fetch(url, { cache: 'no-store', ...options, signal: controller.signal });
+    } catch (err) {
+      if (controller.signal.aborted) {
+        const timeout = new Error(`No answer after ${TIMEOUT_MS / 1000} seconds`);
+        timeout.name = 'Timeout';
+        throw timeout;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const authHeaders = () => (session ? { Authorization: `Bearer ${session.access_token}` } : {});
+  const json = { 'Content-Type': 'application/json' };
+
+  class Skip extends Error {}
+
+  // Any HTTP answer means the request got there and back. `expect` lists the
+  // statuses that mean the part being tested works.
+  async function reach(url, options, expect = [200]) {
+    const res = await timedFetch(url, options);
+    const text = await res.text().catch(() => '');
+    if (!expect.includes(res.status)) throw new Error(`Answered ${res.status}: ${text.slice(0, 160)}`);
+    return { status: res.status, headers: res.headers, text };
+  }
+
+  const pad = (bytes) => JSON.stringify({ pad: 'x'.repeat(Math.max(0, bytes - 10)) });
+
+  const CHECKS = [
+    { id: 'pages', label: 'Find Fundi pages', run: async () => {
+      const r = await reach(`/manifest.webmanifest?check=${Date.now()}`);
+      return `${r.status}`;
+    } },
+    { id: 'server', label: 'Find Fundi server', run: async (report) => {
+      const r = await reach(`${API_BASE}/health`);
+      const serverDate = r.headers.get('date');
+      if (serverDate) report.clock_offset_seconds = Math.round((Date.now() - new Date(serverDate).getTime()) / 1000);
+      return `${r.status}`;
+    } },
+    { id: 'get_small', label: 'Receiving a small answer', run: async () => (await reach(`${API_BASE}/diagnostics/echo`)).status },
+    { id: 'post_small', label: 'Sending a small request', run: async () => (await reach(`${API_BASE}/diagnostics/echo`, { method: 'POST', headers: json, body: pad(200) })).status },
+    ...[2, 8, 32, 128].map((kb) => ({ id: `post_${kb}kb`, label: `Sending a larger request (${kb} KB)`, run: async () => {
+      const r = await reach(`${API_BASE}/diagnostics/echo`, { method: 'POST', headers: json, body: pad(kb * 1024) });
+      return `${JSON.parse(r.text).data.bytes} bytes arrived`;
+    } })),
+    { id: 'long_header', label: 'Sending a long request header', run: async () => {
+      const r = await reach(`${API_BASE}/diagnostics/echo`, { headers: { 'X-Pad': 'x'.repeat(3000) } });
+      return `${JSON.parse(r.text).data.header_bytes} bytes arrived`;
+    } },
+    { id: 'post_signed', label: 'Sending a signed-in request', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      return (await reach(`${API_BASE}/diagnostics/echo`, { method: 'POST', headers: { ...json, ...authHeaders() }, body: pad(300) })).status;
+    } },
+    { id: 'account', label: 'Your account', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      return (await reach(`${API_BASE}/profile/me`, { headers: authHeaders() })).status;
+    } },
+    // An empty request is refused before anything is saved, so this reaches
+    // the real booking route without booking anything.
+    { id: 'booking', label: 'Booking request (nothing is booked)', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      return (await reach(`${API_BASE}/jobs`, { method: 'POST', headers: { ...json, ...authHeaders() }, body: '{}' }, [400])).status;
+    } },
+    { id: 'push_save', label: 'Saving notifications (nothing is saved)', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      return (await reach(`${API_BASE}/push/subscriptions`, { method: 'POST', headers: { ...json, ...authHeaders() }, body: '{}' }, [400])).status;
+    } },
+    { id: 'sign_in_service', label: 'Sign-in service', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      const { error } = await withDeadline(sb.auth.getUser());
+      if (error) throw error;
+      return 'ok';
+    } },
+    { id: 'uploads', label: 'Photo and voice uploads', run: async () => {
+      if (!session) throw new Skip('Not signed in');
+      const path = `${session.user.id}/connection-check-${Date.now()}.txt`;
+      const { error } = await withDeadline(sb.storage.from('job-media').upload(path, new Blob(['x'.repeat(4096)], { type: 'text/plain' })));
+      if (error) throw error;
+      await sb.storage.from('job-media').remove([path]).catch(() => {});
+      return '4 KB uploaded';
+    } },
+    { id: 'other_address', label: `Find Fundi at ${new URL(OTHER_ORIGIN).hostname}`, run: async () => (
+      await reach(`${OTHER_ORIGIN}/api/v1/diagnostics/echo`, { method: 'POST', headers: json, body: pad(200) })
+    ).status },
+    { id: 'google_push', label: "Google's notification service", run: async () => {
+      await timedFetch('https://fcm.googleapis.com/', { mode: 'no-cors' });
+      return 'reachable';
+    } },
+  ];
+
+  function rowFor(list, label) {
+    const li = document.createElement('li');
+    li.className = 'py-3';
+    li.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <span class="text-[14.5px] font-medium text-navy"></span>
+        <span class="pill pill-run">Checking…</span>
+      </div>
+      <p class="detail hidden mt-1 text-[12.5px] leading-[1.55] text-navy/55 break-words"></p>`;
+    li.querySelector('span').textContent = label;
+    list.appendChild(li);
+    return {
+      set(state, detail) {
+        const pill = li.querySelector('.pill');
+        pill.className = `pill pill-${state}`;
+        pill.textContent = { ok: 'Works', fail: 'Failed', skip: 'Skipped' }[state];
+        const d = li.querySelector('.detail');
+        d.textContent = detail || '';
+        d.classList.toggle('hidden', !detail);
+      },
+    };
+  }
+
+  async function runSteps(list, steps, report, { stopOnFailure = false } = {}) {
+    list.replaceChildren();
+    list.hidden = false;
+    report.results = [];
+    for (const step of steps) {
+      const row = rowFor(list, step.label);
+      const started = performance.now();
+      let entry;
+      try {
+        const detail = await step.run(report);
+        entry = { id: step.id, ok: true, detail: String(detail) };
+        row.set('ok');
+      } catch (err) {
+        if (err instanceof Skip) {
+          entry = { id: step.id, skipped: true, detail: err.message };
+          row.set('skip', err.message);
+        } else {
+          entry = { id: step.id, ok: false, error: describeError(err) };
+          row.set('fail', err.friendly || describeError(err));
+        }
+      }
+      entry.ms = Math.round(performance.now() - started);
+      report.results.push(entry);
+      if (stopOnFailure && entry.ok === false) break;
+    }
+  }
+
+  function toBase64Url(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  // Tries every route out of this device, because the thing being diagnosed
+  // may be the very route a report would normally take. Each later attempt
+  // carries the reasons the earlier ones failed.
+  async function sendReport(report) {
+    report.send_attempts = [];
+    const routes = [
+      { via: 'this address', send: (body) => reach(`${API_BASE}/diagnostics/reports`, { method: 'POST', headers: { ...json, ...authHeaders() }, body }) },
+      { via: new URL(OTHER_ORIGIN).hostname, send: (body) => reach(`${OTHER_ORIGIN}/api/v1/diagnostics/reports`, { method: 'POST', headers: { ...json, ...authHeaders() }, body }) },
+      { via: 'web address', send: (body) => {
+        const encoded = toBase64Url(body);
+        if (encoded.length > 7000) throw new Error('Report too long for a web address');
+        return reach(`${API_BASE}/diagnostics/reports?d=${encoded}`, { headers: authHeaders() });
+      } },
+      { via: 'upload', send: async (body) => {
+        if (!session) throw new Error('Not signed in');
+        const { error } = await withDeadline(sb.storage.from('job-media').upload(`${session.user.id}/connection-report-${Date.now()}.json`, new Blob([body], { type: 'application/json' })));
+        if (error) throw error;
+        return { text: JSON.stringify({ data: { ref: 'upload' } }) };
+      } },
+    ];
+    for (const route of routes) {
+      const body = JSON.stringify(report);
+      try {
+        const res = await route.send(body);
+        return { via: route.via, ref: JSON.parse(res.text).data.ref };
+      } catch (err) {
+        report.send_attempts.push({ via: route.via, error: describeError(err) });
+      }
+    }
+    return null;
+  }
+
+  function showSent(el, sent, report) {
+    el.hidden = false;
+    if (sent) {
+      el.innerHTML = '<p class="font-semibold text-navy">Results sent to the Find Fundi team.</p><p class="mt-0.5 text-navy/60">Reference: <span class="font-mono"></span></p>';
+      el.querySelector('.font-mono').textContent = sent.ref;
+      return;
+    }
+    el.innerHTML = '<p class="font-semibold text-navy">The results could not be sent.</p>';
+    document.getElementById('copyText').value = JSON.stringify(report);
+    document.getElementById('copyBox').hidden = false;
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    const text = document.getElementById('copyText');
+    text.select();
+    try { await navigator.clipboard.writeText(text.value); } catch (err) { document.execCommand('copy'); }
+    document.getElementById('copyBtn').textContent = 'Copied';
+  });
+
+  async function pushFacts() {
+    const facts = { supported: pushSupported(), permission: 'Notification' in window ? Notification.permission : 'none', ios_browser_tab: isIosBrowserTab() };
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+      facts.helper_registered = Boolean(reg);
+      facts.helper_active = Boolean(reg && reg.active);
+      const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription().catch(() => null) : null;
+      facts.subscribed_here = Boolean(sub);
+      if (sub) facts.subscription_host = new URL(sub.endpoint).hostname;
+    }
+    return facts;
+  }
+
+  document.getElementById('runBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    document.getElementById('sendState').hidden = true;
+    document.getElementById('copyBox').hidden = true;
+    const report = { kind: 'connection-check', device: deviceFacts(), push: await pushFacts().catch(() => null) };
+    await runSteps(document.getElementById('results'), CHECKS, report);
+    btn.textContent = 'Sending results…';
+    showSent(document.getElementById('sendState'), await sendReport(report), report);
+    btn.disabled = false;
+    btn.textContent = 'Run the check again';
+  });
+
+  // ---------- notifications, one step at a time ----------
+  let pushKey = null;
+  let pushReg = null;
+  let pushSub = null;
+  const fail = (friendly, err) => Object.assign(err instanceof Error ? err : new Error(String(err)), { friendly });
+
+  const PUSH_STEPS = [
+    { id: 'supported', label: 'This browser can show notifications', run: async () => {
+      if (isIosBrowserTab()) throw fail('On iPhone, add Find Fundi to your Home Screen and open it from there first.', new Error('iOS browser tab'));
+      if (!pushSupported()) throw fail('This browser cannot show notifications.', new Error('PushManager missing'));
+      return 'yes';
+    } },
+    { id: 'signed_in', label: 'Signed in', run: async () => {
+      if (!session) throw fail('Sign in first, then come back to this page.', new Error('No session'));
+      return session.user.email || 'yes';
+    } },
+    { id: 'permission', label: 'Permission to show notifications', run: async () => {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw fail(permission === 'denied'
+          ? 'Notifications are blocked for this site. Open the browser\'s site settings for Find Fundi, set Notifications to Allow, then try again.'
+          : 'Permission was not given.', new Error(`permission ${permission}`));
+      }
+      return permission;
+    } },
+    { id: 'key', label: 'Notification key from Find Fundi', run: async () => {
+      const r = await reach(`${API_BASE}/push/public-key`);
+      pushKey = base64UrlToBytes(JSON.parse(r.text).data.publicKey);
+      return `${pushKey.length} bytes`;
+    } },
+    { id: 'helper', label: 'Notification helper on this device', run: async () => {
+      pushReg = await withDeadline(pushRegistration());
+      return pushReg.active ? `active, scope ${new URL(pushReg.scope).pathname}` : 'registered';
+    } },
+    { id: 'subscribe', label: "Registering with the browser's notification service", run: async () => {
+      try {
+        pushSub = await pushReg.pushManager.getSubscription();
+        if (pushSub && !subscriptionMatchesKey(pushSub, pushKey)) {
+          await pushSub.unsubscribe().catch(() => {});
+          pushSub = null;
+        }
+        // A browser's first registration can take well over 15 seconds.
+        if (!pushSub) pushSub = await withDeadline(pushReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKey }), PUSH_SUBSCRIBE_MS);
+      } catch (err) {
+        throw fail(pushFailureMessage(err), err);
+      }
+      return new URL(pushSub.endpoint).hostname;
+    } },
+    { id: 'save', label: 'Saving this device to your account', run: async () => (
+      await reach(`${API_BASE}/push/subscriptions`, { method: 'POST', headers: { ...json, ...authHeaders() }, body: JSON.stringify(pushSub.toJSON()) })
+    ).status },
+    { id: 'test', label: 'Sending a test notification', run: async () => {
+      const r = await reach(`${API_BASE}/push/test`, { method: 'POST', headers: { ...json, ...authHeaders() }, body: '{}' });
+      const devices = JSON.parse(r.text).data.devices;
+      return `sent to ${devices} device${devices === 1 ? '' : 's'} on this account`;
+    } },
+  ];
+
+  document.getElementById('pushBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('pushBtn');
+    btn.disabled = true;
+    btn.textContent = 'Testing…';
+    const state = document.getElementById('pushSendState');
+    state.hidden = true;
+    const report = { kind: 'notifications-check', device: deviceFacts(), push: await pushFacts().catch(() => null) };
+    await runSteps(document.getElementById('pushResults'), PUSH_STEPS, report, { stopOnFailure: true });
+    const allWorked = report.results.every((r) => r.ok);
+    btn.textContent = 'Sending results…';
+    const sent = await sendReport(report);
+    showSent(state, sent, report);
+    if (allWorked) {
+      const note = document.createElement('p');
+      note.className = 'mt-2 font-semibold text-navy';
+      note.textContent = 'A test notification is on its way. If it does not appear within a minute, say so with the reference above.';
+      state.prepend(note);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Test notifications again';
+  });
+
+  (async function init() {
+    session = await getSession().catch(() => null);
+    document.getElementById('accountLine').textContent = session
+      ? `Signed in as ${session.user.email}.`
+      : 'You are not signed in, so the checks that need an account will be skipped.';
+  })();
+</script>
+</body>
+</html>

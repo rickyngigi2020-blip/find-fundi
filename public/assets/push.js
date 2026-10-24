@@ -4,6 +4,12 @@
 
 const PUSH_SW_URL = '/sw.js';
 
+// Registering with the browser's push service can hang rather than fail (seen
+// on a fresh Chrome profile, and when Android cannot reach Google Play
+// services). The first registration is slow, so the limit is generous.
+const PUSH_SUBSCRIBE_MS = 60000;
+const PUSH_HELPER_MS = 20000;
+
 function pushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
@@ -61,6 +67,11 @@ function pushFailureMessage(err) {
   const raw = `${name} ${message}`.toLowerCase();
   const detail = message ? ` (${name ? name + ': ' : ''}${message})` : '';
 
+  if (name === 'Timeout') {
+    return "Your browser's notification service never answered. On Android this usually means Google Play services "
+      + 'is out of date or restricted: update it in the Play Store, make sure Chrome is allowed to run in the background, '
+      + 'restart the phone, then try again.' + detail;
+  }
   if (raw.includes('push service error') || raw.includes('aborterror')) {
     const isBrave = Boolean(navigator.brave);
     const inPrivate = !window.indexedDB;
@@ -86,28 +97,61 @@ function pushFailureMessage(err) {
 }
 
 
+// Notifications failing on someone's phone has been impossible to see from
+// here, so a failure is reported with the step it happened at.
+async function reportPushFailure(step, err) {
+  const session = await getSession().catch(() => null);
+  const headers = { 'Content-Type': 'application/json' };
+  if (session) headers.Authorization = `Bearer ${session.access_token}`;
+  fetch(`${API_BASE}/diagnostics/reports`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      kind: 'push-failure',
+      step,
+      error: describeError(err),
+      permission: 'Notification' in window ? Notification.permission : 'none',
+      device: deviceFacts(),
+    }),
+  }).catch(() => {});
+}
+
 async function enablePush() {
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error(permission === 'denied'
-    ? 'Notifications are blocked. Allow them for this site in your browser settings.'
-    : 'Notifications were not turned on.');
-
-  const { publicKey } = await apiFetch('/push/public-key');
-  const keyBytes = base64UrlToBytes(publicKey);
-  const reg = await pushRegistration();
-
+  let step = 'permission';
   try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      const err = new Error(permission === 'denied'
+        ? 'Notifications are blocked. Allow them for this site in your browser settings.'
+        : 'Notifications were not turned on.');
+      err.name = 'Permission';
+      throw err;
+    }
+
+    step = 'key';
+    const { publicKey } = await apiFetch('/push/public-key');
+    const keyBytes = base64UrlToBytes(publicKey);
+    step = 'helper';
+    const reg = await withDeadline(pushRegistration(), PUSH_HELPER_MS);
+
+    step = 'subscribe';
     let sub = await reg.pushManager.getSubscription();
     if (sub && !subscriptionMatchesKey(sub, keyBytes)) {
       await sub.unsubscribe().catch(() => {});
       sub = null;
     }
     if (!sub) {
-      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes });
+      sub = await withDeadline(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes }), PUSH_SUBSCRIBE_MS);
     }
+    step = 'save';
     await sendSubscription(sub);
   } catch (err) {
-    console.error('Find Fundi: push subscription failed', err);
+    console.error('Find Fundi: turning on notifications failed at', step, err);
+    reportPushFailure(step, err);
+    if (err.name === 'Permission' || err.code === 'network' || step === 'key' || step === 'save') throw err;
+    if (step === 'helper') {
+      throw new Error(`The notification helper could not start in this browser. Close the browser completely, reopen Find Fundi and try again. (${describeError(err)})`);
+    }
     throw new Error(pushFailureMessage(err));
   }
 }

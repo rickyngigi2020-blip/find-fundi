@@ -19,6 +19,10 @@ const publicDir = path.join(__dirname, '..', 'public');
 // tunnel come from cloudflared on this machine.
 app.set('trust proxy', process.env.VERCEL ? 1 : 'loopback');
 
+// Mounted ahead of the site-wide CORS rule, which would answer its preflights
+// for the wrong origin. It sets its own, open one.
+if (!missingEnv.length) app.use('/api/v1/diagnostics', require('./routes/diagnostics'));
+
 app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json());
 app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));

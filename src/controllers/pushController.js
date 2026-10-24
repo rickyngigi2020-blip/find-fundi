@@ -38,4 +38,22 @@ async function unsubscribe(req, res, next) {
   }
 }
 
-module.exports = { publicKey, subscribe, unsubscribe };
+// Sends one notification to every device on the caller's account, so they can
+// see for themselves that notifications arrive.
+async function test(req, res, next) {
+  try {
+    if (!pushService.publicKey()) return publicKey(req, res);
+    const devices = await pushService.subscriptionCount(req.user.id);
+    await pushService.notifyUsers([req.user.id], {
+      title: 'Find Fundi notifications work',
+      body: 'This device will get a notification when a job comes in or changes.',
+      url: '/check.html',
+      tag: 'test',
+    });
+    res.json({ data: { devices } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { publicKey, subscribe, unsubscribe, test };

@@ -53,27 +53,101 @@ function networkError() {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Rejects when `promise` has not settled in time. Some browser calls, push
+// registration above all, can wait forever instead of failing.
+function withDeadline(promise, ms = 15000) {
+  let timer;
+  const deadline = new Promise((resolve, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(`No answer after ${Math.round(ms / 1000)} seconds`);
+      err.name = 'Timeout';
+      reject(err);
+    }, ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+// What the browser and connection look like, for connection reports. No
+// names, no location, no IP address (the server does not keep it either).
+function deviceFacts() {
+  const c = navigator.connection || {};
+  return {
+    url: window.location.href,
+    user_agent: navigator.userAgent,
+    standalone: window.matchMedia('(display-mode: standalone)').matches,
+    online: navigator.onLine,
+    connection: { type: c.type, effective_type: c.effectiveType, downlink_mbps: c.downlink, rtt_ms: c.rtt, save_data: c.saveData },
+    brave: Boolean(navigator.brave),
+    language: navigator.language,
+    time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    clock: new Date().toISOString(),
+  };
+}
+
+// Requests that never got an answer are noted here and sent as a report once
+// one does, so a failure on someone's phone can be looked at afterwards
+// instead of guessed at. Storage can be unavailable (private windows), in
+// which case nothing is kept.
+const NET_LOG_KEY = 'ff-network-failures';
+
+function logNetworkFailure(entry) {
+  try {
+    const list = JSON.parse(localStorage.getItem(NET_LOG_KEY) || '[]');
+    list.push({ at: new Date().toISOString(), page: window.location.pathname, online: navigator.onLine, ...entry });
+    localStorage.setItem(NET_LOG_KEY, JSON.stringify(list.slice(-20)));
+  } catch (err) { /* nothing to keep it in */ }
+}
+
+function flushNetworkFailures(session) {
+  let list;
+  try { list = JSON.parse(localStorage.getItem(NET_LOG_KEY) || '[]'); } catch (err) { return; }
+  if (!list.length) return;
+  const headers = { 'Content-Type': 'application/json' };
+  if (session) headers.Authorization = `Bearer ${session.access_token}`;
+  fetch(`${API_BASE}/diagnostics/reports`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ kind: 'network-failures', device: deviceFacts(), failures: list }),
+  }).then((res) => {
+    if (res.ok) try { localStorage.removeItem(NET_LOG_KEY); } catch (err) { /* kept for next time */ }
+  }).catch(() => {});
+}
+
+const describeError = (err) => `${(err && err.name) || 'Error'}: ${(err && err.message) || ''}`;
+
 async function apiFetch(path, options = {}) {
   const session = await getSession();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (session) headers.Authorization = `Bearer ${session.access_token}`;
 
-  const send = () => fetch(`${API_BASE}${path}`, { ...options, headers });
+  const method = (options.method || 'GET').toUpperCase();
+  const send = async (attempt) => {
+    const started = Date.now();
+    try {
+      return await fetch(`${API_BASE}${path}`, { ...options, headers });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        logNetworkFailure({ method, path: path.split('?')[0], attempt, ms: Date.now() - started, bytes: (options.body || '').length, error: describeError(err) });
+      }
+      throw err;
+    }
+  };
   let res;
   try {
-    res = await send();
+    res = await send(1);
   } catch (err) {
     if (!isNetworkError(err)) throw err;
     // A read is safe to repeat after a blip. A write is not: it may have
     // reached the server before the line dropped, so the caller decides.
-    if ((options.method || 'GET').toUpperCase() !== 'GET') throw networkError();
+    if (method !== 'GET') throw networkError();
     await wait(1500);
     try {
-      res = await send();
+      res = await send(2);
     } catch (retryErr) {
       throw isNetworkError(retryErr) ? networkError() : retryErr;
     }
   }
+  flushNetworkFailures(session);
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((body && body.error && body.error.message) || 'Something went wrong.');
   return body.data;
@@ -90,6 +164,7 @@ async function uploadPrivateFile(bucket, userId, file) {
     const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
     if (!error) return path;
     if (!isNetworkError(error)) throw error;
+    logNetworkFailure({ method: 'UPLOAD', path: bucket, attempt, bytes: file.size, error: describeError(error) });
     if (attempt === 2) throw networkError();
     await wait(1500);
   }
