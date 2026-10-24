@@ -51,3 +51,5 @@
 - Do not stop after one screenshot pass
 - Do not use `transition-all`
 - Do not use default Tailwind blue/indigo as primary color
+- Nothing may take anyone off `https://www.findfundi.com`: no links, redirects, sign-in return addresses or scheduled calls to `*.vercel.app` or any other address. Relative links, or `https://www.findfundi.com`, only.
+- Before tagging a release, run `npm run check` and do not release if it fails. Add a check to it for any bug fixed that it would not have caught.

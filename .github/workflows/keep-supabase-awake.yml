@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Move waiting jobs on to the next fundi
         run: |
-          status=$(curl -sS -m 60 -X POST -w '%{http_code}' -o /tmp/tick.json https://find-fundi.vercel.app/api/v1/tick || echo "000")
+          status=$(curl -sS -m 60 -X POST -w '%{http_code}' -o /tmp/tick.json https://www.findfundi.com/api/v1/tick || echo "000")
           echo "HTTP $status"
           cat /tmp/tick.json 2>/dev/null || true
           echo
@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Ping the database
         run: |
-          status=$(curl -sS -m 30 -w '%{http_code}' -o /tmp/health.json https://find-fundi.vercel.app/api/v1/health || echo "000")
+          status=$(curl -sS -m 30 -w '%{http_code}' -o /tmp/health.json https://www.findfundi.com/api/v1/health || echo "000")
           echo "HTTP $status"
           cat /tmp/health.json 2>/dev/null || true
           echo

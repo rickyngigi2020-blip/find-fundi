@@ -89,9 +89,6 @@
 <script src="assets/push.js"></script>
 <script>
   const TIMEOUT_MS = 15000;
-  // The same server under its other address. If only one of the two works,
-  // the problem is the address (DNS or a filter), not the phone or the server.
-  const OTHER_ORIGIN = window.location.hostname === 'find-fundi.vercel.app' ? 'https://www.findfundi.com' : 'https://find-fundi.vercel.app';
 
   let session = null;
 
@@ -183,9 +180,6 @@
       await sb.storage.from('job-media').remove([path]).catch(() => {});
       return '4 KB uploaded';
     } },
-    { id: 'other_address', label: `Find Fundi at ${new URL(OTHER_ORIGIN).hostname}`, run: async () => (
-      await reach(`${OTHER_ORIGIN}/api/v1/diagnostics/echo`, { method: 'POST', headers: json, body: pad(200) })
-    ).status },
     { id: 'google_push', label: "Google's notification service", run: async () => {
       await timedFetch('https://fcm.googleapis.com/', { mode: 'no-cors' });
       return 'reachable';
@@ -256,7 +250,6 @@
     report.send_attempts = [];
     const routes = [
       { via: 'this address', send: (body) => reach(`${API_BASE}/diagnostics/reports`, { method: 'POST', headers: { ...json, ...authHeaders() }, body }) },
-      { via: new URL(OTHER_ORIGIN).hostname, send: (body) => reach(`${OTHER_ORIGIN}/api/v1/diagnostics/reports`, { method: 'POST', headers: { ...json, ...authHeaders() }, body }) },
       { via: 'web address', send: (body) => {
         const encoded = toBase64Url(body);
         if (encoded.length > 7000) throw new Error('Report too long for a web address');

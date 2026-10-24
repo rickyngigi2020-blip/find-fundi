@@ -5,9 +5,9 @@ const controller = require('../controllers/diagnosticsController');
 
 const router = express.Router();
 
-// Open to any origin, so the connection check can test this server from the
-// other address too (find-fundi.vercel.app from findfundi.com and back). No
-// cookies are used, and nothing here returns personal data.
+// Open to any origin, so a report can still be sent from a page on the local
+// dev server or a tunnel. No cookies are used, and nothing here returns
+// personal data.
 router.use(cors({ origin: '*', allowedHeaders: ['Content-Type', 'Authorization', 'X-Pad'], maxAge: 600 }));
 
 // Raw bytes rather than JSON: the echo must count exactly what arrived, and a

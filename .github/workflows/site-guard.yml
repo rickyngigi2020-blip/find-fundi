@@ -1,0 +1,64 @@
+# Fails (and GitHub emails Ricky) when someone could be taken off
+# www.findfundi.com or the site stops answering there.
+#
+# Written after 1.2: a Supabase Site URL on a Vercel address put customers on a
+# Vercel login wall, and the redirect that fixed it quietly broke the schedule
+# above, which still called the old address. Both would have shown up here.
+name: Site guard
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  addresses:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every address ends on www.findfundi.com
+        run: |
+          set -u
+          failed=0
+          check_redirect() {
+            got=$(curl -sS -m 30 -o /dev/null -w '%{http_code} %{redirect_url}' "$1" || echo "000")
+            case "$got" in
+              "301 https://www.findfundi.com"*|"308 https://www.findfundi.com"*) echo "ok   $1 -> $got" ;;
+              *) echo "::error::$1 should redirect to https://www.findfundi.com but answered: $got"; failed=1 ;;
+            esac
+          }
+          check_ok() {
+            got=$(curl -sS -m 30 -o /dev/null -w '%{http_code} %{redirect_url}' "$1" || echo "000")
+            case "$got" in
+              "200 ") echo "ok   $1 -> 200" ;;
+              *) echo "::error::$1 should answer 200 but answered: $got"; failed=1 ;;
+            esac
+          }
+          for host in findfundi.com find-fundi.vercel.app find-fundi-rico17.vercel.app; do
+            for path in / /book.html /login.html /api/v1/health; do
+              check_redirect "https://$host$path"
+            done
+          done
+          for path in / /index.html /book.html /login.html /my-jobs.html /fundi.html /api/v1/health; do
+            check_ok "https://www.findfundi.com$path"
+          done
+          # The booking route must answer for itself, not be bounced to a login.
+          got=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' https://www.findfundi.com/api/v1/jobs || echo "000")
+          if [ "$got" = "401" ]; then echo "ok   POST /api/v1/jobs without sign-in -> 401"; else echo "::error::POST /api/v1/jobs without sign-in answered $got, expected 401"; failed=1; fi
+          exit $failed
+
+      - name: Nothing points at the old addresses
+        if: github.event_name != 'schedule'
+        uses: actions/checkout@v4
+      - name: Search the code
+        if: github.event_name != 'schedule'
+        run: |
+          # vercel.json names them only to redirect them away.
+          if grep -rn --include=*.html --include=*.js --include=*.mjs --include=*.yml --include=*.webmanifest \
+               -e 'find-fundi\.vercel\.app' -e 'find-fundi-rico17\.vercel\.app' public src .github \
+               | grep -v '^.github/workflows/site-guard.yml'; then
+            echo "::error::Links above use an old address. Use https://www.findfundi.com."
+            exit 1
+          fi
+          echo "ok   no old addresses in public/, src/ or .github/"

@@ -26,20 +26,27 @@ more than one session often works on the project.
   past sessions). Report any migration that hasn't been applied.
 - **Servers:** check whether ports 3000 (serve.mjs) and 3001 (API) are listening.
   Don't start them unless Ricky asks.
-- **Live site:** `curl https://find-fundi.vercel.app/api/v1/fundi/status`
-  (401 = working, 503 = Supabase keys missing, 500 = crashing).
+- **Live site:** `curl https://www.findfundi.com/api/v1/fundi/status`
+  (401 = working, 503 = Supabase keys missing, 500 = crashing). The site lives
+  only at www.findfundi.com; every other address must redirect there. Check the
+  latest **Site guard** and **Keep Find Fundi running** runs on GitHub
+  (`https://api.github.com/repos/rickyngigi2020-blip/find-fundi/actions/runs?per_page=10`)
+  and put any failure under **Heads-up**.
+- **Reports from phones:** list the private Supabase bucket `diagnostics` for
+  the last 24 hours (service-role key in `.env`; one folder per UTC day). Each
+  file is a phone saying what failed: `network-failures`, `push-failure`,
+  `connection-check`, `notifications-check`. Ignore ones from
+  `release-check@findfundi.com`. Summarise real ones under **Heads-up** in plain
+  words ("2 bookings from Veronicah's phone didn't get through, both uploads").
 - **Vercel sign-in:** run `npx vercel whoami`. If it shows a username, put under
   **Heads-up**: "The Vercel CLI is still signed in on this PC; revoke it in Vercel >
   Account Settings > Tokens (or `npx vercel logout`) when you no longer need it."
   Ricky asked to be reminded about this often.
-- **Custom domain:** check whether one is connected
-  (`curl -sI https://find-fundi.vercel.app` still being the only address means
-  no). Until there is one, put this in **Needs you** every single morning, near
-  the top: Find Fundi is still on a free `.vercel.app` address, which reads as
-  unfinished to anyone being pitched. A `.co.ke` costs roughly KSh 1,000–2,000
-  a year; Vercel connects it in minutes and issues the certificate itself.
-  **Ricky asked on 2026-10-05 to be reminded of this every morning until it is
-  done.** Drop the reminder once a custom domain answers.
+- **Custom domain:** done. www.findfundi.com has been live since October 2026,
+  so the daily domain reminder Ricky asked for on 2026-10-05 is finished. Do not
+  bring it back.
+- **Version:** read `version` in `package.json` and the top of `CHANGELOG.md`.
+  If there are commits since the last `v*` tag, mention them as unreleased.
 - **Open items — verify each one, don't assume:**
   - Google Maps key: is `public/assets/map.js` still using `YOUR_GOOGLE_MAPS_API_KEY`?
   - Legal pages: do Terms & Conditions / Privacy Policy pages exist? (They must
@@ -51,7 +58,7 @@ more than one session often works on the project.
     (`rounded-full` on CTAs) still in `public/index.html`?
   - Tailwind weights: `font-600/700/800` classes still used site-wide (they
     aren't real Tailwind classes, so headings render semi-bold)?
-  - Hosting: live on Vercel (find-fundi.vercel.app); custom domain connected yet?
+  - Hosting: live on Vercel at www.findfundi.com (old addresses redirect there).
   - The "app": Find Fundi is **not a real app** and is in no app store. It is the
     website plus `public/manifest.webmanifest` and `public/sw.js`, which let a
     phone save it to the home screen and open it full screen (`"display":
