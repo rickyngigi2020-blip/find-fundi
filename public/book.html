@@ -473,15 +473,41 @@
 
   addPhotoBtn.addEventListener('click', () => photoInput.click());
 
-  function addPhotoFiles(fileList) {
+  // A fundi needs to see the item, not a 12-megapixel original, and a phone
+  // photo shrunk to this is a few hundred KB instead of several MB.
+  const PHOTO_MAX_SIDE = 1600;
+
+  // Copies the photo into the page as soon as it is picked (see snapshotFile)
+  // and shrinks it on the way. A format this browser cannot draw, such as
+  // HEIC, is kept as picked.
+  async function preparePhoto(file) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+      if (blob) return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
+    } catch (err) {
+      // Not drawable here; fall through and keep the original bytes.
+    }
+    return snapshotFile(file);
+  }
+
+  let preparingPhotos = 0;
+
+  async function addPhotoFiles(fileList) {
     photoError.classList.add('hidden');
     const problems = [];
-    Array.from(fileList).forEach((file) => {
-      if (photos.length >= MAX_PHOTOS) { problems.push(`You can add up to ${MAX_PHOTOS} photos.`); return; }
-      if (!file.type.startsWith('image/')) { problems.push(`${file.name} isn't an image.`); return; }
-      if (file.size > MAX_PHOTO_BYTES) { problems.push(`${file.name} is over 10 MB.`); return; }
-      photos.push({ file, url: URL.createObjectURL(file) });
-    });
+    preparingPhotos += 1;
+    try {
+      await addEach(Array.from(fileList), problems);
+    } finally {
+      preparingPhotos -= 1;
+    }
     if (problems.length) {
       photoError.textContent = [...new Set(problems)].join(' ');
       photoError.classList.remove('hidden');
@@ -489,9 +515,26 @@
     renderPhotos();
   }
 
+  async function addEach(files, problems) {
+    for (const file of files) {
+      if (photos.length >= MAX_PHOTOS) { problems.push(`You can add up to ${MAX_PHOTOS} photos.`); continue; }
+      if (!file.type.startsWith('image/')) { problems.push(`${file.name} isn't an image.`); continue; }
+      try {
+        const copy = await preparePhoto(file);
+        if (copy.size > MAX_PHOTO_BYTES) { problems.push(`${file.name} is over 10 MB.`); continue; }
+        photos.push({ file: copy, url: URL.createObjectURL(copy) });
+        renderPhotos();
+      } catch (err) {
+        problems.push(err.message);
+      }
+    }
+  }
+
   photoInput.addEventListener('change', () => {
-    addPhotoFiles(photoInput.files);
+    // Clearing the input drops the FileList, so take the files out first.
+    const picked = Array.from(photoInput.files);
     photoInput.value = '';
+    addPhotoFiles(picked);
   });
 
   // Photos can be dropped anywhere on the describe step. Dropping elsewhere on
@@ -617,6 +660,7 @@
     const fail = (message) => { errorEl.textContent = message; errorEl.classList.remove('hidden'); };
 
     if (isRecording()) return fail('Stop the voice note recording first.');
+    if (preparingPhotos) return fail('Your photos are still being added. Try again in a second.');
     if (!selectedCategory) return fail('Pick what a fundi can help you with.');
     if (!description && !voiceBlob) return fail('Describe what you need, or record a voice note.');
     if (!area) return fail('Select your area.');

@@ -178,7 +178,21 @@
   // Named files reassure the applicant that several were picked up, since the
   // browser's own label only says "5 files".
   const certInput = document.getElementById('certDoc');
+  const idInput = document.getElementById('idDoc');
+
+  // Copies of the picked PDFs, taken the moment they are picked (see
+  // snapshotFile). Kept as promises so reading starts straight away and any
+  // file that cannot be read is reported when the form is sent.
+  const pickedCopies = {};
+  function keepCopies(input) {
+    pickedCopies[input.id] = Promise.all([...input.files].map(snapshotFile));
+    pickedCopies[input.id].catch(() => {});
+  }
+  const copiesOf = (input) => pickedCopies[input.id] || Promise.all([...input.files].map(snapshotFile));
+
+  idInput.addEventListener('change', () => keepCopies(idInput));
   certInput.addEventListener('change', () => {
+    keepCopies(certInput);
     const names = [...certInput.files].map((f) => f.name);
     document.getElementById('certList').textContent = names.length ? names.join(', ') : '';
   });
@@ -194,6 +208,7 @@
     certField.hidden = noCert.checked;
     if (noCert.checked) {
       certInput.value = '';
+      delete pickedCopies.certDoc;
       document.getElementById('certList').textContent = '';
     }
   });
@@ -225,8 +240,8 @@
 
     try {
       const session = await getSession();
-      const idFile = document.getElementById('idDoc').files[0];
-      const certFiles = noCert.checked ? [] : [...certInput.files];
+      const [idFile] = await copiesOf(idInput);
+      const certFiles = noCert.checked ? [] : await copiesOf(certInput);
 
       const id_document_url = await uploadPrivateFile('verification-docs', session.user.id, idFile);
       const certificate_paths = [];

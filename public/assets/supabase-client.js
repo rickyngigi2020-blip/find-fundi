@@ -117,6 +117,11 @@ function flushNetworkFailures(session) {
 
 const describeError = (err) => `${(err && err.name) || 'Error'}: ${(err && err.message) || ''}`;
 
+// A page that fails and is then left (as a failed booking usually is) never
+// makes the successful request that would send its notes, so every page also
+// tries once when it opens.
+getSession().then(flushNetworkFailures).catch(() => {});
+
 async function apiFetch(path, options = {}) {
   const session = await getSession();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -155,6 +160,20 @@ async function apiFetch(path, options = {}) {
   return body.data;
 }
 
+// On Android a picked file is only a reference into the gallery or Drive, read
+// when it is sent. If its source changes in between (Google Photos finishing a
+// download, a synced copy replacing it) the browser refuses to send it and
+// says nothing but "Failed to fetch". Copying the bytes the moment the file is
+// picked takes the gallery out of it, and a file that cannot be read is found
+// out then, by name, rather than at the final button.
+async function snapshotFile(file) {
+  try {
+    return new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified });
+  } catch (err) {
+    throw new Error(`${file.name} could not be read from this device. Pick it again, or save a copy to the phone first.`);
+  }
+}
+
 // Uploads into the user's own folder and returns the storage path (not a URL).
 // Filenames are sanitised because Storage rejects many characters in keys.
 // A dropped connection gets one more try under a fresh name, since the first
@@ -166,7 +185,7 @@ async function uploadPrivateFile(bucket, userId, file) {
     const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
     if (!error) return path;
     if (!isNetworkError(error)) throw error;
-    logNetworkFailure({ method: 'UPLOAD', path: bucket, attempt, bytes: file.size, error: describeError(error) });
+    logNetworkFailure({ method: 'UPLOAD', path: bucket, attempt, bytes: file.size, type: file.type, error: describeError(error) });
     if (attempt === 2) throw networkError();
     await wait(1500);
   }
