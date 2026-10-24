@@ -1,15 +1,27 @@
 {
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/",
       "has": [{ "type": "host", "value": "find-fundi.vercel.app" }],
-      "destination": "https://www.findfundi.com/:path*",
+      "destination": "https://www.findfundi.com/",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "find-fundi.vercel.app" }],
+      "destination": "https://www.findfundi.com/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/",
       "has": [{ "type": "host", "value": "find-fundi-rico17.vercel.app" }],
-      "destination": "https://www.findfundi.com/:path*",
+      "destination": "https://www.findfundi.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "find-fundi-rico17.vercel.app" }],
+      "destination": "https://www.findfundi.com/:path+",
       "permanent": true
     }
   ]
