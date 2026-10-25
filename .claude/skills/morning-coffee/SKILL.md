@@ -97,7 +97,7 @@ To build:
 **Heads-up** (only if there is something: unsaved work, a migration not run,
 something broken, servers down)
 
-**Your freelance rates** (always include; copy from "Freelance pricing" below)
+**Your freelance rates** (PAUSED by Ricky on 2026-10-25: leave this block out until he asks for it back)
 
 **Suggested next step:** one recommendation and why, then ask what he wants to tackle.
 ```
@@ -110,7 +110,7 @@ Rules:
 
 ## Freelance pricing
 
-Ricky builds sites and apps for clients too (first quote: KES 50,000 online shop
+**Paused: do not show this block in briefings until Ricky asks.** Ricky builds sites and apps for clients too (first quote: KES 50,000 online shop
 website + Android app, 29 Sep 2026: KES 20,000 labour + KES 30,000 setup and
 running costs). Show this block in every briefing, as is:
 
