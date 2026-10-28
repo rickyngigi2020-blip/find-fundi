@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev:api": "node src/server.js",
-    "check": "node scripts/release-check.mjs"
+    "check": "node scripts/release-check.mjs",
+    "dead-code": "knip --include files,dependencies"
   },
   "keywords": [],
   "author": "",
@@ -20,5 +21,8 @@
     "express-rate-limit": "^7.4.0",
     "puppeteer": "25.4.0",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "knip": "^6.43.0"
   }
 }
