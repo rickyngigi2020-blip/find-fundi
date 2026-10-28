@@ -68,16 +68,6 @@ async function status(req, res, next) {
   }
 }
 
-async function search(req, res, next) {
-  try {
-    const { category, area } = req.query;
-    const data = await fundiService.searchVerifiedFundis({ category, area });
-    res.json({ data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 async function setAvailability(req, res, next) {
   try {
     if (typeof req.body.online !== 'boolean') {
@@ -99,4 +89,4 @@ async function dashboard(req, res, next) {
   }
 }
 
-module.exports = { apply, status, search, setAvailability, dashboard };
+module.exports = { apply, status, setAvailability, dashboard };

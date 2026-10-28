@@ -27,17 +27,6 @@ async function subscribe(req, res, next) {
   }
 }
 
-async function unsubscribe(req, res, next) {
-  try {
-    const endpoint = req.body && typeof req.body.endpoint === 'string' ? req.body.endpoint : '';
-    if (!endpoint) return res.status(400).json({ error: { message: 'endpoint is required', code: 'invalid_request' } });
-    await pushService.removeSubscription(req.user.id, endpoint);
-    res.json({ data: { subscribed: false } });
-  } catch (err) {
-    next(err);
-  }
-}
-
 // Sends one notification to every device on the caller's account, so they can
 // see for themselves that notifications arrive.
 async function test(req, res, next) {
@@ -56,4 +45,4 @@ async function test(req, res, next) {
   }
 }
 
-module.exports = { publicKey, subscribe, unsubscribe, test };
+module.exports = { publicKey, subscribe, test };

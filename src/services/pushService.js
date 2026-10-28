@@ -25,11 +25,6 @@ async function saveSubscription(userId, { endpoint, p256dh, auth }) {
   if (error) throw toApiError(error);
 }
 
-async function removeSubscription(userId, endpoint) {
-  const { error } = await adminClient.from('push_subscriptions').delete().eq('user_id', userId).eq('endpoint', endpoint);
-  if (error) throw toApiError(error);
-}
-
 async function subscriptionCount(userId) {
   const { count, error } = await adminClient
     .from('push_subscriptions')
@@ -68,4 +63,4 @@ async function notifyUsers(userIds, payload) {
   }
 }
 
-module.exports = { publicKey, saveSubscription, removeSubscription, subscriptionCount, notifyUsers };
+module.exports = { publicKey, saveSubscription, subscriptionCount, notifyUsers };

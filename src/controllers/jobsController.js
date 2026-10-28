@@ -1,6 +1,5 @@
 const jobService = require('../services/jobService');
 const matching = require('../services/matchingService');
-const { RELEASE_REASONS } = require('../utils/releaseReasons');
 
 async function create(req, res, next) {
   try {
@@ -161,11 +160,6 @@ async function release(req, res, next) {
   }
 }
 
-// The list the fundi app shows, so the wording lives in one place.
-function releaseReasons(req, res) {
-  res.json({ data: RELEASE_REASONS });
-}
-
 async function revisePrice(req, res, next) {
   try {
     const amount = Number(req.body.amount);
@@ -204,4 +198,4 @@ async function materials(req, res, next) {
   }
 }
 
-module.exports = { revisePrice, answerPriceChange, materials, create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, releaseReasons, review, cleanReason };
+module.exports = { revisePrice, answerPriceChange, materials, create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, review, cleanReason };

@@ -381,21 +381,6 @@ const RELEASE_REASONS = [
   { key: 'other', label: 'Other' },
 ];
 
-function openJobCard(job) {
-  const div = document.createElement('div');
-  div.className = 'bg-white rounded-2xl border border-navy/10 p-5';
-  div.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <p class="font-display font-700 text-[15.5px] text-navy">${escapeHtml(jobTitle(job))}</p>
-      ${job.urgency === 'urgent' ? URGENT_TAG : ''}
-    </div>
-    <p class="text-[13.5px] text-navy/55 mt-0.5">${escapeHtml(jobSummaryText(job))}</p>
-    <p class="mt-2 text-[13px] text-navy/50">${escapeHtml(jobDetailsLine(job))}</p>
-  `;
-  renderJobMedia(div, job);
-  return div;
-}
-
 // A job the matching service has put in front of this fundi. They take it or
 // pass, and either way it moves on: there is no browsing a list any more.
 function offerCard(offer, { onAccept, onDecline }) {

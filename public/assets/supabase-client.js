@@ -24,16 +24,6 @@ async function getSession() {
   return data.session;
 }
 
-// Redirects to login if there's no session; returns the session otherwise.
-async function requireSession(redirectTo) {
-  const session = await getSession();
-  if (!session) {
-    window.location.href = redirectTo || 'login.html';
-    return null;
-  }
-  return session;
-}
-
 // fetch() rejects without any answer from the server when the connection
 // drops: mobile data fading, the phone locking mid-request, Wi-Fi handing over
 // to data. The browser's own wording ("Failed to fetch" in Chrome, "Load

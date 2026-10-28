@@ -6,7 +6,6 @@ const router = express.Router();
 
 router.get('/public-key', controller.publicKey);
 router.post('/subscriptions', requireAuth, controller.subscribe);
-router.delete('/subscriptions', requireAuth, controller.unsubscribe);
 router.post('/test', requireAuth, controller.test);
 
 module.exports = router;
