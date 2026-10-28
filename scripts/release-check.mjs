@@ -158,7 +158,15 @@ const savedJobs = async (marker) => (await admin.from('jobs').select('id, photo_
 
 async function browserChecks(user, category) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-check-'));
-  const browser = await puppeteer.launch();
+  // Puppeteer's own download isn't always on this PC, so fall back to an installed Chrome or Edge.
+  const installed = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  ].find((p) => fs.existsSync(p));
+  let bundled = false;
+  try { bundled = fs.existsSync(puppeteer.executablePath() || ''); } catch { /* none downloaded */ }
+  const browser = await puppeteer.launch(!process.env.PUPPETEER_EXECUTABLE_PATH && !bundled && installed ? { executablePath: installed } : {});
   const offSite = [];
   try {
     const page = await browser.newPage();
