@@ -113,6 +113,18 @@ async function addressChecks() {
     const urls = workflow.match(/https:\/\/[^\s"')]+/g) || [];
     expect(urls.length && urls.every((u) => u.startsWith(SITE)), `keep-supabase-awake.yml calls ${urls.join(', ')}; a redirected address makes curl stop at the 308`);
   });
+
+  // Auto-matching took away choosing a fundi, but the home page and Privacy
+  // Policy kept promising it for weeks. The Terms are the legal record, so
+  // the pages must not say otherwise.
+  await check('No page says customers choose a fundi or fundis browse jobs', async () => {
+    const stale = [/pick a fundi/i, /choos(e|ing) a (verified )?fundi/i, /browse open jobs/i, /customers see you're available/i];
+    for (const page of ['/', '/terms.html', '/privacy.html', '/book.html', '/apply.html']) {
+      const html = await (await fetch(`${BASE}${page}`)).text();
+      const hit = stale.find((re) => re.test(html));
+      expect(!hit, `${page} still says ${hit}`);
+    }
+  });
 }
 
 // ---------- browser checks ----------
