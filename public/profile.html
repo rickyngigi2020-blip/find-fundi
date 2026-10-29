@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
 <title>Account settings — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -140,6 +141,25 @@
         <button type="button" id="cancelEmailBtn" class="btn-quiet rounded-lg px-3 py-2.5 text-[14px] font-semibold text-navy/60">Cancel</button>
       </form>
       <p id="emailMsg" class="hidden mt-2 text-[13px]"></p>
+    </div>
+
+    <!-- A Google account has no password, so it could not use the email and
+         password boxes on the sign-in pages, admin included. -->
+    <div id="passwordSection" hidden class="mt-7 pt-6 border-t border-navy/10">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-[13px] font-semibold text-navy/70">Password</p>
+          <p id="passwordNote" class="mt-0.5 text-[12.5px] text-navy/50"></p>
+        </div>
+        <button type="button" id="setPasswordBtn" class="btn-quiet shrink-0 rounded-lg px-3 py-1.5 text-[13.5px] font-semibold text-navy border border-navy/15"></button>
+      </div>
+      <form id="passwordForm" hidden class="mt-3 flex flex-col sm:flex-row gap-2">
+        <label for="newPassword" class="sr-only">New password</label>
+        <input id="newPassword" type="password" required minlength="8" autocomplete="new-password" class="flex-1 rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="At least 8 characters">
+        <button type="submit" id="savePasswordBtn" class="btn-primary text-white font-semibold text-[14px] px-4 py-2.5 rounded-lg">Save password</button>
+        <button type="button" id="cancelPasswordBtn" class="btn-quiet rounded-lg px-3 py-2.5 text-[14px] font-semibold text-navy/60">Cancel</button>
+      </form>
+      <p id="passwordMsg" class="hidden mt-2 text-[13px]"></p>
     </div>
   </div>
 </main>
@@ -329,6 +349,47 @@
     showEmailMsg(`Confirmation link sent to ${newEmail}. Your email changes once you open it.`, false);
   });
 
+  const passwordForm = document.getElementById('passwordForm');
+  const passwordMsg = document.getElementById('passwordMsg');
+  const setPasswordBtn = document.getElementById('setPasswordBtn');
+
+  function showPasswordSection(hasPassword) {
+    document.getElementById('passwordNote').textContent = hasPassword
+      ? 'Used with your email on the sign-in page.'
+      : 'Add one to also sign in with your email and a password, not only Google.';
+    setPasswordBtn.textContent = hasPassword ? 'Change password' : 'Set a password';
+    document.getElementById('passwordSection').hidden = false;
+  }
+
+  setPasswordBtn.addEventListener('click', () => {
+    passwordForm.hidden = false;
+    setPasswordBtn.hidden = true;
+    passwordMsg.className = 'hidden';
+    document.getElementById('newPassword').focus();
+  });
+
+  document.getElementById('cancelPasswordBtn').addEventListener('click', () => {
+    passwordForm.hidden = true;
+    setPasswordBtn.hidden = false;
+  });
+
+  passwordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('savePasswordBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    const { error } = await sb.auth.updateUser({ password: document.getElementById('newPassword').value });
+    btn.disabled = false;
+    btn.textContent = 'Save password';
+    passwordMsg.className = `mt-2 text-[13px] ${error ? 'text-red-600' : 'text-green-700'}`;
+    if (error) { passwordMsg.textContent = error.message; return; }
+    document.getElementById('newPassword').value = '';
+    passwordForm.hidden = true;
+    setPasswordBtn.hidden = false;
+    passwordMsg.textContent = `Password saved. You can now sign in with ${currentSession.user.email} and this password.`;
+    showPasswordSection(true);
+  });
+
   (async function init() {
     const session = await getSession();
     if (!session) {
@@ -386,6 +447,7 @@
     } else {
       document.getElementById('googleEmailNote').hidden = false;
     }
+    showPasswordSection(providers.includes('email'));
 
     form.dataset.role = profile.role;
     document.getElementById('fullName').value = profile.full_name || '';

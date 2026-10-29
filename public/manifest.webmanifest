@@ -2,7 +2,7 @@
   "name": "Find Fundi",
   "short_name": "Find Fundi",
   "description": "Book ID-checked fundis in Nairobi, or find repair and installation work.",
-  "start_url": "/index.html",
+  "start_url": "/start.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

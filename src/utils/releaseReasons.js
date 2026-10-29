@@ -19,4 +19,4 @@ const RELEASE_REASONS = [
 
 const RELEASE_REASON_KEYS = RELEASE_REASONS.map((r) => r.key);
 
-module.exports = { RELEASE_REASON_KEYS };
+module.exports = { RELEASE_REASONS, RELEASE_REASON_KEYS };

@@ -15,6 +15,14 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find Fundi | Skilled People. Fast Solutions.</title>
+<meta name="description" content="Book an ID-checked fundi in Nairobi for phone, laptop, appliance and vehicle repairs, installations and everyday maintenance. Describe the job and it goes to verified fundis near you.">
+<link rel="canonical" href="https://www.findfundi.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Find Fundi">
+<meta property="og:url" content="https://www.findfundi.com/">
+<meta property="og:title" content="Find Fundi: book an ID-checked fundi in Nairobi">
+<meta property="og:description" content="Phone, laptop, appliance and vehicle repairs, installations and maintenance. Describe the job and it goes to verified fundis near you.">
+<meta property="og:image" content="https://www.findfundi.com/assets/logo-full.png">
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -192,9 +200,12 @@
       <a href="#trust" class="nav-link hover:text-navy">Trust &amp; safety</a>
       <a href="#fundis" class="nav-link hover:text-navy">For fundi</a>
     </nav>
-    <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center text-navy" aria-label="Open menu" aria-expanded="false">
-      <svg class="w-6 h-6"><use href="#icon-menu"/></svg>
-    </button>
+    <div class="flex items-center gap-2">
+      <a id="accountLink" href="login.html?next=start.html" class="inline-flex items-center rounded-lg border border-navy/15 px-3.5 py-2 text-[14px] font-semibold text-navy transition-colors hover:bg-navy/5 active:bg-navy/10">Sign in</a>
+      <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center text-navy" aria-label="Open menu" aria-expanded="false">
+        <svg class="w-6 h-6"><use href="#icon-menu"/></svg>
+      </button>
+    </div>
   </div>
   <div id="mobileMenu" class="hidden md:hidden border-t border-navy/10 bg-white px-5 py-4 flex flex-col gap-4 font-body text-[15px] text-navy">
     <a href="#how" class="py-1">How it works</a>
@@ -638,6 +649,19 @@
 </footer>
 
 <script>
+  // Someone already signed in goes straight to their work instead of hunting
+  // for it. Supabase keeps the sign-in under sb-<project>-auth-token; reading
+  // that avoids loading the whole client on the home page. start.html checks
+  // the sign-in properly and sends them to login if it has expired.
+  (function () {
+    let signedIn = false;
+    try { signedIn = Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch (err) { /* storage blocked */ }
+    if (!signedIn) return;
+    const link = document.getElementById('accountLink');
+    link.textContent = 'Open Find Fundi';
+    link.href = 'start.html';
+  })();
+
   const menuBtn = document.getElementById('menuBtn');
   const mobileMenu = document.getElementById('mobileMenu');
   menuBtn.addEventListener('click', () => {

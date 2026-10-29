@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
 <title>Admin | Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -44,6 +45,26 @@
   .doc-link { transition: color 160ms ease; }
   input:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
   [hidden] { display: none !important; }
+
+  /* ---- insights ---- */
+  .surface-card {
+    background: #fff; border: 1px solid rgba(4,21,48,0.10); border-radius: 16px; padding: 18px;
+    box-shadow: 0 1px 2px rgba(4,21,48,0.04), 0 8px 24px -16px rgba(4,21,48,0.18);
+  }
+  .tile { background: #fff; border: 1px solid rgba(4,21,48,0.10); border-radius: 14px; padding: 14px 14px 12px; }
+  .csv-btn {
+    flex-shrink: 0; border: 1px solid rgba(4,21,48,0.15); border-radius: 8px; padding: 5px 10px;
+    font-size: 12.5px; font-weight: 600; color: rgba(4,21,48,0.7);
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  .csv-btn:hover { background: rgba(4,21,48,0.05); color: #041530; }
+  .csv-btn:active { background: rgba(4,21,48,0.09); }
+  /* One series per chart, so one colour; the value is written beside each
+     bar, so nothing depends on reading the bar length alone. */
+  .bar-track { height: 10px; border-radius: 4px; background: rgba(4,21,48,0.05); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: #FE6902; transform-origin: left; transform: scaleX(var(--w, 0)); transition: transform 600ms cubic-bezier(.22,1,.36,1); }
+  .bar-row:hover .bar-fill { filter: brightness(0.92); }
+  @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
 </style>
 </head>
 <body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
@@ -54,6 +75,8 @@
       <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
       <span class="font-display font-bold text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span> <span class="text-navy/40 font-body font-normal">Admin</span></span>
     </a>
+    <!-- Straight back to the admin's own jobs, not the marketing home page. -->
+    <a href="start.html" class="btn-outline rounded-lg border border-navy/15 px-3.5 py-2 text-[14px] font-semibold text-navy">Back to my work</a>
   </div>
 </header>
 
@@ -90,6 +113,7 @@
       <p id="adminLoginError" class="hidden text-[13.5px] text-red-600" role="alert"></p>
       <button id="adminLoginBtn" type="submit" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-2.5 rounded-lg">Sign in</button>
     </form>
+    <p class="mt-4 text-[12.5px] text-navy/50 leading-[1.6]">An account made with Google has no password here: use Continue with Google. To add one, sign in with Google and set a password in Account settings.</p>
   </div>
 
   <div id="forbidden" hidden class="bg-white rounded-2xl border border-navy/10 p-8 text-center">
@@ -99,8 +123,9 @@
   </div>
 
   <div id="content" hidden>
-    <div role="tablist" aria-label="Admin sections" class="inline-flex gap-1 rounded-lg border border-navy/10 bg-white p-1">
+    <div role="tablist" aria-label="Admin sections" class="inline-flex max-w-full overflow-x-auto gap-1 rounded-lg border border-navy/10 bg-white p-1">
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="applications" aria-selected="true">Applications</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="insights" aria-selected="false">Insights</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="admins" aria-selected="false">Admins</button>
@@ -109,9 +134,56 @@
     <!-- ===== applications ===== -->
     <section data-panel="applications" class="mt-6">
       <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Fundi applications</h1>
-      <p class="mt-1 text-[14px] text-navy/55">Open the ID and every certificate before approving. All are PDFs. Links work for 10 minutes; reload the tab for fresh ones.</p>
+      <p class="mt-1 text-[14px] text-navy/55">Open the ID and every certificate before approving. Each is a photo or a PDF. Links work for 10 minutes; reload the tab for fresh ones.</p>
       <div id="appList" class="mt-5 space-y-4"></div>
       <p id="appEmpty" hidden class="mt-5 text-navy/60 text-[15px]">No applications yet.</p>
+    </section>
+
+    <!-- ===== insights ===== -->
+    <section data-panel="insights" class="mt-6" hidden>
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Insights</h1>
+          <p id="insightsWhen" class="mt-1 text-[14px] text-navy/55">Counted from every account, job and offer so far.</p>
+        </div>
+        <button type="button" id="insightsReload" class="btn-outline rounded-lg border border-navy/15 px-3.5 py-2 text-[14px] font-semibold text-navy">Count again</button>
+      </div>
+
+      <h2 class="mt-6 font-display font-bold text-[15px] text-navy">From sign-up to repeat customer</h2>
+      <div id="funnel" class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2.5"></div>
+
+      <div id="headline" class="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-2.5"></div>
+
+      <div id="insightSections" class="mt-6 grid gap-4 md:grid-cols-2"></div>
+
+      <div class="mt-4 surface-card">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="font-display font-bold text-[15px] text-navy">By trade</h2>
+          <button type="button" id="tradeCsv" class="csv-btn">Download CSV</button>
+        </div>
+        <div class="mt-3 overflow-x-auto">
+          <table class="w-full min-w-[620px] text-left text-[13.5px]">
+            <thead class="text-[12.5px] text-navy/55">
+              <tr class="border-b border-navy/10">
+                <th class="py-2 pr-3 font-semibold">Trade</th><th class="py-2 pr-3 font-semibold text-right">Jobs</th>
+                <th class="py-2 pr-3 font-semibold text-right">Done</th><th class="py-2 pr-3 font-semibold text-right">First price</th>
+                <th class="py-2 pr-3 font-semibold text-right">Final price</th><th class="py-2 pr-3 font-semibold text-right">Price changes</th>
+                <th class="py-2 font-semibold text-right">Rating</th>
+              </tr>
+            </thead>
+            <tbody id="tradeRows" class="tabular-nums text-navy/80"></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-[12.5px] text-navy/50">Prices are averages in KSh. First price is the fundi's opening quote, final price what the customer agreed.</p>
+      </div>
+
+      <div class="mt-4 surface-card">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="font-display font-bold text-[15px] text-navy">Latest reasons for cancelling</h2>
+          <button type="button" id="cancelCsv" class="csv-btn">Download CSV</button>
+        </div>
+        <div id="cancelReasons" class="mt-3 space-y-2.5"></div>
+      </div>
     </section>
 
     <!-- ===== users ===== -->
@@ -259,7 +331,7 @@
     who.appendChild(el('p', 'font-display font-bold text-[15.5px] text-navy', app.profiles.full_name));
     who.appendChild(el('p', 'text-[13.5px] text-navy/55 mt-0.5',
       [CATEGORY_LABELS[app.category] || app.category, app.profiles.area || 'No area', app.profiles.phone,
-        `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].join(' · ')));
+        `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].filter(Boolean).join(' · ')));
     const pills = el('div', 'flex flex-wrap justify-end gap-1.5');
     const noPapers = app.no_certificate || !(app.certificate_links || []).length;
     if (app.profiles.suspended_at) pills.appendChild(pill('suspended', 'Suspended'));
@@ -361,16 +433,21 @@
     const who = el('div', 'min-w-0');
     who.appendChild(el('p', 'font-display font-bold text-[15px] text-navy', user.full_name || 'No name'));
     who.appendChild(el('p', 'text-[13.5px] text-navy/60 break-words', [user.email, user.phone, user.area].filter(Boolean).join(' · ')));
-    who.appendChild(el('p', 'text-[12.5px] text-navy/45 mt-0.5', `Joined ${shortDate(user.created_at)}`));
+    const signIn = user.providers.includes('google') ? 'Google' : 'Email';
+    const lastSeen = user.last_sign_in_at ? `last signed in ${shortDate(user.last_sign_in_at)}` : 'never signed in';
+    who.appendChild(el('p', 'text-[12.5px] text-navy/45 mt-0.5', `Joined ${shortDate(user.created_at)} with ${signIn}, ${lastSeen}`));
     const pills = el('div', 'flex flex-wrap gap-1.5');
     if (user.suspended_at) pills.appendChild(pill('suspended', `Suspended ${shortDate(user.suspended_at)}`));
     if (user.is_admin) pills.appendChild(pill('admin', 'Admin'));
-    if (user.fundi) pills.appendChild(pill(user.fundi.verification_status, VERIFICATION_LABELS[user.fundi.verification_status]));
+    if (!user.email_confirmed) pills.appendChild(pill('pending', 'Email not confirmed'));
+    if (!user.setup_finished) pills.appendChild(pill('pending', 'Never finished setup'));
+    else if (user.fundi) pills.appendChild(pill(user.fundi.verification_status, VERIFICATION_LABELS[user.fundi.verification_status]));
     else pills.appendChild(pill('customer', 'Customer'));
     top.append(who, pills);
     card.appendChild(top);
 
-    if (!user.is_admin) {
+    // Suspending works on the profile, so it needs one.
+    if (!user.is_admin && user.setup_finished) {
       const actions = el('div', 'mt-3 flex flex-wrap gap-2');
       const setSuspended = async (suspended) => {
         await apiFetch(`/admin/users/${user.id}/suspension`, { method: 'POST', body: JSON.stringify({ suspended }) });
@@ -556,8 +633,124 @@
     }
   });
 
+  // ---------- insights ----------
+  let lastInsights = null;
+
+  // Every table here can leave as a CSV, for a spreadsheet or for comparing
+  // one month with the next.
+  function downloadCsv(name, header, rows) {
+    const cell = (v) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const text = [header, ...rows].map((r) => r.map(cell).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    const a = el('a');
+    a.href = url;
+    a.download = `find-fundi-${name}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const slug = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const pct = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%` : null);
+  const tradeName = (key) => CATEGORY_LABELS[key] || key;
+
+  function tile(label, value, note) {
+    const t = el('div', 'tile');
+    t.appendChild(el('p', 'font-display font-extrabold text-[1.6rem] leading-none tracking-[-0.03em] text-navy tabular-nums', value === null ? 'None yet' : String(value)));
+    t.appendChild(el('p', 'mt-1.5 text-[12.5px] leading-[1.4] text-navy/65', label));
+    if (note) t.appendChild(el('p', 'mt-0.5 text-[12px] text-navy/45', note));
+    return t;
+  }
+
+  function csvButton(onClick) {
+    const b = el('button', 'csv-btn', 'Download CSV');
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function barSection(section) {
+    const name = (r) => (section.labels === 'category' ? tradeName(r.label)
+      : section.labels === 'status' ? (JOB_STATUS_LABELS[r.label] || r.label) : r.label);
+    const card = el('div', 'surface-card');
+    const head = el('div', 'flex items-center justify-between gap-3');
+    head.append(
+      el('h2', 'font-display font-bold text-[15px] text-navy', section.title),
+      csvButton(() => downloadCsv(slug(section.title), ['Label', 'Count'], section.rows.map((r) => [name(r), r.value]))),
+    );
+    card.appendChild(head);
+    if (!section.rows.length) {
+      card.appendChild(el('p', 'mt-3 text-[13.5px] text-navy/50', 'Nothing yet.'));
+      return card;
+    }
+    const max = Math.max(1, ...section.rows.map((r) => r.value));
+    const list = el('div', 'mt-3 space-y-2');
+    section.rows.forEach((r) => {
+      const row = el('div', 'bar-row grid grid-cols-[minmax(0,9rem)_1fr_2.5rem] items-center gap-3');
+      row.title = `${name(r)}: ${r.value}`;
+      const track = el('span', 'bar-track block');
+      const fill = el('span', 'bar-fill block');
+      track.appendChild(fill);
+      requestAnimationFrame(() => requestAnimationFrame(() => fill.style.setProperty('--w', r.value / max)));
+      row.append(
+        el('span', 'text-[13px] leading-[1.35] text-navy/75 break-words', name(r)),
+        track,
+        el('span', 'text-right text-[13px] font-semibold tabular-nums text-navy', String(r.value)),
+      );
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+    return card;
+  }
+
+  const money = (n) => (n === null ? 'None' : n.toLocaleString('en-KE'));
+  const tradeTable = (d) => d.by_trade.map((t) => [
+    tradeName(t.category), t.jobs, t.completed, money(t.average_first_price), money(t.average_final_price),
+    t.price_changes, t.average_rating === null ? 'None' : `${t.average_rating} (${t.reviews})`,
+  ]);
+
+  async function loadInsights() {
+    const d = await apiFetch('/admin/insights');
+    lastInsights = d;
+    const when = new Date(d.generated_at).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Nairobi' });
+    document.getElementById('insightsWhen').textContent = `Counted ${when} from every account, job and offer so far.`;
+
+    // Each step says what share of the step before made it, which is where
+    // people are being lost.
+    document.getElementById('funnel').replaceChildren(...d.funnel.map((f, i) =>
+      tile(f.label, f.value, i ? `${pct(f.value, d.funnel[i - 1].value) || 'None'} of the step before` : null)));
+    document.getElementById('headline').replaceChildren(...d.headline.map((h) =>
+      tile(h.label, h.value, h.of !== undefined ? `of ${h.of}` : null)));
+    document.getElementById('insightSections').replaceChildren(...d.sections.map(barSection));
+
+    document.getElementById('tradeRows').replaceChildren(...tradeTable(d).map((cells) => {
+      const tr = el('tr', 'border-b border-navy/[0.06] last:border-0');
+      cells.forEach((c, i) => tr.appendChild(el('td', `py-2 ${i < cells.length - 1 ? 'pr-3' : ''} ${i ? 'text-right' : 'font-semibold text-navy'}`, String(c))));
+      return tr;
+    }));
+
+    const reasons = document.getElementById('cancelReasons');
+    reasons.replaceChildren(...(d.cancel_reasons.length ? d.cancel_reasons.map((c) => {
+      const row = el('div', 'border-b border-navy/[0.06] pb-2.5 last:border-0 last:pb-0');
+      row.appendChild(el('p', 'text-[12.5px] text-navy/50', `${shortDate(c.at)}, ${tradeName(c.category)}, cancelled by ${c.by === 'admin' ? 'Find Fundi' : 'the customer'}`));
+      row.appendChild(el('p', 'mt-0.5 text-[13.5px] text-navy/80 leading-[1.55]', c.reason));
+      return row;
+    }) : [el('p', 'text-[13.5px] text-navy/50', 'Nobody has given a reason yet.')]));
+  }
+
+  document.getElementById('insightsReload').addEventListener('click', () => loadInsights().catch((e) => alert(e.message)));
+  document.getElementById('tradeCsv').addEventListener('click', () => {
+    if (lastInsights) downloadCsv('by-trade', ['Trade', 'Jobs', 'Done', 'Average first price', 'Average final price', 'Price changes', 'Rating (reviews)'], tradeTable(lastInsights));
+  });
+  document.getElementById('cancelCsv').addEventListener('click', () => {
+    if (lastInsights) downloadCsv('cancel-reasons', ['Date', 'Trade', 'Cancelled by', 'Reason'], lastInsights.cancel_reasons.map((c) => [c.at, tradeName(c.category), c.by, c.reason]));
+  });
+
   // ---------- tabs ----------
-  const loaders = { applications: loadApps, users: loadUsers, jobs: loadJobs, admins: loadAdmins };
+  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, admins: loadAdmins };
   function showTab(name) {
     if (!loaders[name]) name = 'applications';
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));

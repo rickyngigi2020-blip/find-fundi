@@ -68,7 +68,7 @@ function renderFundiQuoteSection(section, job, pill, card) {
       <p class="q-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
       <div class="mt-3 flex gap-2">
         <button type="button" class="q-send btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg">Send price</button>
-        ${existing ? '<button type="button" class="q-cancel btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5">Cancel</button>' : ''}
+        ${existing ? '<button type="button" class="q-cancel btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5">Keep current price</button>' : ''}
       </div>
     `;
     box.querySelector('.q-cust').textContent = customerName;

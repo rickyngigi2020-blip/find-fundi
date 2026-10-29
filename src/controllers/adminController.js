@@ -1,6 +1,15 @@
 const adminService = require('../services/adminService');
 const { cleanReason } = require('./jobsController');
 
+async function insights(req, res, next) {
+  try {
+    const data = await adminService.insights();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listFundiApplications(req, res, next) {
   try {
     const data = await adminService.listFundiApplications();
@@ -111,4 +120,4 @@ async function uncertifyFundi(req, res, next) {
   }
 }
 
-module.exports = { certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
+module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };

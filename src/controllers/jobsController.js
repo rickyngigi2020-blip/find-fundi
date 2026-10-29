@@ -11,9 +11,8 @@ async function create(req, res, next) {
     if (!category || !area) {
       return res.status(400).json({ error: { message: 'category and area are required', code: 'invalid_request' } });
     }
-    if (!description && !voice_note_path) {
-      return res.status(400).json({ error: { message: 'Describe the problem in writing or record a voice note', code: 'invalid_request' } });
-    }
+    // A description or voice note is welcome but optional: the fundi calls the
+    // customer before quoting, so a job can be booked in two taps.
     if (photo_paths.length > 5) {
       return res.status(400).json({ error: { message: 'You can attach up to 5 photos', code: 'invalid_request' } });
     }

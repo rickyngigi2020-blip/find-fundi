@@ -102,6 +102,25 @@
   .photo-drop.is-dragging { border-color: #FE6902; background: #FFF1E6; }
   .thumb-remove:hover { background: #041530; }
 
+  /* ---- send bar ----
+     The form's own button, stuck to the bottom of the screen while the
+     optional details scroll past and settling at the end of the form. It runs
+     edge to edge of the card, so the negative margins match the card padding. */
+  .send-bar {
+    position: sticky; bottom: 0; z-index: 10;
+    margin-left: -20px; margin-right: -20px; margin-bottom: -20px;
+    padding: 12px 20px max(16px, env(safe-area-inset-bottom));
+    background: rgba(255,255,255,0.96); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(4,21,48,0.08); border-radius: 0 0 16px 16px;
+    box-shadow: 0 -14px 26px -22px rgba(4,21,48,0.35);
+  }
+  /* Anything scrolled into view (a field reached with Tab, a trade card) stops
+     above the bar instead of underneath it. */
+  html { scroll-padding-bottom: 150px; }
+  @media (min-width: 640px) {
+    .send-bar { margin-left: -28px; margin-right: -28px; margin-bottom: -28px; padding-left: 28px; padding-right: 28px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .cat-track { animation: none; width: auto; }
     .cat-strip { -webkit-mask-image: none; mask-image: none; }
@@ -150,13 +169,13 @@
     <!-- STEP 1: describe -->
     <section id="step1" class="step active bg-white rounded-2xl border border-navy/10 p-5 sm:p-7">
       <h1 class="font-display font-800 text-[1.5rem] sm:text-[1.65rem] leading-[1.15] tracking-[-0.02em] text-navy">What can a fundi help you with?</h1>
-      <p class="mt-1.5 text-navy/55 text-[14.5px] leading-[1.6]">Pick the closest match. You'll add the details below.</p>
+      <p class="mt-1.5 text-navy/55 text-[14.5px] leading-[1.6]">Pick the closest match, then tap Find a fundi. Everything below is optional: your fundi calls you before sending a price.</p>
 
       <div id="categoryGroups" class="mt-6 space-y-5"></div>
 
       <div class="mt-7 pt-6 border-t border-navy/10">
-        <label class="block text-[13px] font-semibold text-navy/70" for="description">Describe what you need</label>
-        <p class="mt-0.5 mb-2 text-[12.5px] text-navy/50">Type it, record a voice note, or both.</p>
+        <label class="block text-[13px] font-semibold text-navy/70" for="description">Describe what you need <span class="font-normal text-navy/45">(optional)</span></label>
+        <p class="mt-0.5 mb-2 text-[12.5px] text-navy/50">Type it, record a voice note, or both. It helps the fundi come prepared.</p>
         <textarea id="description" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] leading-[1.6] outline-none resize-none" placeholder="What's going on, and anything the fundi should know before coming?"></textarea>
 
         <div id="voiceBox" class="mt-2.5 rounded-xl border border-navy/10 bg-gray-50 px-3 py-2.5">
@@ -228,11 +247,15 @@
         <label for="urgent" class="text-[14px] text-navy/70">Mark as urgent</label>
       </div>
 
-      <p id="step1Error" class="hidden mt-4 text-[13.5px] text-red-600" role="alert"></p>
-
-      <button id="toStep2" class="btn-primary w-full mt-6 text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-        Find a fundi
-      </button>
+      <!-- Sticks to the bottom of the screen while the details scroll past,
+           so booking is two taps: a trade, then this. -->
+      <div class="send-bar mt-6">
+        <p id="sendWhat" hidden class="mb-2 text-center text-[13px] text-navy/60"></p>
+        <p id="step1Error" class="hidden mb-2 text-center text-[13.5px] text-red-600" role="alert"></p>
+        <button id="toStep2" class="btn-primary w-full text-white font-semibold text-[15.5px] px-6 py-3.5 rounded-lg">
+          Find a fundi
+        </button>
+      </div>
     </section>
 
     <!-- STEP 2: searching -->
@@ -251,9 +274,11 @@
       </div>
 
       <div id="exhaustedState" hidden>
-        <h1 class="font-display font-800 text-[1.4rem] text-navy">No fundi for this trade yet</h1>
-        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">There is no approved fundi in this category at the moment, so nobody can be sent. Your job is saved in My activity and we will keep trying as fundis join.</p>
+        <h1 class="font-display font-800 text-[1.4rem] text-navy">No fundi available yet</h1>
+        <p class="mt-2 text-navy/60 text-[14.5px] leading-[1.6]">Every approved fundi for this trade has passed, or none has joined yet. Your job is saved in My activity and goes out again as fundis join.</p>
       </div>
+
+      <div id="searchPush" hidden class="mt-5"></div>
 
       <div id="searchSummary" class="mt-5 rounded-xl bg-gray-50 p-4 text-[14.5px] text-navy/70 space-y-1"></div>
 
@@ -298,6 +323,7 @@
     document.getElementById('crumb1').className = onStep1 ? 'text-orange' : '';
     document.getElementById('crumb2').className = onStep1 ? '' : 'text-orange';
     window.scrollTo({ top: 0 });
+    updateQuickSend();
   }
 
   // ---------- category cards ----------
@@ -336,6 +362,7 @@
           document.querySelectorAll('.cat-card').forEach((b) => b.setAttribute('aria-pressed', 'false'));
           card.setAttribute('aria-pressed', 'true');
           selectedCategory = cat.key;
+          updateQuickSend();
         });
         grid.appendChild(card);
       });
@@ -345,6 +372,19 @@
     });
     tuneDriftSpeed();
   }
+
+  // ---------- send bar ----------
+  // Says what is about to be sent, right above the button, so a customer who
+  // never scrolls down still knows the area it will go to.
+  function updateQuickSend() {
+    const what = document.getElementById('sendWhat');
+    what.hidden = !selectedCategory;
+    if (!selectedCategory) return;
+    const area = document.getElementById('area').value;
+    const trade = CATEGORY_LABELS[selectedCategory] || selectedCategory;
+    what.textContent = area ? `${trade} in ${area}` : `${trade}. Choose your area below.`;
+  }
+  document.getElementById('area').addEventListener('change', updateQuickSend);
 
   // Constant reading speed (~22px/s) regardless of how long each card's example list is.
   function tuneDriftSpeed() {
@@ -477,25 +517,8 @@
   // photo shrunk to this is a few hundred KB instead of several MB.
   const PHOTO_MAX_SIDE = 1600;
 
-  // Copies the photo into the page as soon as it is picked (see snapshotFile)
-  // and shrinks it on the way. A format this browser cannot draw, such as
-  // HEIC, is kept as picked.
-  async function preparePhoto(file) {
-    try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      if (bitmap.close) bitmap.close();
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-      if (blob) return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
-    } catch (err) {
-      // Not drawable here; fall through and keep the original bytes.
-    }
-    return snapshotFile(file);
-  }
+  // Copied into the page as soon as it is picked, and shrunk on the way.
+  const preparePhoto = (file) => shrinkPhoto(file, PHOTO_MAX_SIDE);
 
   let preparingPhotos = 0;
 
@@ -662,7 +685,6 @@
     if (isRecording()) return fail('Stop the voice note recording first.');
     if (preparingPhotos) return fail('Your photos are still being added. Try again in a second.');
     if (!selectedCategory) return fail('Pick what a fundi can help you with.');
-    if (!description && !voiceBlob) return fail('Describe what you need, or record a voice note.');
     if (!area) return fail('Select your area.');
 
     const btn = document.getElementById('toStep2');
@@ -699,6 +721,13 @@
       watchingSince = Date.now();
       showSearching();
       showStep('stepSearching');
+      // The poll below checks every few seconds; this makes the screen change
+      // the moment a fundi takes the job.
+      stopSearchWatch();
+      const { user } = await getSession();
+      stopWatching = watchMyJobs(user.id, 'customer_id', pollForMatch, { pollMs: 0 });
+      // The moment they most want to hear back, and can then close the app.
+      mountPushPrompt(document.getElementById('searchPush'), 'Get a notification the moment a fundi takes your job, so you can close the app while you wait.');
       pollForMatch();
     } catch (err) {
       fail(err.message || 'Something went wrong. Try again.');
@@ -747,6 +776,11 @@
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   }
 
+  let stopWatching = null;
+  function stopSearchWatch() {
+    if (stopWatching) { stopWatching(); stopWatching = null; }
+  }
+
   async function pollForMatch() {
     const searchError = document.getElementById('searchError');
     try {
@@ -759,6 +793,7 @@
 
       if (job.status !== 'requested' && job.fundi_id) {
         stopPolling();
+        stopSearchWatch();
         currentJob = job;
         const name = job.fundi && job.fundi.full_name ? job.fundi.full_name : 'Your fundi';
         document.getElementById('doneMessage').textContent =
@@ -771,11 +806,13 @@
       if (job.search_exhausted_at) {
         showExhausted();
         stopPolling();
+        stopSearchWatch();
         return;
       }
       if (Date.now() - watchingSince > WATCH_LIMIT_MS) {
         showState('stillLookingState');
         stopPolling();
+        stopSearchWatch();
         return;
       }
       showSearching();
@@ -794,7 +831,7 @@
     pollTimer = setTimeout(pollForMatch, 4000);
   }
 
-  window.addEventListener('beforeunload', stopPolling);
+  window.addEventListener('beforeunload', () => { stopPolling(); stopSearchWatch(); });
 
   (async function init() {
     renderCategories();
@@ -804,6 +841,14 @@
       return;
     }
     document.getElementById('flow').hidden = false;
+    // Most people book where they live, so their area is already chosen.
+    apiFetch('/profile/me').then((profile) => {
+      const select = document.getElementById('area');
+      if (profile && profile.area && !select.value && [...select.options].some((o) => o.value === profile.area)) {
+        select.value = profile.area;
+        updateQuickSend();
+      }
+    }).catch(() => { /* they pick it themselves */ });
     tuneDriftSpeed();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(tuneDriftSpeed);
   })();

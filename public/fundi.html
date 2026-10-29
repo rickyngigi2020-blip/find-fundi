@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>Your work | Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -617,11 +618,25 @@
     renderDemand();
   }
 
+  // What the list last drew. Redrawing it stops live location sharing and wipes
+  // anything half-typed (a price, a reason), so a reload that finds the same
+  // jobs leaves the page alone. Returns whether it redrew.
+  let drawnJobs = null;
+
+  function writingInJobs() {
+    const el = document.activeElement;
+    return Boolean(el && document.getElementById('myJobsList').contains(el)
+      && el.matches('textarea, select, input:not([type=radio]):not([type=checkbox])'));
+  }
+
   // Only jobs still in play sit on Home. Finished ones move to Earnings later.
   async function loadMyJobs() {
-    Object.keys(activeWatchers).forEach(stopSharing);
     const jobs = await apiFetch('/jobs/mine?role=fundi');
     const active = jobs.filter((j) => j.status === 'matched' || j.status === 'in_progress');
+    const snapshot = JSON.stringify(active);
+    if (snapshot === drawnJobs || writingInJobs()) return false;
+    drawnJobs = snapshot;
+    Object.keys(activeWatchers).forEach(stopSharing);
     const list = document.getElementById('myJobsList');
     list.replaceChildren(...active.map((job) => {
       const card = myJobCard(job);
@@ -629,6 +644,18 @@
       return card;
     }));
     document.getElementById('myJobsBlock').hidden = active.length === 0;
+    return true;
+  }
+
+  // The database says when one of this fundi's jobs changes (the customer
+  // accepts a price, cancels, or an admin steps in), so Home never goes stale.
+  let watchingJobs = false;
+  function watchJobs() {
+    if (watchingJobs) return;
+    watchingJobs = true;
+    watchMyJobs(state.session.user.id, 'fundi_id', async () => {
+      if (await loadMyJobs()) loadDashboard().catch(() => {});
+    });
   }
 
   async function loadDashboard() {
@@ -694,7 +721,20 @@
     }
   }
 
-  goOnlineBtn.addEventListener('click', () => setOnline(true));
+  // Going online is when a fundi most needs to hear about jobs, and a tap is
+  // the only moment a browser lets a page ask. Saying no still lets them go
+  // online; they are just told what that costs them.
+  goOnlineBtn.addEventListener('click', async () => {
+    let alertsOff = !pushSupported() || isIosBrowserTab() || Notification.permission === 'denied';
+    if (!alertsOff && Notification.permission === 'default') {
+      try { await enablePush(); } catch (err) { alertsOff = true; }
+    }
+    await setOnline(true);
+    if (alertsOff && state.online) {
+      dockError.textContent = "You're online, but notifications are off, so you will only see job offers while Find Fundi is open.";
+      dockError.hidden = false;
+    }
+  });
   goOfflineBtn.addEventListener('click', () => setOnline(false));
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !state.profile) return;
@@ -800,6 +840,7 @@
     document.getElementById('statusChip').hidden = false;
     document.getElementById('appNav').hidden = false;
     route();
+    watchJobs();
   }
 
   document.getElementById('retryBtn').addEventListener('click', init);

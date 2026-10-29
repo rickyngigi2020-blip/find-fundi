@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin.html
+Disallow: /check.html
+Disallow: /start.html
+Disallow: /api/
+
+Sitemap: https://www.findfundi.com/sitemap.xml

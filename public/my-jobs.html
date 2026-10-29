@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
 <title>My activity — Find Fundi</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -74,6 +75,7 @@
       <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
     </a>
     <nav class="flex items-center gap-1">
+      <a id="adminLink" hidden href="admin.html" class="btn-quiet px-2.5 py-2 rounded-md text-[14px] font-semibold text-navy/70 hover:text-navy">Admin</a>
       <a href="book.html" class="btn-quiet px-2.5 py-2 rounded-md text-[14px] font-semibold text-navy/70 hover:text-navy">Book a fundi</a>
       <a href="profile.html" class="icon-link w-9 h-9 rounded-md flex items-center justify-center text-navy/60 hover:text-navy hover:bg-navy/5" aria-label="Account settings" title="Account settings">
         <svg class="w-[19px] h-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -277,9 +279,9 @@
       <div class="flex items-start gap-2.5">
         ${dead ? '' : '<span class="search-pulse shrink-0 mt-1.5" aria-hidden="true"></span>'}
         <div>
-          <p class="text-[13.5px] font-semibold text-navy">${dead ? 'No fundi for this trade yet' : 'Finding your fundi'}</p>
+          <p class="text-[13.5px] font-semibold text-navy">${dead ? 'No fundi available yet' : 'Finding your fundi'}</p>
           <p class="text-[13.5px] text-navy/60 leading-[1.55] mt-0.5">${dead
-            ? 'There is no approved fundi in this category at the moment. We keep trying as fundis join, and will notify you.'
+            ? 'Every approved fundi for this trade has passed, or none has joined yet. Your job stays open and goes out again as fundis join. We will notify you.'
             : 'Your job is being offered to our various technicians, suitable for this job. We will notify you as soon as one takes it.'}</p>
         </div>
       </div>
@@ -499,10 +501,26 @@
     return tpl;
   }
 
+  // What the list last drew. A reload that finds the same jobs leaves the page
+  // alone, so a refresh every few seconds never wipes a half-written review, a
+  // payment method just picked, or a voice note being played.
+  let drawn = null;
+
+  // Someone typing into a card is not interrupted; the next reload catches up.
+  function writingInList() {
+    const el = document.activeElement;
+    return Boolean(el && document.getElementById('jobList').contains(el)
+      && el.matches('textarea, select, input:not([type=radio]):not([type=checkbox])'));
+  }
+
   async function loadJobs() {
     const jobs = await apiFetch('/jobs/mine?role=customer');
+    const snapshot = JSON.stringify(jobs);
+    if (snapshot === drawn || writingInList()) return;
+    drawn = snapshot;
     // Re-rendering replaces the maps, so drop their live location channels.
-    sb.removeAllChannels();
+    // The channel that watches the jobs themselves stays.
+    sb.getChannels().filter((c) => c.topic.includes('fundi-location-')).forEach((c) => sb.removeChannel(c));
     document.getElementById('jobList').replaceChildren(...jobs.map((job) => renderJob(job)));
     document.getElementById('emptyState').hidden = jobs.length > 0;
   }
@@ -514,9 +532,14 @@
       return;
     }
     document.getElementById('content').hidden = false;
+    apiFetch('/profile/me')
+      .then((profile) => { document.getElementById('adminLink').hidden = !(profile && profile.is_admin); })
+      .catch(() => { /* the link just stays hidden */ });
     mountPushPrompt(document.getElementById('pushPrompt'), "Get a notification when a fundi sends a price, finishes a job, or can't make it.");
     // A notification means one of these jobs changed: show it without a reload.
     onPushUpdate(() => { loadJobs().catch(() => {}); });
+    // And so does the database, which also covers a page that was left open.
+    watchMyJobs(session.user.id, 'customer_id', loadJobs);
     await loadJobs();
   })();
 </script>

@@ -20,11 +20,14 @@ const mime = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 };
 
 // Files that must sit at the site root: the service worker's scope is its own
-// folder, and the manifest is linked from every page.
-const ROOT_FILES = new Set(['sw.js', 'manifest.webmanifest']);
+// folder, the manifest is linked from every page, and search engines only look
+// for robots.txt and the sitemap there.
+const ROOT_FILES = new Set(['sw.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml']);
 
 // Only site pages and the assets folder in public/ are served. The project root holds
 // .env (with the Supabase service-role key), source code and node_modules, none

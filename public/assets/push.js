@@ -181,7 +181,13 @@ const BELL_ICON = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="
 // notifications are already on (or impossible). `message` says what the
 // person will be told about.
 async function mountPushPrompt(container, message) {
-  const state = await pushState().catch(() => 'unsupported');
+  let state = await pushState().catch(() => 'unsupported');
+  // Allowed before, but this device lost its subscription (a reinstall, the
+  // browser clearing it). Asking again would show no prompt, so reconnect
+  // without making them tap anything.
+  if (state === 'off' && Notification.permission === 'granted') {
+    try { await enablePush(); state = 'on'; } catch (err) { /* fall back to the button */ }
+  }
   container.replaceChildren();
   if (state === 'on') { syncPush(); container.hidden = true; return; }
   if (state === 'unsupported') { container.hidden = true; return; }

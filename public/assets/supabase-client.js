@@ -164,6 +164,27 @@ async function snapshotFile(file) {
   }
 }
 
+// Copies a picked photo into the page (see snapshotFile) and shrinks it so its
+// longest side is at most `maxSide` pixels. A phone photo goes from several MB
+// to a few hundred KB, which matters on mobile data. A format this browser
+// cannot draw, such as HEIC, is kept as picked.
+async function shrinkPhoto(file, maxSide) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    if (bitmap.close) bitmap.close();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (blob) return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
+  } catch (err) {
+    // Not drawable here; fall through and keep the original bytes.
+  }
+  return snapshotFile(file);
+}
+
 // Uploads into the user's own folder and returns the storage path (not a URL).
 // Filenames are sanitised because Storage rejects many characters in keys.
 // A dropped connection gets one more try under a fresh name, since the first
@@ -179,6 +200,43 @@ async function uploadPrivateFile(bucket, userId, file) {
     if (attempt === 2) throw networkError();
     await wait(1500);
   }
+}
+
+// Runs `onChange` whenever one of this person's jobs changes, so a page never
+// has to be refreshed by hand. `column` is 'customer_id' or 'fundi_id'.
+//
+// Supabase Realtime says so straight away. It cannot be the only source: a
+// phone that slept, a dropped connection or a page restored by the Back button
+// all miss events, so the page also asks again when it comes back into view
+// and, unless `pollMs` is 0, on a slow timer while it is open. The event only
+// signals; `onChange` should reload through the API. Returns a stop function.
+function watchMyJobs(userId, column, onChange, { pollMs = 15000 } = {}) {
+  let running = false;
+  let again = false;
+  const refresh = async () => {
+    // Several events can land together; one reload at a time is enough.
+    if (running) { again = true; return; }
+    running = true;
+    try { await onChange(); } catch (err) { /* the next event or tick tries again */ }
+    running = false;
+    if (again) { again = false; refresh(); }
+  };
+  const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+  const onShow = (e) => { if (e.persisted) refresh(); };
+
+  const channel = sb.channel(`jobs-${column}-${userId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs', filter: `${column}=eq.${userId}` }, whenVisible)
+    .subscribe();
+  const timer = pollMs ? setInterval(whenVisible, pollMs) : null;
+  document.addEventListener('visibilitychange', whenVisible);
+  window.addEventListener('pageshow', onShow);
+
+  return () => {
+    if (timer) clearInterval(timer);
+    document.removeEventListener('visibilitychange', whenVisible);
+    window.removeEventListener('pageshow', onShow);
+    sb.removeChannel(channel);
+  };
 }
 
 // For any user-supplied text placed into innerHTML (descriptions, names, areas).

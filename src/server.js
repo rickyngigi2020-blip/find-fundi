@@ -87,6 +87,8 @@ app.get(['/sw.js', '/manifest.webmanifest'], (req, res) => {
   res.type(req.path.endsWith('.js') ? 'text/javascript' : 'application/manifest+json');
   res.sendFile(path.join(publicDir, req.path.slice(1)));
 });
+// Search engines only look for these at the root.
+app.get(['/robots.txt', '/sitemap.xml'], (req, res) => res.sendFile(path.join(publicDir, req.path.slice(1))));
 app.use('/assets', express.static(path.join(publicDir, 'assets'), { dotfiles: 'deny', index: false, fallthrough: false }));
 app.get(/^\/(?:([a-z0-9-]+)\.html)?$/, (req, res, next) => {
   const file = path.join(publicDir, `${req.params[0] || 'index'}.html`);

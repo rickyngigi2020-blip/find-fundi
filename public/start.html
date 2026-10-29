@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Find Fundi</title>
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#041530">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { navy: { DEFAULT: '#041530', soft: '#0D2547' }, orange: { DEFAULT: '#FE6902' } },
+      fontFamily: { display: ['"Poppins"', 'sans-serif'], body: ['"Inter"', 'sans-serif'] },
+    } }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
+  .btn-primary {
+    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
+    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+  .btn-primary:disabled { opacity: 0.6; pointer-events: none; }
+  .btn-quiet { transition: background-color 160ms ease, color 160ms ease; }
+  .btn-quiet:hover { background: rgba(4,21,48,0.05); color: #041530; }
+  .btn-quiet:active { background: rgba(4,21,48,0.09); }
+  /* The bell rings once when the card appears, then stays still. */
+  @keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-11deg); } 60% { transform: rotate(7deg); } 80% { transform: rotate(-4deg); } }
+  .bell { transform-origin: 50% 8%; animation: ring 900ms cubic-bezier(.22,1,.36,1) 250ms 1 both; }
+  @media (prefers-reduced-motion: reduce) { .bell { animation: none; } .btn-primary { transition: none; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-navy font-body antialiased min-h-screen flex items-center justify-center px-5 py-12">
+
+<!-- Shown for the moment it takes to decide where to go. -->
+<div id="opening" class="flex items-center gap-2.5" aria-live="polite">
+  <img src="assets/logo-mark.png" alt="" class="h-9 w-9 object-contain">
+  <span class="font-display font-700 text-lg"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
+  <span class="sr-only">Opening Find Fundi</span>
+</div>
+
+<!-- First open of the installed app: the one tap a phone needs before it will
+     deliver notifications, asked before anything else. -->
+<section id="alerts" hidden class="w-full max-w-sm text-center">
+  <div class="mx-auto w-16 h-16 rounded-2xl bg-orange-50 border border-orange/25 flex items-center justify-center text-orange">
+    <svg class="bell w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+  </div>
+  <h1 class="mt-6 font-display font-800 text-[1.6rem] leading-tight tracking-[-0.03em] text-navy">Turn on job alerts</h1>
+  <p id="alertsWhy" class="mt-2.5 text-[15px] leading-[1.7] text-navy/65"></p>
+  <p id="alertsError" hidden role="alert" class="mt-4 rounded-lg bg-red-50 px-3.5 py-2.5 text-left text-[13.5px] leading-[1.55] text-red-700"></p>
+  <button type="button" id="alertsOn" class="btn-primary mt-7 w-full rounded-xl py-4 text-white font-display font-700 text-[17px] tracking-[-0.01em]">Turn on job alerts</button>
+  <button type="button" id="alertsSkip" class="btn-quiet mt-2 w-full rounded-lg py-2.5 text-[14px] font-semibold text-navy/55">Not now</button>
+</section>
+
+<section id="failed" hidden class="w-full max-w-sm text-center">
+  <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em] text-navy">Find Fundi didn't open</h1>
+  <p id="failedText" class="mt-2 text-[15px] leading-[1.7] text-navy/65"></p>
+  <button type="button" id="retry" class="btn-primary mt-6 w-full rounded-xl py-3.5 text-white font-semibold text-[15px]">Try again</button>
+  <a href="index.html" class="btn-quiet mt-2 block rounded-lg py-2.5 text-[14px] font-semibold text-navy/55">Go to the home page</a>
+</section>
+
+<script src="assets/supabase-client.js"></script>
+<script src="assets/push.js"></script>
+<script>
+  // Where the home-screen app opens. It goes straight to the person's work:
+  // a fundi to their jobs, a customer with a job under way to My activity,
+  // anyone else to booking. Nobody has to find their way from the home page.
+  const ASKED_KEY = 'ff-alerts-asked';
+
+  const remembered = () => { try { return localStorage.getItem(ASKED_KEY); } catch (err) { return '1'; } };
+  const remember = () => { try { localStorage.setItem(ASKED_KEY, '1'); } catch (err) { /* asked again next time */ } };
+
+  function show(id) {
+    ['opening', 'alerts', 'failed'].forEach((s) => { document.getElementById(s).hidden = s !== id; });
+  }
+
+  // Only in the installed app, and only once: in a browser tab this would sit
+  // between someone and the page they asked for.
+  function shouldAskForAlerts() {
+    const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    return installed && pushSupported() && Notification.permission === 'default' && !remembered();
+  }
+
+  function askForAlerts(isFundi) {
+    document.getElementById('alertsWhy').textContent = isFundi
+      ? 'Hear about a job offer the moment it comes in, even with Find Fundi closed. Offers pass to the next fundi if nobody answers.'
+      : 'Hear the moment a fundi takes your job and when they send a price, even with Find Fundi closed.';
+    show('alerts');
+    return new Promise((resolve) => {
+      const on = document.getElementById('alertsOn');
+      const errorEl = document.getElementById('alertsError');
+      on.addEventListener('click', async () => {
+        errorEl.hidden = true;
+        on.disabled = true;
+        on.textContent = 'Turning on…';
+        try {
+          await enablePush();
+          remember();
+          resolve();
+        } catch (err) {
+          // Blocked or broken: say why, and let them carry on without it.
+          remember();
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+          on.disabled = false;
+          on.textContent = 'Try again';
+          document.getElementById('alertsSkip').textContent = 'Continue without alerts';
+        }
+      });
+      document.getElementById('alertsSkip').addEventListener('click', () => { remember(); resolve(); }, { once: true });
+    });
+  }
+
+  async function destination(profile) {
+    if (profile.fundi_profile) return 'fundi.html';
+    // Signed up as a fundi but has not applied yet: the application is next.
+    if (profile.role === 'fundi') return 'apply.html';
+    const jobs = await apiFetch('/jobs/mine?role=customer');
+    const underWay = jobs.some((j) => ['requested', 'matched', 'in_progress'].includes(j.status));
+    return underWay ? 'my-jobs.html' : 'book.html';
+  }
+
+  async function open() {
+    show('opening');
+    try {
+      const session = await getSession();
+      if (!session) return window.location.replace('login.html?next=start.html');
+
+      let profile = null;
+      try {
+        profile = await apiFetch('/profile/me');
+      } catch (err) {
+        if (err.message !== 'Not found.') throw err;
+      }
+      // Signed in, but setup was never finished.
+      if (!profile) return window.location.replace('profile.html?next=start.html');
+
+      const [to] = await Promise.all([
+        destination(profile),
+        shouldAskForAlerts() ? askForAlerts(Boolean(profile.fundi_profile) || profile.role === 'fundi') : null,
+      ]);
+      window.location.replace(to);
+    } catch (err) {
+      document.getElementById('failedText').textContent = err.message || 'Something went wrong.';
+      show('failed');
+    }
+  }
+
+  document.getElementById('retry').addEventListener('click', open);
+  open();
+</script>
+</body>
+</html>

@@ -35,11 +35,26 @@ function distanceKm(aLat, aLng, bLat, bLng) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// Fundis who said no to this job, in any round: they passed on the offer, or
+// took it and then turned it down. A job a fundi has turned down must never
+// come back to them. A fundi whose offer merely ran out of time is not here:
+// they may simply not have seen it, so the next round can try them again.
+async function fundisWhoTurnedDown(jobId) {
+  const { data, error } = await adminClient
+    .from('job_offers')
+    .select('fundi_id')
+    .eq('job_id', jobId)
+    .or('status.eq.declined,released_at.not.is.null');
+  if (error) throw toApiError(error);
+  return new Set(data.map((o) => o.fundi_id));
+}
+
 // Everyone who could do this job, best first. Excludes the customer (one
-// account can be both customer and fundi) and anyone already offered it.
+// account can be both customer and fundi), anyone who turned the job down, and
+// anyone already offered it in this round.
 async function rankCandidates(job, round = job.search_round || 1) {
-  // Only this round's offers exclude a fundi. Passing in an earlier round does
-  // not bar them from the next pass.
+  // Offers that merely expired only exclude a fundi for the round they were
+  // made in, so a missed offer does not bar them from the next pass.
   const { data: offers, error: offersError } = await adminClient
     .from('job_offers')
     .select('fundi_id')
@@ -47,6 +62,7 @@ async function rankCandidates(job, round = job.search_round || 1) {
     .eq('round', round);
   if (offersError) throw toApiError(offersError);
   const alreadyOffered = new Set(offers.map((o) => o.fundi_id));
+  const turnedDown = await fundisWhoTurnedDown(job.id);
 
   const { data: fundis, error } = await adminClient
     .from('fundi_profiles')
@@ -56,7 +72,8 @@ async function rankCandidates(job, round = job.search_round || 1) {
     .is('profiles.suspended_at', null);
   if (error) throw toApiError(error);
 
-  const eligible = fundis.filter((f) => f.id !== job.customer_id && !alreadyOffered.has(f.id));
+  const eligible = fundis.filter((f) => f.id !== job.customer_id
+    && !alreadyOffered.has(f.id) && !turnedDown.has(f.id));
   if (!eligible.length) return [];
 
   // Live locations are only set while a fundi has sharing toggled on, so many
@@ -169,18 +186,22 @@ async function advance(job) {
   return data;
 }
 
-// Could anyone at all do this job? Distinguishes "nobody is free right now"
-// from "this category has no verified fundis", which are different problems
-// and only the second is worth telling the customer about.
+// Could anyone at all still do this job? Distinguishes "nobody is free right
+// now" from "everyone who could do this has turned it down, or there is no
+// verified fundi in this category", which are different problems and only the
+// second is worth telling the customer about.
 async function eligibleFundiCount(job) {
-  const { data, error } = await adminClient
-    .from('fundi_profiles')
-    .select('id, profiles!fundi_profiles_id_fkey!inner(suspended_at)')
-    .eq('verification_status', 'verified')
-    .eq('category', job.category)
-    .is('profiles.suspended_at', null);
+  const [{ data, error }, turnedDown] = await Promise.all([
+    adminClient
+      .from('fundi_profiles')
+      .select('id, profiles!fundi_profiles_id_fkey!inner(suspended_at)')
+      .eq('verification_status', 'verified')
+      .eq('category', job.category)
+      .is('profiles.suspended_at', null),
+    fundisWhoTurnedDown(job.id),
+  ]);
   if (error) throw toApiError(error);
-  return data.filter((f) => f.id !== job.customer_id).length;
+  return data.filter((f) => f.id !== job.customer_id && !turnedDown.has(f.id)).length;
 }
 
 async function markExhausted(job) {
@@ -266,7 +287,10 @@ async function acceptOffer(jobId, fundiId) {
     throw apiError(409, 'That job was taken already.', 'conflict');
   }
 
-  await notify.fundiBooked(job).catch((e) => console.error('fundiBooked failed', e.message));
+  await Promise.all([
+    notify.fundiBooked(job).catch((e) => console.error('fundiBooked failed', e.message)),
+    notify.fundiFound(job).catch((e) => console.error('fundiFound failed', e.message)),
+  ]);
   return job;
 }
 
@@ -297,5 +321,6 @@ module.exports = {
   declineOffer,
   expireStaleOffers,
   rankCandidates,
+  fundisWhoTurnedDown,
   OFFER_WINDOW_MS,
 };

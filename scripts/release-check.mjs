@@ -112,6 +112,16 @@ async function addressChecks() {
     const workflow = fs.readFileSync(new URL('../.github/workflows/keep-supabase-awake.yml', import.meta.url), 'utf8');
     const urls = workflow.match(/https:\/\/[^\s"')]+/g) || [];
     expect(urls.length && urls.every((u) => u.startsWith(SITE)), `keep-supabase-awake.yml calls ${urls.join(', ')}; a redirected address makes curl stop at the 308`);
+
+    // Supabase's scheduler (migration 0019) calls the tick every minute, and
+    // pg_net does not follow redirects either.
+    const migrations = new URL('../supabase/migrations/', import.meta.url);
+    for (const name of fs.readdirSync(migrations)) {
+      const sql = fs.readFileSync(new URL(name, migrations), 'utf8');
+      const bad = (sql.match(/https?:\/\/[^\s"')]+/g) || []).filter((u) => !u.startsWith(SITE));
+      expect(!bad.length, `${name} calls ${bad.join(', ')}; only ${SITE} is allowed`);
+    }
+    expect(fs.readFileSync(new URL('0019_tick_cron.sql', migrations), 'utf8').includes(`'${SITE}/api/v1/tick'`), 'the every-minute tick in migration 0019 is missing');
   });
 
   // Auto-matching took away choosing a fundi, but the home page and Privacy
@@ -124,6 +134,92 @@ async function addressChecks() {
       const hit = stale.find((re) => re.test(html));
       expect(!hit, `${page} still says ${hit}`);
     }
+  });
+}
+
+// ---------- the stress test of October 2026 ----------
+// Each of these came out of watching a real fundi use the app. They read the
+// code and the database directly, so they need no browser.
+const source = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+
+async function stressTestChecks() {
+  await check('Admin lists every account, including ones that never finished setup', async () => {
+    const adminService = require('../src/services/adminService');
+    const { data: auth } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const listed = await adminService.listUsers({ query: '' });
+    const expected = Math.min(auth.users.length, 100);
+    expect(listed.length === expected, `admin shows ${listed.length} accounts, Supabase has ${auth.users.length}`);
+  });
+
+  await check('The customer is told when a fundi takes their job', async () => {
+    const accept = source('src/services/matchingService.js').split('async function acceptOffer')[1] || '';
+    expect(/notify\.fundiFound\(/.test(accept.split('async function declineOffer')[0]), 'acceptOffer no longer notifies the customer');
+  });
+
+  await check('The home-screen app opens on start.html, which sends people to their work', async () => {
+    const manifest = JSON.parse(source('public/manifest.webmanifest'));
+    expect(manifest.start_url === '/start.html', `manifest start_url is ${manifest.start_url}`);
+    const start = source('public/start.html');
+    for (const page of ['fundi.html', 'apply.html', 'my-jobs.html', 'book.html', 'login.html?next=start.html']) {
+      expect(start.includes(`'${page}'`), `start.html no longer sends anyone to ${page}`);
+    }
+  });
+
+  await check('A fundi can apply with phone photos of their papers, not only PDFs', async () => {
+    const page = source('public/apply.html');
+    const inputs = page.match(/<input id="(idDoc|certDoc)"[^>]*>/g) || [];
+    expect(inputs.length === 2 && inputs.every((i) => i.includes('image/*')), 'the ID or certificate picker no longer accepts photos');
+    expect(!/id="qualification"/.test(page), 'the highest qualification question is back');
+    const controller = source('src/controllers/fundiController.js');
+    expect(/DOCUMENT_TYPES = .*jpe\?g/.test(controller), 'the API no longer accepts photo documents');
+  });
+
+  await check('Pages update without a refresh', async () => {
+    for (const page of ['public/my-jobs.html', 'public/fundi.html', 'public/book.html']) {
+      expect(source(page).includes('watchMyJobs('), `${page} no longer watches for job changes`);
+    }
+    expect(fs.existsSync(new URL('../supabase/migrations/0018_jobs_realtime.sql', import.meta.url)), 'migration 0018 (jobs in Realtime) is missing');
+  });
+
+  await check('Booking needs only a trade and an area', async () => {
+    const page = source('public/book.html');
+    expect(!/Describe what you need, or record a voice note/.test(page), 'booking requires a description again');
+    expect(!/Describe the problem in writing or record a voice note/.test(source('src/controllers/jobsController.js')), 'the API requires a description again');
+    expect(/class="send-bar/.test(page) && /\.send-bar \{[^}]*position: sticky/.test(page), 'the Find a fundi button no longer stays on screen');
+  });
+}
+
+// ---------- matching ----------
+// A fundi who passed on a job, or took it and turned it down, kept being
+// offered it again in the next search round (found in the 1.2 stress test: one
+// job was offered more than 25 times). The test account stands in as the
+// fundi, since an offer only needs a profile, so no real fundi is involved.
+async function matchingChecks(user, category) {
+  const matching = require('../src/services/matchingService');
+
+  await check('A fundi who turned a job down is never offered it again', async () => {
+    const { data: job, error } = await admin.from('jobs').insert({
+      customer_id: user.id, category, area: 'Kasarani', description: `Release check: turned down ${Date.now()}`,
+    }).select().single();
+    if (error) throw error;
+    const offer = { job_id: job.id, fundi_id: user.id, round: 1, expires_at: new Date(Date.now() + 60000).toISOString() };
+    const barred = async () => (await matching.fundisWhoTurnedDown(job.id)).has(user.id);
+
+    const { data: made, error: offerError } = await admin.from('job_offers').insert({ ...offer, status: 'declined' }).select().single();
+    if (offerError) throw offerError;
+    expect(await barred(), 'a fundi who passed on the job can be offered it again');
+
+    await admin.from('job_offers').update({ status: 'accepted', released_at: new Date().toISOString() }).eq('id', made.id);
+    expect(await barred(), 'a fundi who took the job and turned it down can be offered it again');
+
+    await admin.from('job_offers').update({ status: 'expired', released_at: null }).eq('id', made.id);
+    expect(!(await barred()), 'a fundi whose offer only ran out of time is barred for good, so a missed offer is lost');
+
+    // Both the ranking and the "is anyone left" count must use the same list,
+    // or a job whose fundis all passed goes round forever.
+    const source = fs.readFileSync(new URL('../src/services/matchingService.js', import.meta.url), 'utf8');
+    const uses = (source.match(/fundisWhoTurnedDown\(/g) || []).length;
+    expect(uses >= 3, 'rankCandidates and eligibleFundiCount must both exclude fundis who turned the job down');
   });
 }
 
@@ -268,10 +364,12 @@ console.log(`Release check against ${BASE}\n`);
 const user = await testUser();
 try {
   await addressChecks();
+  await stressTestChecks();
   const category = await emptyCategory();
   if (!category) {
     console.log('SKIP  Booking checks: every category has a verified fundi, so a test job would page a real person.');
   } else {
+    await matchingChecks(user, category);
     await browserChecks(user, category);
   }
 } finally {

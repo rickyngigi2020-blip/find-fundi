@@ -1,8 +1,9 @@
 # Two jobs on one schedule.
 #
-# The search for a fundi has to keep running when nobody has a page open, and
-# the free tiers give us no background worker, so this stands in for one. It
-# also keeps Supabase from pausing, which it does after about 7 days idle.
+# The search for a fundi has to keep running when nobody has a page open.
+# Supabase's own scheduler now does that every minute (migration 0019), so the
+# tick here is only a backup in case that stops. This also keeps Supabase from
+# pausing, which it does after about 7 days idle.
 #
 # GitHub's scheduler is best-effort and runs late under load, so nothing here
 # depends on exact timing.

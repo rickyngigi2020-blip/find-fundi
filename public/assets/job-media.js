@@ -253,7 +253,8 @@ async function renderJobMedia(container, job) {
 
 // Text to show where a job's description would go.
 function jobSummaryText(job) {
-  return job.description || 'Described in a voice note';
+  if (job.description) return job.description;
+  return job.voice_note_path ? 'Described in a voice note' : 'No details given. The customer explains on the call.';
 }
 
 function formatKsh(amount) {

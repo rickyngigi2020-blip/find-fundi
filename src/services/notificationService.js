@@ -31,21 +31,23 @@ async function firstName(userId) {
 // One fundi at a time gets the job, so this replaces the old broadcast to
 // everyone in the category. It expires, so it says so.
 async function jobOffered(job, fundiId) {
-  const summary = job.description ? job.description.slice(0, 90) : 'Described in a voice note';
+  const summary = job.description ? job.description.slice(0, 90)
+    : job.voice_note_path ? 'Described in a voice note' : 'No details given, the customer explains on the call';
   await notifyUsers([fundiId], {
     title: `Job for you in ${job.area}: ${jobTitle(job)}`,
-    body: `${summary} — open the app to accept before it passes on.`,
+    body: `${summary.replace(/[.!?\s]+$/, '')}. Open the app to take it before it passes on.`,
     url: FUNDI_URL,
     tag: `offer-${job.id}`,
   });
 }
 
-// Nobody in the category took it. The customer is waiting on a screen that
-// says "finding your fundi", so they need telling.
+// Everyone who could take it has passed, or the category has nobody approved.
+// The customer is waiting on a screen that says "finding your fundi", so they
+// need telling.
 async function searchExhausted(job) {
   await notifyUsers([job.customer_id], {
-    title: 'No fundi available right now',
-    body: `Nobody could take ${jobTitle(job)} in ${job.area}. Open My activity to try again.`,
+    title: 'No fundi available yet',
+    body: `Nobody could take ${jobTitle(job)} in ${job.area}. It stays open and goes out again as fundis join.`,
     url: CUSTOMER_URL,
     tag: `job-${job.id}`,
   });
@@ -112,6 +114,17 @@ async function fundiBooked(job) {
   });
 }
 
+// The customer is waiting for exactly this, often with the app closed.
+async function fundiFound(job) {
+  const name = await firstName(job.fundi_id);
+  await notifyUsers([job.customer_id], {
+    title: `${name} is taking your job`,
+    body: `${name} took ${jobTitle(job)} and will call you, then send a price.`,
+    url: CUSTOMER_URL,
+    tag: `job-${job.id}`,
+  });
+}
+
 async function priceSent(job) {
   const name = await firstName(job.fundi_id);
   await notifyUsers([job.customer_id], {
@@ -163,10 +176,10 @@ async function fundiReleased(job, fundiId) {
   const name = await firstName(fundiId);
   await notifyUsers([job.customer_id], {
     title: `${name} can't take your job`,
-    body: `Choose another fundi for ${jobTitle(job)} in My activity.`,
+    body: `We're offering ${jobTitle(job)} to the next fundi. Nothing for you to do.`,
     url: CUSTOMER_URL,
     tag: `job-${job.id}`,
   });
 }
 
-module.exports = { jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };
+module.exports = { jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, fundiFound, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

@@ -4,6 +4,10 @@ const fundiService = require('../services/fundiService');
 // private documents bucket.
 const MAX_CERTIFICATES = 5;
 
+// A phone photo of a paper counts the same as a PDF. Many fundis hold their
+// papers only on paper, and a PDF-only form pushed them into the "no
+// certificate" route even when they had one.
+const DOCUMENT_TYPES = /\.(pdf|jpe?g|png|webp|heic|heif)$/i;
 
 const CATEGORIES = ['phone_electronics', 'computer_laptop', 'appliance', 'mechanical', 'general_maintenance', 'installation', 'tailoring'];
 
@@ -14,7 +18,8 @@ async function apply(req, res, next) {
       id_document_url, certificate_paths, no_certificate, bio,
     } = req.body;
 
-    if (!category || !national_id || !highest_qualification || !years_experience || !id_document_url) {
+    // Highest qualification is no longer asked; older applications keep it.
+    if (!category || !national_id || !years_experience || !id_document_url) {
       return res.status(400).json({
         error: { message: 'Fill in every field and upload your ID before submitting.', code: 'invalid_request' },
       });
@@ -37,18 +42,18 @@ async function apply(req, res, next) {
     }
 
     // Uploads go to the applicant's own folder; don't accept someone else's
-    // files, and only accept PDFs.
+    // files, and only accept photos and PDFs.
     const ownFolder = `${req.user.id}/`;
     const allPaths = [id_document_url, ...certificates];
     if (allPaths.some((path) => typeof path !== 'string' || !path.startsWith(ownFolder))) {
       return res.status(400).json({ error: { message: 'Upload your documents again and resubmit.', code: 'invalid_request' } });
     }
-    if (allPaths.some((path) => !path.toLowerCase().endsWith('.pdf'))) {
-      return res.status(400).json({ error: { message: 'Your ID and certificates must each be a PDF.', code: 'invalid_request' } });
+    if (allPaths.some((path) => !DOCUMENT_TYPES.test(path))) {
+      return res.status(400).json({ error: { message: 'Your ID and certificates must each be a photo or a PDF.', code: 'invalid_request' } });
     }
 
     const application = await fundiService.applyAsFundi(req.user.id, {
-      category, national_id, highest_qualification, years_experience, id_document_url,
+      category, national_id, highest_qualification: highest_qualification || null, years_experience, id_document_url,
       certificate_paths: certificates,
       no_certificate: !certificates.length,
       bio,

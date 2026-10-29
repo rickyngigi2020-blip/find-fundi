@@ -31,8 +31,31 @@
   }
   .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
   .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
   input:focus, select:focus, textarea:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
   [hidden] { display: none !important; }
+  fieldset { min-width: 0; }
+
+  /* One tap per answer instead of opening a dropdown. */
+  .chip {
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    min-height: 46px; border-radius: 10px; border: 1px solid rgba(4,21,48,0.15); background: #fff;
+    font-size: 15px; font-weight: 600; color: rgba(4,21,48,0.75);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(.22,1,.36,1);
+  }
+  .chip:hover { border-color: rgba(4,21,48,0.3); color: #041530; }
+  .chip:active { transform: scale(0.97); }
+  .chip:has(input:checked) { border-color: #FE6902; background: #FFF1E6; color: #041530; box-shadow: inset 0 0 0 1px #FE6902; }
+  .chip:has(input:focus-visible) { outline: 2px solid #FE6902; outline-offset: 2px; }
+
+  .doc-input::file-selector-button {
+    margin-right: 12px; padding: 9px 14px; border: 0; border-radius: 8px; cursor: pointer;
+    background: #041530; color: #fff; font-weight: 600; font-size: 13.5px;
+    transition: background-color 160ms ease;
+  }
+  .doc-input::file-selector-button:hover { background: #0D2547; }
+  .doc-input::file-selector-button:active { background: #000c1f; }
+  @media (prefers-reduced-motion: reduce) { .chip, .btn-primary { transition: none; } }
 </style>
 </head>
 <body class="bg-gray-50 text-navy font-body antialiased min-h-screen">
@@ -75,49 +98,63 @@
   </div>
 
   <form id="applyForm" hidden class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7 space-y-4">
-    <h1 class="font-display font-800 text-[1.4rem] text-navy">Apply as a fundi</h1>
-    <p class="text-navy/60 text-[14.5px]">Required to accept jobs. Your documents are stored privately and used only for verification.</p>
+    <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em] text-navy">Apply as a fundi</h1>
+    <p class="text-navy/60 text-[14.5px] leading-[1.6]">One page, then we review it. Your documents are stored privately and used only to check who you are.</p>
+
+    <!-- Only for someone with no profile yet, so a new fundi fills in one page
+         instead of two. -->
+    <fieldset id="aboutYou" hidden class="space-y-4">
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="fullName">Full name</label>
+        <input id="fullName" type="text" autocomplete="name" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="Jane Wanjiru">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="phone">Phone number</label>
+        <input id="phone" type="tel" autocomplete="tel" inputmode="tel" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="0712 345 678">
+      </div>
+      <div>
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="area">Area you work in</label>
+        <select id="area" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
+          <option value="">Select your area</option>
+          <option>CBD</option><option>Westlands</option><option>Kilimani</option><option>Karen</option>
+          <option>Lavington</option><option>Parklands</option><option>Eastleigh</option><option>Kasarani</option>
+          <option>South C</option><option>Embakasi</option><option>Kikuyu</option><option>Ruiru</option>
+        </select>
+      </div>
+    </fieldset>
 
     <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="category">Area of expertise</label>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="category">Your trade</label>
       <select id="category" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
         <option value="">Select</option>
       </select>
     </div>
     <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="nationalId">National ID / Passport number</label>
-      <input id="nationalId" required type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="nationalId">National ID or passport number</label>
+      <input id="nationalId" required type="text" inputmode="numeric" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
     </div>
-    <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="qualification">Highest qualification</label>
-      <select id="qualification" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
-        <option value="">Select</option>
-        <option>Certificate (KNEC / NITA)</option>
-        <option>Diploma (KNEC / College)</option>
-        <option>Bachelor's Degree</option>
-        <option>Master's Degree</option>
-      </select>
-    </div>
-    <div>
-      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="experience">Years of experience</label>
-      <select id="experience" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
-        <option value="">Select</option>
-        <option>0-1</option><option>2-3</option><option>4-5</option><option>6-10</option><option>10+</option>
-      </select>
-    </div>
+    <fieldset>
+      <legend class="block text-[13px] font-semibold text-navy/70 mb-1.5">Years doing this work</legend>
+      <div class="grid grid-cols-4 gap-2">
+        <label class="chip"><input type="radio" name="experience" value="0-1" class="sr-only">0-1</label>
+        <label class="chip"><input type="radio" name="experience" value="2-5" class="sr-only">2-5</label>
+        <label class="chip"><input type="radio" name="experience" value="6-10" class="sr-only">6-10</label>
+        <label class="chip"><input type="radio" name="experience" value="10+" class="sr-only">10+</label>
+      </div>
+    </fieldset>
     <div class="rounded-xl border border-navy/10 bg-gray-50 p-4">
       <p class="text-[13.5px] font-semibold text-navy">Your documents</p>
-      <p class="mt-1 text-[13px] text-navy/60 leading-[1.6]">Upload them as PDFs. Only the Find Fundi team sees them, and they are never shown to customers.</p>
+      <p class="mt-1 text-[13px] text-navy/60 leading-[1.6]">Take a photo with your phone or pick a PDF. Only the Find Fundi team sees them, never customers.</p>
 
       <div class="mt-4">
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID or passport (PDF)</label>
-        <input id="idDoc" required type="file" accept="application/pdf,.pdf" class="w-full text-[14px]">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID or passport</label>
+        <input id="idDoc" required type="file" accept="image/*,application/pdf,.pdf" class="doc-input w-full text-[14px] text-navy/70">
       </div>
 
-      <div class="mt-4">
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="certDoc">Certificates proving your trade (PDF)</label>
-        <p class="text-[13px] text-navy/55 leading-[1.6] mb-1.5">A trade test, NITA grade, diploma, or a course certificate from a manufacturer. Pick several files at once if you have more than one, up to 5.</p>
-        <input id="certDoc" multiple type="file" accept="application/pdf,.pdf" class="w-full text-[14px]">
+      <div id="certField" class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="certDoc">Certificates for your trade</label>
+        <p class="text-[13px] text-navy/55 leading-[1.6] mb-1.5">A trade test, NITA grade, diploma, or a course certificate. A clear photo of each paper is fine. Up to 5.</p>
+        <input id="certDoc" multiple type="file" accept="image/*,application/pdf,.pdf" class="doc-input w-full text-[14px] text-navy/70">
         <p id="certList" class="mt-2 text-[13px] text-navy/60"></p>
       </div>
 
@@ -126,8 +163,9 @@
           <input id="noCert" type="checkbox" class="mt-0.5 w-4 h-4 shrink-0 accent-orange">
           <span class="text-[13.5px] font-semibold text-navy">I don't have a certificate</span>
         </label>
+        <p class="mt-1.5 pl-[26px] text-[12.5px] text-navy/50 leading-[1.55]">Have papers? Leave this unticked and add a photo of them above.</p>
         <div id="noCertBlock" hidden class="mt-3">
-          <p class="text-[13px] text-navy/60 leading-[1.6]">Plenty of good fundis learned on the job. We will call you on the number on your account, arrange a time to watch you work, and issue your Find Fundi certificate. Nothing else to fill in here.</p>
+          <p class="text-[13px] text-navy/60 leading-[1.6]">Plenty of good fundis learned on the job. We will call you, arrange a time to watch you work, and issue your Find Fundi certificate. Nothing else to fill in here.</p>
         </div>
       </div>
     </div>
@@ -140,9 +178,7 @@
 
     <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
 
-    <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-      Submit for Verification
-    </button>
+    <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3.5 rounded-lg">Send my application</button>
   </form>
 </main>
 
@@ -173,22 +209,31 @@
   const formError = document.getElementById('formError');
 
   const MAX_CERTIFICATES = 5;
+  // Papers often exist only on paper, so a phone photo counts the same as a
+  // PDF. Requiring PDFs pushed a fundi who had certificates into the "no
+  // certificate" route in the October 2026 stress test.
   const isPdf = (file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isImage = (file) => /^image\//.test(file.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+  const isDocument = (file) => isPdf(file) || isImage(file);
+  // Large enough that the small print on an ID stays readable.
+  const DOC_PHOTO_MAX_SIDE = 2200;
 
   // Named files reassure the applicant that several were picked up, since the
   // browser's own label only says "5 files".
   const certInput = document.getElementById('certDoc');
   const idInput = document.getElementById('idDoc');
 
-  // Copies of the picked PDFs, taken the moment they are picked (see
-  // snapshotFile). Kept as promises so reading starts straight away and any
-  // file that cannot be read is reported when the form is sent.
+  // Copies of the picked files, taken the moment they are picked (see
+  // snapshotFile), with photos shrunk on the way. Kept as promises so reading
+  // starts straight away and any file that cannot be read is reported when the
+  // form is sent.
+  const copyOf = (file) => (isImage(file) ? shrinkPhoto(file, DOC_PHOTO_MAX_SIDE) : snapshotFile(file));
   const pickedCopies = {};
   function keepCopies(input) {
-    pickedCopies[input.id] = Promise.all([...input.files].map(snapshotFile));
+    pickedCopies[input.id] = Promise.all([...input.files].map(copyOf));
     pickedCopies[input.id].catch(() => {});
   }
-  const copiesOf = (input) => pickedCopies[input.id] || Promise.all([...input.files].map(snapshotFile));
+  const copiesOf = (input) => pickedCopies[input.id] || Promise.all([...input.files].map(copyOf));
 
   idInput.addEventListener('change', () => keepCopies(idInput));
   certInput.addEventListener('change', () => {
@@ -201,7 +246,9 @@
   // one puts the other away.
   const noCert = document.getElementById('noCert');
   const noCertBlock = document.getElementById('noCertBlock');
-  const certField = certInput.closest('div');
+  const certField = document.getElementById('certField');
+  const aboutYou = document.getElementById('aboutYou');
+  const SUBMIT_LABEL = 'Send my application';
 
   noCert.addEventListener('change', () => {
     noCertBlock.hidden = !noCert.checked;
@@ -217,7 +264,7 @@
     formError.textContent = message;
     formError.classList.remove('hidden');
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Submit for Verification';
+    submitBtn.textContent = SUBMIT_LABEL;
     formError.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
 
@@ -225,21 +272,39 @@
     e.preventDefault();
     formError.classList.add('hidden');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting…';
+    submitBtn.textContent = 'Sending…';
+
+    const needsProfile = !aboutYou.hidden;
+    const fullName = document.getElementById('fullName').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const area = document.getElementById('area').value;
+    if (needsProfile && (!fullName || !phone || !area)) return fail('Add your name, phone number and area.');
+
+    const experience = form.querySelector('input[name="experience"]:checked');
+    if (!experience) return fail('Tap how many years you have done this work.');
 
     const idFileCheck = document.getElementById('idDoc').files[0];
     const certFilesCheck = noCert.checked ? [] : [...certInput.files];
-    if (idFileCheck && !isPdf(idFileCheck)) return fail('Your ID must be a PDF. Scan or export it as a PDF and try again.');
+    if (idFileCheck && !isDocument(idFileCheck)) return fail('Your ID must be a photo or a PDF.');
 
     if (!noCert.checked) {
-      if (!certFilesCheck.length) return fail('Attach at least one certificate, or tick the box to say you have none.');
-      if (certFilesCheck.length > MAX_CERTIFICATES) return fail(`Attach at most ${MAX_CERTIFICATES} certificates.`);
-      const notPdf = certFilesCheck.find((f) => !isPdf(f));
-      if (notPdf) return fail(`${notPdf.name} is not a PDF. Every certificate must be a PDF.`);
+      if (!certFilesCheck.length) return fail('Add a photo of at least one certificate, or tick the box to say you have none.');
+      if (certFilesCheck.length > MAX_CERTIFICATES) return fail(`Add at most ${MAX_CERTIFICATES} certificates.`);
+      const wrong = certFilesCheck.find((f) => !isDocument(f));
+      if (wrong) return fail(`${wrong.name} is not a photo or a PDF.`);
     }
 
     try {
       const session = await getSession();
+      // A brand-new fundi's profile is saved first, so the application has
+      // someone to belong to and admin can call them about it.
+      if (needsProfile) {
+        await apiFetch('/profile', {
+          method: 'POST',
+          body: JSON.stringify({ full_name: fullName, phone, area, role: 'fundi' }),
+        });
+        aboutYou.hidden = true;
+      }
       const [idFile] = await copiesOf(idInput);
       const certFiles = noCert.checked ? [] : await copiesOf(certInput);
 
@@ -254,8 +319,7 @@
         body: JSON.stringify({
           category: document.getElementById('category').value,
           national_id: document.getElementById('nationalId').value.trim(),
-          highest_qualification: document.getElementById('qualification').value,
-          years_experience: document.getElementById('experience').value,
+          years_experience: experience.value,
           id_document_url,
           certificate_paths,
           no_certificate: noCert.checked,
@@ -266,10 +330,7 @@
       form.hidden = true;
       show('statusPending');
     } catch (err) {
-      formError.textContent = err.message;
-      formError.classList.remove('hidden');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Submit for Verification';
+      fail(err.message);
     }
   });
 
@@ -280,11 +341,12 @@
     try {
       await apiFetch('/profile/me');
     } catch (err) {
-      if (err.message === 'Not found.') {
-        window.location.href = 'profile.html?role=fundi&next=apply.html';
-        return;
-      }
-      throw err;
+      if (err.message !== 'Not found.') throw err;
+      // No profile yet: ask for it on this page instead of sending them away.
+      aboutYou.hidden = false;
+      const meta = session.user.user_metadata || {};
+      document.getElementById('fullName').value = meta.full_name || meta.name || '';
+      return show('applyForm');
     }
 
     const status = await apiFetch('/fundi/status');
