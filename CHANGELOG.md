@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 — not released yet
+## 1.3.0 — 29 October 2026
 
 Everything here came from watching a technician use Find Fundi for real on
 29 October 2026. She rated it 7 out of 10: too many taps, a tiring
