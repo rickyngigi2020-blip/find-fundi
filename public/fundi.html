@@ -442,7 +442,8 @@
       setSlide('last', 'None yet', 'Your most recent completed job shows here');
     }
     if (d.rating.average != null) {
-      setSlide('rating', `${escapeHtml(d.rating.average.toFixed(1))}${STAR_SVG}`, `From ${d.rating.count} review${d.rating.count === 1 ? '' : 's'}`, true);
+      setSlide('rating', `${escapeHtml(d.rating.average.toFixed(1))}${STAR_SVG}`,
+        d.rating.starting_only ? 'Moves with every rating you earn' : `From ${d.rating.count} review${d.rating.count === 1 ? '' : 's'}`, true);
     } else {
       setSlide('rating', 'No reviews yet', 'Customers rate you after a completed job');
     }
@@ -750,7 +751,8 @@
   function renderAccount() {
     const p = state.profile;
     const meta = (state.session && state.session.user.user_metadata) || {};
-    const url = p.avatar_url || meta.avatar_url || meta.picture || '';
+    // The selfie taken at sign-up is the face on a verified fundi's profile.
+    const url = (state.dashboard && state.dashboard.selfie_url) || p.avatar_url || meta.avatar_url || meta.picture || '';
     const avatar = document.getElementById('accAvatar');
     avatar.textContent = initialsFor(p.full_name);
     if (url) {

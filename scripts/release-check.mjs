@@ -189,6 +189,64 @@ async function stressTestChecks() {
   });
 }
 
+// ---------- fundi identity (1.4.0) ----------
+// Fundis now give a selfie and a KRA PIN as well as an ID. The selfie must sit
+// where only an admin's signed link can read it.
+async function identityChecks() {
+  await check('A fundi application without a selfie, or with a malformed KRA PIN, is refused', async () => {
+    const controller = require('../src/controllers/fundiController');
+    const ownFolder = '00000000-0000-0000-0000-000000000000';
+    const base = {
+      category: 'installation', national_id: '12345678', years_experience: '2-5',
+      id_document_url: `${ownFolder}/id.jpg`, certificate_paths: [], no_certificate: true,
+    };
+    const tryApply = async (body) => {
+      let status = 200;
+      const res = { status(code) { status = code; return this; }, json() { return this; } };
+      await controller.apply({ user: { id: ownFolder }, body }, res, () => {});
+      return status;
+    };
+    expect(await tryApply({ ...base, kra_pin: 'A123456789B' }) === 400, 'an application with no selfie was accepted');
+    expect(await tryApply({ ...base, kra_pin: '12345', selfie_path: `${ownFolder}/me.jpg` }) === 400, 'a malformed KRA PIN was accepted');
+    expect(await tryApply({ ...base, kra_pin: 'A123456789B', selfie_path: `${ownFolder}/me.pdf` }) === 400, 'a PDF was accepted as a selfie');
+  });
+
+  await check('Selfies are stored where only an admin can read them', async () => {
+    const { data, error } = await admin.storage.getBucket('fundi-identity');
+    expect(!error && data, 'the fundi-identity bucket does not exist (run migration 0022)');
+    expect(data.public === false, 'the fundi-identity bucket is public');
+    const migration = source('supabase/migrations/0022_fundi_identity.sql');
+    expect(!/for select/i.test(migration), 'migration 0022 gives fundis a way to read selfies back');
+    const adminSource = source('src/services/adminService.js');
+    expect(/selfie_link/.test(adminSource) && /'fundi-identity'/.test(adminSource), 'the admin screen is no longer given a signed selfie link');
+    expect(/selfie_link/.test(source('public/admin.html')) && /kra_pin/.test(source('public/admin.html')), 'the admin screen no longer shows the selfie or KRA PIN');
+  });
+
+  await check('The apply page asks for a selfie and a KRA PIN, and Privacy says what happens to them', async () => {
+    const page = source('public/apply.html');
+    expect(/id="selfieDoc"[^>]*capture="user"/.test(page), 'the apply page no longer asks for a selfie');
+    expect(/id="kraPin"/.test(page), 'the apply page no longer asks for a KRA PIN');
+    expect(/shrinkPhoto/.test(page) && /keepCopies\(selfieInput\)/.test(page), 'the selfie is no longer copied and shrunk when picked');
+    const privacy = source('public/privacy.html');
+    expect(/selfie/i.test(privacy) && /KRA PIN/.test(privacy), 'Privacy does not mention the selfie and KRA PIN');
+  });
+  await check('A new fundi starts on the rating an admin gave, and customer reviews move it', async () => {
+    const { blend } = require('../src/services/fundiCardService');
+    expect(blend(4, []).average === 4 && blend(4, []).starting_only, 'a fundi with no reviews does not show the starting rating');
+    expect(blend(3, [5]).average === 3.5, 'one 5-star review does not lift a starting 3 to 3.5');
+    expect(blend(4, [1]).average === 3.3, 'a 1-star review does not pull a starting 4 down to 3.3');
+    expect(blend(null, [4, 5]).average === 4.5 && !blend(null, [4, 5]).starting_only, 'a fundi with no starting rating is not the plain average');
+    expect(blend(null, []).average === null, 'a fundi with nothing shows a rating');
+    const adminSource = source('src/services/adminService.js');
+    expect(/rating_needed/.test(adminSource), 'a fundi can be approved without a starting rating');
+    expect(fs.existsSync(new URL('../supabase/migrations/0023_starting_rating.sql', import.meta.url)), 'migration 0023 (starting rating) is missing');
+    const { error } = await admin.from('fundi_profiles').select('starting_rating').limit(1);
+    expect(!error, 'fundi_profiles has no starting_rating column (run migration 0023)');
+    const jobs = source('src/services/jobService.js');
+    expect(/fundiCards\.cardsFor/.test(jobs), 'the customer is no longer given the selfie and rating of their fundi');
+  });
+}
+
 // ---------- matching ----------
 // A fundi who passed on a job, or took it and turned it down, kept being
 // offered it again in the next search round (found in the 1.2 stress test: one
@@ -365,6 +423,7 @@ const user = await testUser();
 try {
   await addressChecks();
   await stressTestChecks();
+  await identityChecks();
   const category = await emptyCategory();
   if (!category) {
     console.log('SKIP  Booking checks: every category has a verified fundi, so a test job would page a real person.');

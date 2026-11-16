@@ -10,9 +10,9 @@ const DOC_LINK_SECONDS = 10 * 60;
 // Supabase Auth has no permanent ban; ~100 years stands in for one.
 const SUSPEND_BAN = '876000h';
 
-async function signedDocUrl(path) {
+async function signedDocUrl(path, bucket = 'verification-docs') {
   if (!path) return null;
-  const { data, error } = await adminClient.storage.from('verification-docs').createSignedUrl(path, DOC_LINK_SECONDS);
+  const { data, error } = await adminClient.storage.from(bucket).createSignedUrl(path, DOC_LINK_SECONDS);
   return error ? null : data.signedUrl;
 }
 
@@ -25,11 +25,35 @@ async function listFundiApplications() {
   return Promise.all(data.map(async (app) => ({
     ...app,
     id_document_link: await signedDocUrl(app.id_document_url),
-    certificate_links: await Promise.all((app.certificate_paths || []).map(signedDocUrl)),
+    certificate_links: await Promise.all((app.certificate_paths || []).map((path) => signedDocUrl(path))),
+    // Selfies sit in their own bucket that only these signed links can read.
+    selfie_link: await signedDocUrl(app.selfie_path, 'fundi-identity'),
   })));
 }
 
+// Customer reviews move a fundi's rating from here (fundiCardService).
+async function setStartingRating(fundiId, rating) {
+  const { data, error } = await adminClient
+    .from('fundi_profiles')
+    .update({ starting_rating: rating, updated_at: new Date().toISOString() })
+    .eq('id', fundiId)
+    .select('id, starting_rating')
+    .maybeSingle();
+  if (error) throw toApiError(error);
+  if (!data) throw apiError(404, 'Fundi not found.', 'not_found');
+  return data;
+}
+
 async function setVerificationStatus(fundiId, status) {
+  if (status === 'verified') {
+    const { data: fundi, error: readError } = await adminClient
+      .from('fundi_profiles').select('starting_rating').eq('id', fundiId).maybeSingle();
+    if (readError) throw toApiError(readError);
+    if (!fundi) throw apiError(404, 'Fundi not found.', 'not_found');
+    if (fundi.starting_rating == null) {
+      throw apiError(409, 'Give this fundi a starting rating before approving them.', 'rating_needed');
+    }
+  }
   const changes = { verification_status: status, updated_at: new Date().toISOString() };
   // A fundi who loses approval stops showing as available straight away.
   if (status !== 'verified') changes.is_online = false;
@@ -437,7 +461,7 @@ async function insights() {
 
 module.exports = {
   insights,
-  listFundiApplications, setVerificationStatus, listUsers, setSuspended, listJobs, cancelJob, JOB_FILTERS,
+  listFundiApplications, setVerificationStatus, setStartingRating, listUsers, setSuspended, listJobs, cancelJob, JOB_FILTERS,
   listAdmins, grantAdmin, revokeAdmin, certifyFundi, uncertifyFundi,
 };
 

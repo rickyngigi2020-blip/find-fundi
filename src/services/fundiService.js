@@ -1,6 +1,7 @@
 const { adminClient, clientForUser } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
+const fundiCards = require('./fundiCardService');
 
 // The fundi app checks in every few minutes while it is open and online. A
 // fundi who hasn't checked in within this window is not shown as available.
@@ -86,7 +87,7 @@ function totalSince(jobs, since) {
 // Figures for the top of the fundi app: online state, earnings from completed
 // jobs, and rating. Amounts are the agreed prices of completed jobs.
 async function getDashboard(userId) {
-  const [fundiResult, jobsResult, reviewsResult] = await Promise.all([
+  const [fundiResult, jobsResult, cards] = await Promise.all([
     adminClient.from('fundi_profiles').select('is_online, last_seen_at').eq('id', userId).maybeSingle(),
     adminClient
       .from('jobs')
@@ -94,16 +95,16 @@ async function getDashboard(userId) {
       .eq('fundi_id', userId)
       .eq('status', 'completed')
       .order('completed_at', { ascending: false }),
-    adminClient.from('reviews').select('rating, jobs!inner(fundi_id)').eq('jobs.fundi_id', userId),
+    fundiCards.cardsFor([userId]),
   ]);
-  for (const result of [fundiResult, jobsResult, reviewsResult]) {
+  for (const result of [fundiResult, jobsResult]) {
     if (result.error) throw toApiError(result.error);
   }
   const fundi = fundiResult.data;
   if (!fundi) throw apiError(404, "You haven't applied as a fundi yet.", 'not_found');
 
   const jobs = jobsResult.data;
-  const ratings = reviewsResult.data.map((r) => r.rating);
+  const card = cards[userId] || { selfie_url: null, rating: { average: null, count: 0, starting_only: false } };
   const now = Date.now();
   const lastJob = jobs[0];
 
@@ -116,10 +117,8 @@ async function getDashboard(userId) {
       ? { amount: lastJob.final_cost, category: lastJob.category, completed_at: lastJob.completed_at }
       : null,
     jobs_completed: jobs.length,
-    rating: {
-      average: ratings.length ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10 : null,
-      count: ratings.length,
-    },
+    rating: card.rating,
+    selfie_url: card.selfie_url,
   };
 }
 

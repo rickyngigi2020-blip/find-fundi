@@ -331,7 +331,8 @@
     who.appendChild(el('p', 'font-display font-bold text-[15.5px] text-navy', app.profiles.full_name));
     who.appendChild(el('p', 'text-[13.5px] text-navy/55 mt-0.5',
       [CATEGORY_LABELS[app.category] || app.category, app.profiles.area || 'No area', app.profiles.phone,
-        `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`].filter(Boolean).join(' · ')));
+        `${app.years_experience} yrs`, app.highest_qualification, `ID ${app.national_id}`,
+        app.kra_pin ? `KRA PIN ${app.kra_pin}` : 'KRA PIN not supplied'].filter(Boolean).join(' · ')));
     const pills = el('div', 'flex flex-wrap justify-end gap-1.5');
     const noPapers = app.no_certificate || !(app.certificate_links || []).length;
     if (app.profiles.suspended_at) pills.appendChild(pill('suspended', 'Suspended'));
@@ -344,6 +345,7 @@
 
     const docs = el('div', 'mt-3 flex flex-wrap gap-4 text-[13.5px]');
     docs.appendChild(docLink(app.id_document_link, 'View ID document'));
+    docs.appendChild(app.selfie_path ? docLink(app.selfie_link, 'View selfie') : el('span', 'text-navy/40', 'Selfie not supplied'));
     // An applicant can attach several certificates, so they are numbered when
     // there is more than one.
     (app.certificate_links || []).forEach((link, i, all) => {
@@ -365,11 +367,30 @@
       card.appendChild(box);
     }
 
+    // A new fundi has no reviews, so the rating customers first see is the one
+    // given here. Reviews then move it up or down.
+    const ratingRow = el('div', 'mt-3 flex flex-wrap items-center gap-2');
+    const ratingId = `rating-${app.id}`;
+    const ratingLabel = el('label', 'text-[13px] font-semibold text-navy/70', 'Starting rating');
+    ratingLabel.htmlFor = ratingId;
+    const ratingSelect = el('select', 'rounded-lg border border-navy/15 bg-white px-2.5 py-1.5 text-[13.5px] outline-none');
+    ratingSelect.id = ratingId;
+    ratingSelect.appendChild(new Option('Not set', ''));
+    for (let r = 5; r >= 1; r -= 0.5) ratingSelect.appendChild(new Option(r.toFixed(1), String(r)));
+    if (app.starting_rating != null) ratingSelect.value = String(Number(app.starting_rating));
+    ratingRow.append(ratingLabel, ratingSelect);
+    card.appendChild(ratingRow);
+    const saveRating = async () => {
+      if (!ratingSelect.value || Number(ratingSelect.value) === Number(app.starting_rating)) return;
+      await apiFetch(`/admin/fundi-applications/${app.id}/rating`, { method: 'POST', body: JSON.stringify({ rating: Number(ratingSelect.value) }) });
+    };
+
     const actions = el('div', 'mt-4 flex flex-wrap gap-2');
     const err = errorLine();
     const setStatus = async (status) => {
       actions.querySelectorAll('button').forEach((b) => { b.disabled = true; });
       try {
+        if (status === 'verified') await saveRating();
         await apiFetch(`/admin/fundi-applications/${app.id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
         await loadApps();
       } catch (e) {
@@ -407,6 +428,11 @@
       }));
     }
     if (app.verification_status !== 'verified') actions.appendChild(button('Approve', 'primary', () => setStatus('verified')));
+    if (app.verification_status === 'verified') {
+      actions.appendChild(button('Save rating', 'outline', async () => {
+        try { await saveRating(); await loadApps(); } catch (e) { showError(err, e.message); }
+      }));
+    }
     if (app.verification_status === 'pending') actions.appendChild(button('Reject', 'outline', () => setStatus('rejected')));
     card.append(actions, err);
     if (app.verification_status === 'verified') {

@@ -272,9 +272,11 @@ function renderContactCard(person, roleLabel) {
   avatar.className = 'w-10 h-10 shrink-0 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center font-display font-700 text-[14px]';
   const parts = String(person.full_name || '').trim().split(/\s+/).filter(Boolean);
   const initials = ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-  if (person.avatar_url) {
+  // A fundi's selfie from sign-up is the face customers see.
+  const photoUrl = person.selfie_url || person.avatar_url;
+  if (photoUrl) {
     const img = document.createElement('img');
-    img.src = person.avatar_url;
+    img.src = photoUrl;
     img.alt = '';
     img.className = 'w-full h-full object-cover';
     img.onerror = () => { img.remove(); avatar.textContent = initials; };
@@ -294,7 +296,26 @@ function renderContactCard(person, roleLabel) {
   const phone = document.createElement('p');
   phone.className = 'text-[13px] text-navy/65 tabular-nums';
   phone.textContent = person.phone || '';
-  text.append(role, name, phone);
+  text.append(role, name);
+  // Only a fundi's card carries a rating (see jobService.withCounterparts).
+  if (person.rating && person.rating.average != null) {
+    const rating = document.createElement('p');
+    rating.className = 'flex items-center gap-1 text-[13px] text-navy/70';
+    // The count only appears once there are real reviews to count.
+    const reviews = person.rating.count
+      ? `${person.rating.count} review${person.rating.count === 1 ? '' : 's'}`
+      : '';
+    rating.innerHTML = '<svg class="w-3.5 h-3.5 text-orange" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
+    const figure = document.createElement('span');
+    figure.className = 'font-semibold tabular-nums';
+    figure.textContent = person.rating.average.toFixed(1);
+    const detail = document.createElement('span');
+    detail.className = 'text-navy/50';
+    detail.textContent = reviews ? ` · ${reviews}` : '';
+    rating.append(figure, detail);
+    text.appendChild(rating);
+  }
+  text.appendChild(phone);
 
   card.append(avatar, text);
 

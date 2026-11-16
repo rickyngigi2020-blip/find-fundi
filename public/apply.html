@@ -99,7 +99,7 @@
 
   <form id="applyForm" hidden class="bg-white rounded-2xl border border-navy/10 p-6 md:p-7 space-y-4">
     <h1 class="font-display font-800 text-[1.4rem] tracking-[-0.02em] text-navy">Apply as a fundi</h1>
-    <p class="text-navy/60 text-[14.5px] leading-[1.6]">One page, then we review it. Your documents are stored privately and used only to check who you are.</p>
+    <p class="text-navy/60 text-[14.5px] leading-[1.6]">One page, then we review it. Your documents, selfie and KRA PIN are stored privately and used only to check who you are.</p>
 
     <!-- Only for someone with no profile yet, so a new fundi fills in one page
          instead of two. -->
@@ -133,6 +133,11 @@
       <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="nationalId">National ID or passport number</label>
       <input id="nationalId" required type="text" inputmode="numeric" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none">
     </div>
+    <div>
+      <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="kraPin">KRA PIN</label>
+      <input id="kraPin" required type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="11" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] uppercase outline-none" placeholder="A123456789B">
+      <p class="mt-1.5 text-[12.5px] text-navy/50 leading-[1.55]">A letter, nine digits and a letter. It is on your KRA PIN certificate and in the iTax app.</p>
+    </div>
     <fieldset>
       <legend class="block text-[13px] font-semibold text-navy/70 mb-1.5">Years doing this work</legend>
       <div class="grid grid-cols-4 gap-2">
@@ -149,6 +154,12 @@
       <div class="mt-4">
         <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="idDoc">National ID or passport</label>
         <input id="idDoc" required type="file" accept="image/*,application/pdf,.pdf" class="doc-input w-full text-[14px] text-navy/70">
+      </div>
+
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="selfieDoc">A selfie of you</label>
+        <p class="text-[13px] text-navy/55 leading-[1.6] mb-1.5">Face the camera in good light, with nothing covering your face. We compare it with your ID.</p>
+        <input id="selfieDoc" required type="file" accept="image/*" capture="user" class="doc-input w-full text-[14px] text-navy/70">
       </div>
 
       <div id="certField" class="mt-4">
@@ -235,7 +246,11 @@
   }
   const copiesOf = (input) => pickedCopies[input.id] || Promise.all([...input.files].map(copyOf));
 
+  const selfieInput = document.getElementById('selfieDoc');
+  const KRA_PIN = /^[AP]\d{9}[A-Z]$/;
+
   idInput.addEventListener('change', () => keepCopies(idInput));
+  selfieInput.addEventListener('change', () => keepCopies(selfieInput));
   certInput.addEventListener('change', () => {
     keepCopies(certInput);
     const names = [...certInput.files].map((f) => f.name);
@@ -284,6 +299,11 @@
     if (!experience) return fail('Tap how many years you have done this work.');
 
     const idFileCheck = document.getElementById('idDoc').files[0];
+    const kraPin = document.getElementById('kraPin').value.replace(/\s+/g, '').toUpperCase();
+    if (!KRA_PIN.test(kraPin)) return fail('Check your KRA PIN: a letter, nine digits and a letter, like A123456789B.');
+    const selfieCheck = selfieInput.files[0];
+    if (!selfieCheck) return fail('Take a selfie before sending.');
+    if (!isImage(selfieCheck)) return fail('Your selfie must be a photo.');
     const certFilesCheck = noCert.checked ? [] : [...certInput.files];
     if (idFileCheck && !isDocument(idFileCheck)) return fail('Your ID must be a photo or a PDF.');
 
@@ -307,8 +327,11 @@
       }
       const [idFile] = await copiesOf(idInput);
       const certFiles = noCert.checked ? [] : await copiesOf(certInput);
+      const [selfieFile] = await copiesOf(selfieInput);
 
       const id_document_url = await uploadPrivateFile('verification-docs', session.user.id, idFile);
+      // Selfies go in a bucket nobody can read back with their own login.
+      const selfie_path = await uploadPrivateFile('fundi-identity', session.user.id, selfieFile);
       const certificate_paths = [];
       for (const file of certFiles) {
         certificate_paths.push(await uploadPrivateFile('verification-docs', session.user.id, file));
@@ -319,6 +342,8 @@
         body: JSON.stringify({
           category: document.getElementById('category').value,
           national_id: document.getElementById('nationalId').value.trim(),
+          kra_pin: kraPin,
+          selfie_path,
           years_experience: experience.value,
           id_document_url,
           certificate_paths,

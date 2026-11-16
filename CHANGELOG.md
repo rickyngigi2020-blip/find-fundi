@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.4.0 — 16 November 2026
+
+Fundis now prove who they are with a selfie and a KRA PIN as well as their ID.
+
+Run migrations 0022 and 0023 in the Supabase SQL editor before deploying.
+
+### Added
+- **Selfie and KRA PIN on the fundi application.** The apply page takes a
+  selfie (the front camera opens on a phone) and a KRA PIN, checked for the
+  right shape: a letter, nine digits and a letter. Photos are copied and
+  shrunk the moment they are picked, as in 1.2.0.
+- **Selfies are kept in their own private bucket**, `fundi-identity`. A fundi
+  can upload into their own folder and nothing else: no login can read a selfie
+  back, only the short-lived links the admin screen asks for.
+- **The admin screen shows each applicant's selfie and KRA PIN** next to their
+  ID. Fundis verified before this release show "not supplied" and are not
+  affected.
+
+- **The selfie is the fundi's profile picture, with their rating.** It shows on
+  the fundi's own profile and on the card a customer sees once a fundi has
+  their job. Neither can read the file itself: the API hands out a one-hour link.
+- **A starting rating for new fundis.** The admin gives a rating (1 to 5, in
+  half stars) when approving, and approval is refused without one. Customer
+  reviews then move it: the starting rating counts as three reviews, so the
+  first review nudges it and real reviews take over as they pile up. The
+  rating shows as an ordinary rating; the number of reviews appears only once
+  there are real reviews to count.
+
+### Changed
+- Privacy Policy updated (16 November 2026): lists the selfie and KRA PIN, who
+  can see them (admins only) and how long they are kept (while the account is
+  open; deleted within 30 days of a rejection or a deletion request).
+
 ## 1.3.0 — 29 October 2026
 
 Everything here came from watching a technician use Find Fundi for real on

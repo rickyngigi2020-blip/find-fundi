@@ -3,6 +3,7 @@ const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
 const notify = require('./notificationService');
 const matching = require('./matchingService');
+const fundiCards = require('./fundiCardService');
 const { RELEASE_REASON_KEYS } = require('../utils/releaseReasons');
 
 // Job writes go through the service-role client, because jobs have no
@@ -47,7 +48,7 @@ async function createJob(customerId, payload) {
 
 // Adds the other party's name, phone and photo to every job that has a fundi
 // assigned, so customer and fundi can call each other. Only jobs the caller
-// already sees through RLS reach this, and only those three fields are shared.
+// already sees through RLS reach this, and only name, phone and photo are shared, plus the fundi's selfie and rating with their customer.
 async function withCounterparts(jobs, role) {
   const otherIds = [...new Set(jobs
     .filter((j) => j.fundi_id)
@@ -60,13 +61,24 @@ async function withCounterparts(jobs, role) {
     .in('id', otherIds);
   if (error) throw toApiError(error);
   const byId = Object.fromEntries(data.map((p) => [p.id, p]));
+  // A customer also sees the fundi's selfie and rating once the fundi has the job.
+  const cards = role === 'fundi' ? {} : await fundiCards.cardsFor(otherIds);
 
   return jobs.map((j) => {
     if (!j.fundi_id) return j;
-    const other = byId[role === 'fundi' ? j.customer_id : j.fundi_id];
-    return other
-      ? { ...j, counterpart: { full_name: other.full_name, phone: other.phone, avatar_url: other.avatar_url } }
-      : j;
+    const otherId = role === 'fundi' ? j.customer_id : j.fundi_id;
+    const other = byId[otherId];
+    if (!other) return j;
+    const card = cards[otherId];
+    return {
+      ...j,
+      counterpart: {
+        full_name: other.full_name,
+        phone: other.phone,
+        avatar_url: other.avatar_url,
+        ...(card ? { selfie_url: card.selfie_url, rating: card.rating } : {}),
+      },
+    };
   });
 }
 

@@ -9,6 +9,7 @@ router.use(requireAuth, requireAdmin);
 router.get('/insights', controller.insights);
 router.get('/fundi-applications', controller.listFundiApplications);
 router.post('/fundi-applications/:id/status', controller.setVerificationStatus);
+router.post('/fundi-applications/:id/rating', controller.setStartingRating);
 router.post('/fundi-applications/:id/certify', controller.certifyFundi);
 router.post('/fundi-applications/:id/uncertify', controller.uncertifyFundi);
 router.get('/users', controller.listUsers);

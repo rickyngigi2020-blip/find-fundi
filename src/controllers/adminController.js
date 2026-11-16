@@ -32,6 +32,20 @@ async function setVerificationStatus(req, res, next) {
   }
 }
 
+async function setStartingRating(req, res, next) {
+  try {
+    const rating = Number(req.body.rating);
+    // Whole or half stars, from 1 to 5.
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5 || (rating * 2) % 1 !== 0) {
+      return res.status(400).json({ error: { message: 'rating must be from 1 to 5, in half-star steps', code: 'invalid_request' } });
+    }
+    const data = await adminService.setStartingRating(req.params.id, rating);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listUsers(req, res, next) {
   try {
     const query = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : '';
@@ -120,4 +134,4 @@ async function uncertifyFundi(req, res, next) {
   }
 }
 
-module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
+module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
