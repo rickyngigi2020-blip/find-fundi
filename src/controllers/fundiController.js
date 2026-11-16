@@ -1,4 +1,5 @@
 const fundiService = require('../services/fundiService');
+const commissionService = require('../services/commissionService');
 const { CATEGORIES } = require('../utils/categories');
 
 // A trade rarely needs more than a handful of papers; this caps abuse of the
@@ -114,4 +115,23 @@ async function dashboard(req, res, next) {
   }
 }
 
-module.exports = { apply, status, setAvailability, dashboard };
+async function wallet(req, res, next) {
+  try {
+    const data = await commissionService.walletFor(req.user.id);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The fundi says they have paid and sends the M-Pesa code.
+async function payClaim(req, res, next) {
+  try {
+    const data = await commissionService.claimPayment(req.user.id, req.body.ref);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { apply, status, setAvailability, dashboard, wallet, payClaim };

@@ -129,6 +129,7 @@
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="rates" aria-selected="false">Rates</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="commissions" aria-selected="false">Commissions<span id="commissionBadge" hidden class="ml-1.5 rounded-md bg-orange px-1.5 py-0.5 text-[11.5px] text-white tabular-nums"></span></button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="admins" aria-selected="false">Admins</button>
     </div>
 
@@ -252,6 +253,18 @@
       </form>
 
       <div id="rateList" class="mt-5 space-y-5"></div>
+    </section>
+
+    <section data-panel="commissions" hidden class="mt-6">
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Commissions</h1>
+      <p class="mt-1 text-[14px] text-navy/55 leading-[1.6]">What fundis owe Find Fundi on jobs paid to them directly. A fundi who says they have paid appears under Waiting to confirm. Check the code against the statement, then confirm. Confirming is what lets a locked fundi get offers again.</p>
+
+      <h2 class="mt-6 font-display font-bold text-[15px] text-navy">Waiting to confirm</h2>
+      <div id="commissionWaiting" class="mt-2 space-y-3"></div>
+      <h2 class="mt-7 font-display font-bold text-[15px] text-navy">Owed</h2>
+      <div id="commissionOwed" class="mt-2 space-y-3"></div>
+      <h2 class="mt-7 font-display font-bold text-[15px] text-navy">Recently paid</h2>
+      <div id="commissionPaid" class="mt-2 space-y-2"></div>
     </section>
 
     <section data-panel="admins" hidden class="mt-6">
@@ -806,6 +819,59 @@
     if (lastInsights) downloadCsv('cancel-reasons', ['Date', 'Trade', 'Cancelled by', 'Reason'], lastInsights.cancel_reasons.map((c) => [c.at, tradeName(c.category), c.by, c.reason]));
   });
 
+  // ---------- commissions ----------
+  const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
+
+  const COMMISSION_METHODS = { mpesa: 'M-Pesa', bank: 'Bank', cash: 'Cash' };
+
+  function commissionCard(g) {
+    const card = el('div', `bg-white rounded-xl border p-4 ${g.claimed_at ? 'border-orange/50' : 'border-navy/10'}`);
+    const top = el('div', 'flex flex-wrap items-start justify-between gap-3');
+    const who = el('div', 'min-w-0');
+    who.appendChild(el('p', 'text-[14.5px] font-semibold text-navy', g.full_name || 'Unnamed fundi'));
+    who.appendChild(el('p', 'text-[13px] text-navy/55 tabular-nums', g.phone || 'No phone'));
+    const detail = [`${g.count} job${g.count === 1 ? '' : 's'}`, `oldest due ${shortDate(g.oldest_due_at)}`];
+    if (g.claimed_at) detail.push(`says paid ${shortDate(g.claimed_at)}, code ${g.claim_ref}`);
+    who.appendChild(el('p', 'mt-0.5 text-[13px] text-navy/55', detail.join(' · ')));
+    const right = el('div', 'flex items-center gap-2');
+    right.appendChild(el('p', 'font-display font-extrabold text-[1.15rem] tracking-[-0.02em] text-navy tabular-nums', ksh(g.owed)));
+    if (g.locked) right.appendChild(pill('suspended', 'Locked'));
+    top.append(who, right);
+
+    const err = errorLine();
+    const row = el('div', 'mt-3 flex flex-wrap items-center gap-2');
+    const method = el('select', 'rounded-lg border border-navy/15 bg-white px-2.5 py-2 text-[13.5px] outline-none');
+    method.setAttribute('aria-label', 'How they paid');
+    Object.entries(COMMISSION_METHODS).forEach(([v, l]) => method.appendChild(new Option(l, v)));
+    const confirmBtn = button(`Confirm ${ksh(g.owed)} received`, 'primary', async () => {
+      confirmBtn.disabled = true;
+      try {
+        await apiFetch('/admin/commissions/paid', { method: 'POST', body: JSON.stringify({ fundi_id: g.fundi_id, method: method.value }) });
+        await loadCommissions();
+      } catch (e) {
+        showError(err, e.message);
+        confirmBtn.disabled = false;
+      }
+    });
+    row.append(method, confirmBtn);
+    card.append(top, row, err);
+    return card;
+  }
+
+  async function loadCommissions() {
+    const data = await apiFetch('/admin/commissions');
+    const fill = (id, items, build, empty) => {
+      document.getElementById(id).replaceChildren(...(items.length ? items.map(build) : [el('p', 'text-[13.5px] text-navy/50', empty)]));
+    };
+    fill('commissionWaiting', data.waiting, commissionCard, 'No payments waiting.');
+    fill('commissionOwed', data.owed, commissionCard, 'Nobody owes anything.');
+    fill('commissionPaid', data.paid, (c) => el('p', 'text-[13.5px] text-navy/70',
+      `${c.full_name || 'A fundi'}: ${ksh(c.amount)} on ${shortDate(c.paid_at)} (${COMMISSION_METHODS[c.method] || c.method})`), 'Nothing paid yet.');
+    const badge = document.getElementById('commissionBadge');
+    badge.hidden = !data.waiting.length;
+    badge.textContent = String(data.waiting.length);
+  }
+
   // ---------- rates ----------
   function fillRateCategories() {
     const select = document.getElementById('rateCategory');
@@ -888,7 +954,7 @@
   });
 
   // ---------- tabs ----------
-  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, rates: loadRates, admins: loadAdmins };
+  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, rates: loadRates, commissions: loadCommissions, admins: loadAdmins };
   function showTab(name) {
     if (!loaders[name]) name = 'applications';
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
@@ -971,6 +1037,8 @@
     document.getElementById('content').hidden = false;
     const startTab = window.location.hash.slice(1);
     if (startTab && startTab !== 'applications') showTab(startTab);
+    // Payments waiting for confirmation show on the tab from any screen.
+    else loadCommissions().catch(() => {});
   }
 
   start();

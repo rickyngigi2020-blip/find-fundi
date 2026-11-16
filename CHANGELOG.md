@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.6.0 — 16 November 2026
+
+Find Fundi starts earning: a commission on jobs paid straight to the fundi, a
+wallet so fundis can see and clear what they owe, and a lock on job offers when
+it is left unpaid. This release also carries 1.4.0 (selfie and KRA PIN, starting
+ratings) and 1.5.0 (fixed-price services), which have not gone live yet.
+
+Run migration 0025 in the Supabase SQL editor before deploying, and add
+`COMMISSION_PAYBILL` and `COMMISSION_ACCOUNT_NO` to the Vercel environment
+variables (they are never stored in the code).
+
+### Added
+- **Commission on cash and M-Pesa jobs.** When a fundi marks a job complete,
+  10% of the agreed price is recorded, due 6 days later. It comes out of the
+  price, so the customer never pays more. Jobs completed before 16 November 2026
+  owe nothing.
+- **Founding fundis.** The first 50 fundis approved pay no commission on their
+  first 7 jobs. The fundis already approved were counted, oldest first, up to 50.
+- **A wallet on the fundi's Home screen.** It shows what is owed, when each
+  commission is due, the paybill details to pay with, and how many commission-free
+  jobs are left.
+- **"I've paid".** The fundi pays by M-Pesa, enters the M-Pesa code, and every
+  admin gets a notification straight away. Saying so does not unlock anything.
+- **The 6-day lock.** A fundi with a commission past its due date is skipped
+  when jobs are offered, no longer sees an offer waiting, and cannot accept one,
+  until it is paid. Jobs already under way carry on. It is worked out from the
+  dates each time, so nothing has to run in the background, and it lifts the
+  moment an admin confirms payment.
+- **A Commissions tab for admins.** Payments waiting to confirm come first (with
+  a count on the tab), then who owes what, then what was paid lately. Confirming
+  a payment is what lifts the lock.
+
+### Changed
+- **The fundi's Home screen works like a driver app.** The city sits behind
+  everything, with each area where it is and areas with open jobs lit up; today's
+  earnings and the rating float at the top; one big GO button takes the fundi
+  online, and the bar under it says whether they are offline, finding jobs, or
+  paused for unpaid commission. A job offer slides up over the whole screen with
+  one large Accept button that empties as time runs out. The wallet, jobs in hand,
+  earnings and the area list sit in a sheet that scrolls up over the city, and
+  rises higher when there is a job or money owed. Account opens from the photo in
+  the corner.
+- **Area lists lead with central and west Nairobi.** Westlands, Kilimani,
+  Kileleshwa, Lavington, Upper Hill, Hurlingham, Riverside, Parklands, Spring
+  Valley, Loresho, Runda, Gigiri, Muthaiga, Karen, Lang'ata and the CBD come first
+  on every form; the other areas stay, listed after them.
+- **Card is hidden** from the payment choice and refused by the API, until card
+  payments exist. Customers choose between M-Pesa and cash.
+- Terms of Service and Privacy Policy updated (16 November 2026): the fundi
+  commission and the lock, commission records, and that Find Fundi still never
+  holds a customer's payment.
+
+### Not built yet
+- 1% commission on a fundi's profit from materials (parked until the market is
+  better understood).
+
 ## 1.5.0 — 16 November 2026
 
 Common jobs now have fixed prices, so a fundi picks the job from a list and the

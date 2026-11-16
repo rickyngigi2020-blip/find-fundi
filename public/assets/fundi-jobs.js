@@ -430,37 +430,37 @@ const RELEASE_REASONS = [
 function offerCard(offer, { onAccept, onDecline }) {
   const job = offer.job;
   const div = document.createElement('div');
-  div.className = 'bg-white rounded-2xl border-2 border-orange p-5';
+  // Laid out like a ride request: what and where in big type, one large
+  // Accept that empties as time runs out, Pass out of the way at the top.
+  div.className = 'offer-card';
   div.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-orange">Job for you</p>
-        <p class="font-display font-700 text-[15.5px] text-navy mt-1">${escapeHtml(jobTitle(job))}</p>
-      </div>
-      ${job.urgency === 'urgent' ? URGENT_TAG : ''}
+    <div class="flex items-center justify-between gap-3">
+      <p class="inline-flex items-center gap-2.5 text-[13.5px] font-semibold text-navy/65">
+        <span class="live-dot" aria-hidden="true"></span><span>New job, <span class="o-countdown tabular-nums">${offer.seconds_left}</span>s to answer</span>
+      </p>
+      <button type="button" class="o-decline btn-outline rounded-full border border-navy/15 px-4 py-1.5 text-[13.5px] font-semibold text-navy">Pass</button>
     </div>
-    <p class="text-[13.5px] text-navy/55 mt-1">${escapeHtml(jobSummaryText(job))}</p>
-    <p class="mt-2 text-[13px] text-navy/50">${escapeHtml(jobDetailsLine(job))}</p>
-    <p class="mt-3 text-[13px] font-semibold text-navy/70">
-      <span class="o-countdown tabular-nums">${offer.seconds_left}</span>s to answer before it passes to the next fundi
-    </p>
+    <h2 class="mt-4 font-display font-800 text-[1.7rem] leading-[1.15] tracking-[-0.03em] text-navy">${escapeHtml(jobTitle(job))}</h2>
+    <p class="mt-1 text-[14px] text-navy/60">${escapeHtml(jobDetailsLine(job))}</p>
+    ${job.urgency === 'urgent' ? `<div class="mt-2.5">${URGENT_TAG}</div>` : ''}
+    <p class="mt-3 text-[15px] leading-[1.6] text-navy/80">${escapeHtml(jobSummaryText(job))}</p>
+    <div class="o-media"></div>
     <p class="o-error hidden mt-3 text-[13px] text-red-600" role="alert"></p>
-    <div class="mt-4 flex gap-2.5">
-      <button type="button" class="o-accept btn-primary flex-1 text-white font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Take this job</button>
-      <button type="button" class="o-decline btn-quiet border border-navy/15 text-navy font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Pass</button>
-    </div>
+    <button type="button" class="o-accept accept-btn btn-primary mt-5 w-full rounded-2xl py-4 text-white font-display font-700 text-[18px]"><span class="o-drain" aria-hidden="true"></span><span class="o-label relative">Accept job</span></button>
+    <p class="mt-2.5 text-center text-[12.5px] text-navy/50">If you don't answer, it passes to the next fundi.</p>
   `;
-  renderJobMedia(div, job);
+  renderJobMedia(div.querySelector('.o-media'), job);
 
   const accept = div.querySelector('.o-accept');
   const decline = div.querySelector('.o-decline');
   const errorEl = div.querySelector('.o-error');
+  const setLabel = (btn, text) => { (btn.querySelector('.o-label') || btn).textContent = text; };
 
   const run = async (btn, label, action) => {
     errorEl.classList.add('hidden');
     accept.disabled = true;
     decline.disabled = true;
-    btn.textContent = label;
+    setLabel(btn, label);
     try {
       await action();
     } catch (err) {
@@ -468,8 +468,8 @@ function offerCard(offer, { onAccept, onDecline }) {
       errorEl.classList.remove('hidden');
       accept.disabled = false;
       decline.disabled = false;
-      accept.textContent = 'Take this job';
-      decline.textContent = 'Pass';
+      setLabel(accept, 'Accept job');
+      setLabel(decline, 'Pass');
     }
   };
 

@@ -1,7 +1,10 @@
 const adminService = require('../services/adminService');
 const serviceRateService = require('../services/serviceRateService');
+const commissionService = require('../services/commissionService');
 const { cleanReason } = require('./jobsController');
 const { CATEGORIES } = require('../utils/categories');
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function insights(req, res, next) {
   try {
@@ -107,6 +110,31 @@ async function updateServiceRate(req, res, next) {
   }
 }
 
+async function listCommissions(req, res, next) {
+  try {
+    const data = await commissionService.listForAdmin();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Confirms a payment against the bank: either one commission, or everything a
+// fundi owes. Confirming is what lifts their lock.
+async function confirmCommissionPaid(req, res, next) {
+  try {
+    const { fundi_id: fundiId, method } = req.body;
+    const commissionId = req.params.id;
+    if (!commissionId && !UUID_PATTERN.test(String(fundiId || ''))) {
+      return res.status(400).json({ error: { message: 'Pick the fundi whose payment you are confirming.', code: 'invalid_request' } });
+    }
+    const data = await commissionService.markPaid({ commissionId, fundiId }, method);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listUsers(req, res, next) {
   try {
     const query = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : '';
@@ -195,4 +223,4 @@ async function uncertifyFundi(req, res, next) {
   }
 }
 
-module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listServiceRates, createServiceRate, updateServiceRate, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
+module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listServiceRates, createServiceRate, updateServiceRate, listCommissions, confirmCommissionPaid, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };

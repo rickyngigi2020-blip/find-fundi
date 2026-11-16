@@ -2,6 +2,7 @@ const { adminClient } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
 const notify = require('./notificationService');
+const commissions = require('./commissionService');
 
 // Customers do not choose a fundi. A job is offered to one fundi at a time,
 // best candidate first, and passes on when that fundi declines or runs out of
@@ -72,8 +73,15 @@ async function rankCandidates(job, round = job.search_round || 1) {
     .is('profiles.suspended_at', null);
   if (error) throw toApiError(error);
 
-  const eligible = fundis.filter((f) => f.id !== job.customer_id
+  const notYetOffered = fundis.filter((f) => f.id !== job.customer_id
     && !alreadyOffered.has(f.id) && !turnedDown.has(f.id));
+  if (!notYetOffered.length) return [];
+
+  // A fundi with a commission past its due date is not offered work until it
+  // is paid. Worked out here from timestamps, so no background job is needed
+  // and paying lifts it at once.
+  const locked = await commissions.lockedFundiIds(notYetOffered.map((f) => f.id));
+  const eligible = notYetOffered.filter((f) => !locked.has(f.id));
   if (!eligible.length) return [];
 
   // Live locations are only set while a fundi has sharing toggled on, so many
@@ -238,6 +246,8 @@ async function advanceAllWaiting() {
 
 // The one job currently sitting in front of this fundi, if any.
 async function offerForFundi(fundiId) {
+  // An offer made before the commission fell due is not shown once it has.
+  if (await commissions.isLocked(fundiId)) return null;
   await expireStaleOffers();
   const { data, error } = await adminClient
     .from('job_offers')
@@ -256,6 +266,9 @@ async function offerForFundi(fundiId) {
 }
 
 async function acceptOffer(jobId, fundiId) {
+  if (await commissions.isLocked(fundiId)) {
+    throw apiError(403, commissions.LOCKED_MESSAGE, 'commission_locked');
+  }
   await expireStaleOffers(jobId);
 
   // Claim the offer first. If this matches nothing the offer expired or was

@@ -2,6 +2,7 @@ const { adminClient } = require('../db/supabase');
 const { toApiError } = require('../utils/dbError');
 const { apiError } = require('../utils/apiError');
 const jobService = require('./jobService');
+const commissions = require('./commissionService');
 const { RELEASE_REASONS } = require('../utils/releaseReasons');
 
 // Signed links to verification documents last this long. Documents are
@@ -55,6 +56,15 @@ async function setVerificationStatus(fundiId, status) {
     }
   }
   const changes = { verification_status: status, updated_at: new Date().toISOString() };
+  // The first 50 fundis approved are founding fundis: no commission on their
+  // first 7 jobs. A single admin approves one at a time, so counting first and
+  // then stamping is enough; the worst a rare race could do is stamp one extra.
+  if (status === 'verified') {
+    const { count, error: countError } = await adminClient
+      .from('fundi_profiles').select('id', { count: 'exact', head: true }).eq('founding_member', true);
+    if (countError) throw toApiError(countError);
+    if (count < commissions.FOUNDING_SLOTS) changes.founding_member = true;
+  }
   // A fundi who loses approval stops showing as available straight away.
   if (status !== 'verified') changes.is_online = false;
   const { data, error } = await adminClient

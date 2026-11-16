@@ -182,4 +182,21 @@ async function fundiReleased(job, fundiId) {
   });
 }
 
-module.exports = { jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, fundiFound, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };
+// A fundi says they have paid their commission and sends the M-Pesa code. Every
+// admin is told straight away, so a payment is never sitting unnoticed while
+// the fundi is locked out. Opens the Commissions tab to confirm it.
+async function commissionPaymentClaimed(fundiId, total, ref) {
+  const [name, { data: admins, error }] = await Promise.all([
+    firstName(fundiId),
+    adminClient.from('profiles').select('id').eq('is_admin', true),
+  ]);
+  if (error) throw error;
+  await notifyUsers(admins.map((a) => a.id), {
+    title: `${name} says they paid ${ksh(total)}`,
+    body: `M-Pesa code ${ref}. Check it against the statement, then confirm it in Commissions.`,
+    url: '/admin.html#commissions',
+    tag: `commission-${fundiId}`,
+  });
+}
+
+module.exports = { commissionPaymentClaimed, jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, fundiFound, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

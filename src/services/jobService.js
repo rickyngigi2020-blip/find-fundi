@@ -5,6 +5,7 @@ const notify = require('./notificationService');
 const matching = require('./matchingService');
 const fundiCards = require('./fundiCardService');
 const serviceRates = require('./serviceRateService');
+const commissions = require('./commissionService');
 const { RELEASE_REASON_KEYS } = require('../utils/releaseReasons');
 
 // Job writes go through the service-role client, because jobs have no
@@ -200,6 +201,9 @@ async function completeJob(jobId, fundiId) {
     throw apiError(409, 'Agree on a price with the customer before marking the job complete.', 'conflict');
   }
   const updated = await updateJob(jobId, { status: 'completed', completed_at: new Date().toISOString() }, { status: 'in_progress' });
+  // Record the commission now. If this fails the wallet and the lock repair it
+  // the next time they are read, so the job is never left owing nothing.
+  await commissions.reconcile(fundiId).catch((e) => console.error('commission not recorded', jobId, e.message));
   await notify.jobCompleted(updated);
   return updated;
 }

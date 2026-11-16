@@ -260,6 +260,15 @@ async function rateChecks(user, category) {
     expect(/utils\/categories/.test(source('src/controllers/fundiController.js')), 'fundiController has its own copy of the trade list again');
   });
 
+  await check('Every area list is the same, with the urban areas first', async () => {
+    const lists = ['book', 'apply', 'signup', 'profile'].map((p) => {
+      const select = source(`public/${p}.html`).split('<select id="area"')[1].split('</select>')[0];
+      return [p, [...select.matchAll(/<option>([^<]+)<\/option>/g)].map((m) => m[1])];
+    });
+    lists.forEach(([p, areas]) => expect(JSON.stringify(areas) === JSON.stringify(lists[0][1]), `${p}.html lists different areas from book.html`));
+    expect(lists[0][1].slice(0, 3).join() === 'Westlands,Kilimani,Kileleshwa', 'Westlands, Kilimani and Kileleshwa are no longer at the top of the area list');
+  });
+
   await check('A listed service sets the price, and an unavailable one is refused', async () => {
     expect(fs.existsSync(new URL('../supabase/migrations/0024_service_rates.sql', import.meta.url)), 'migration 0024 (service rates) is missing');
     expect(/service_rate_id/.test(source('public/assets/fundi-jobs.js')), 'the fundi quote form no longer offers the menu');
@@ -298,6 +307,117 @@ async function rateChecks(user, category) {
       expect(own.quote_amount === 1800 && own.service_rate_id === null && own.service_name === null, 'a job priced by hand still carries a service');
     } finally {
       if (made.length) await admin.from('service_rates').delete().in('id', made);
+    }
+  });
+}
+
+// ---------- commissions and the 6-day lock (1.6.0) ----------
+// A fundi owes commission on jobs paid to them directly, and a commission left
+// unpaid past its due date stops job offers until it is paid.
+async function commissionChecks(user, category) {
+  const commissions = require('../src/services/commissionService');
+
+  await check('Commission is 10% of the price, free for a founding fundi\'s first 7 jobs', async () => {
+    const fee = (finalCost, jobNumber, founding) => commissions.commissionFor({ finalCost, jobNumber, founding });
+    expect(fee(2000, 1, false).amount === 200 && fee(2000, 1, false).rate === 0.1, 'a fundi who is not founding does not pay 10% from the first job');
+    expect(fee(2000, 7, true).amount === 0, 'a founding fundi pays on their 7th job');
+    expect(fee(2000, 8, true).amount === 200, 'a founding fundi does not pay from their 8th job');
+    expect(fee(1255, 9, true).amount === 126, 'commission is not rounded to whole shillings');
+    expect(commissions.GRACE_DAYS === 6, 'the due date is no longer 6 days');
+  });
+
+  await check('The lock is checked when ranking, showing and accepting offers, and card is gone', async () => {
+    const matching = source('src/services/matchingService.js');
+    const rank = matching.split('async function rankCandidates')[1].split('async function expireStaleOffers')[0];
+    expect(/commissions\.lockedFundiIds\(/.test(rank), 'rankCandidates offers jobs to fundis who owe commission');
+    const show = matching.split('async function offerForFundi')[1].split('async function acceptOffer')[0];
+    expect(/commissions\.isLocked\(/.test(show), 'a locked fundi is still shown the offer waiting for them');
+    const accept = matching.split('async function acceptOffer')[1].split('async function declineOffer')[0];
+    expect(/commissions\.isLocked\(/.test(accept) && /commission_locked/.test(accept), 'a locked fundi can still take a job');
+    const eligible = matching.split('async function eligibleFundiCount')[1].split('async function markExhausted')[0];
+    expect(!/lockedFundiIds/.test(eligible), 'a locked fundi counts as having turned the job down, so customers are told everyone said no');
+    expect(!/value="card"/.test(source('public/my-jobs.html')), 'the Card option is back on the payment screen');
+    let status = 200;
+    const res = { status(code) { status = code; return this; }, json() { return this; } };
+    await require('../src/controllers/jobsController').acceptQuote({ params: { id: 'x' }, user: { id: 'x' }, body: { payment_method: 'card' } }, res, () => {});
+    expect(status === 400, 'the API still accepts card as a payment method');
+  });
+
+  await check('Overdue commission locks a fundi until an admin confirms payment', async () => {
+    expect(fs.existsSync(new URL('../supabase/migrations/0025_commissions.sql', import.meta.url)), 'migration 0025 (commissions) is missing');
+    if (!category) return;
+    const iso = (days) => new Date(Date.now() + days * 86400000).toISOString();
+    const job = async (fields) => {
+      const { data, error } = await admin.from('jobs').insert({
+        customer_id: user.id, fundi_id: user.id, status: 'completed', category, area: 'Kasarani',
+        description: `Release check: commission ${Date.now()}`, payment_method: 'cash', ...fields,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    };
+    const locked = async () => (await commissions.lockedFundiIds([user.id])).has(user.id);
+
+    // A job completed now is recorded once, due in 6 days, however often it is read.
+    const fresh = await job({ final_cost: 2000, completed_at: iso(0) });
+    await commissions.reconcile(user.id);
+    await commissions.reconcile(user.id);
+    const { data: rows, error } = await admin.from('commissions').select('*').eq('job_id', fresh.id);
+    if (error) throw error;
+    expect(rows.length === 1, `a completed job has ${rows.length} commissions, not 1`);
+    expect(rows[0].amount === 200 && Number(rows[0].rate) === 0.1, `commission recorded as ${rows[0].amount} at ${rows[0].rate}, not 200 at 0.1`);
+    const dueInDays = (new Date(rows[0].due_at) - new Date(fresh.completed_at)) / 86400000;
+    expect(Math.abs(dueInDays - 6) < 0.01, `commission falls due after ${dueInDays} days, not 6`);
+    expect(!(await locked()), 'a fundi whose commission is not due yet is locked');
+
+    // One past its due date locks them. Saying they paid does not unlock.
+    const old = await job({ final_cost: 500, completed_at: iso(-30) });
+    const { error: insertError } = await admin.from('commissions').insert({
+      job_id: old.id, fundi_id: user.id, amount: 50, rate: 0.1, due_at: iso(-1),
+    });
+    if (insertError) throw insertError;
+    expect(await locked(), 'a commission past its due date does not lock the fundi');
+    await commissions.markClaimed(user.id, 'QK12ABC3DE');
+    expect(await locked(), 'telling us they paid unlocked the fundi before an admin confirmed');
+    const { data: claimed } = await admin.from('commissions').select('paid, claim_ref').eq('job_id', old.id).single();
+    expect(claimed.paid === false && claimed.claim_ref === 'QK12ABC3DE', 'a payment claim was not recorded as a claim only');
+
+    // Confirming payment lifts it straight away.
+    await commissions.markPaid({ fundiId: user.id }, 'mpesa');
+    expect(!(await locked()), 'the fundi is still locked after an admin confirmed payment');
+    const wallet = await commissions.walletFor(user.id);
+    expect(wallet.owed === 0 && wallet.locked === false, 'the wallet still shows a balance after payment');
+  });
+
+  await check('Admins are told the moment a fundi says they paid', async () => {
+    const service = source('src/services/commissionService.js').split('async function claimPayment')[1].split('// ---------- admin')[0];
+    expect(/notify\.commissionPaymentClaimed\(/.test(service), 'a payment claim no longer alerts admins');
+    expect(/is_admin/.test(source('src/services/notificationService.js').split('async function commissionPaymentClaimed')[1]), 'the alert is no longer sent to admins');
+    expect(/pay-claim/.test(source('public/fundi.html')) && /I've paid/.test(source('public/fundi.html')), 'the fundi can no longer say they have paid');
+    // Recently paid once read "(mpesa)" instead of "(M-Pesa)".
+    expect(!/\(\$\{c\.method\}\)/.test(source('public/admin.html')), 'the admin Commissions tab shows the raw payment method');
+  });
+
+  await check('Terms and Privacy describe the commission, and no payment details are in the code', async () => {
+    const terms = source('public/terms.html');
+    expect(/Commission \(fundis\)/.test(terms) && /6 days/.test(terms), 'Terms do not describe the commission and its 6 days');
+    expect(/does not process, collect or hold any payment a customer makes/.test(terms), 'Terms no longer say customers\' payments are not held');
+    expect(/commission owed on each completed job/.test(source('public/privacy.html')), 'Privacy does not mention commission records');
+    // The paybill account is held in environment variables, never in a public file.
+    const secrets = [process.env.COMMISSION_ACCOUNT_NO, process.env.COMMISSION_PAYBILL].map((v) => (v || '').trim()).filter((v) => v.length >= 5);
+    const files = [];
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full); else files.push(full);
+      }
+    };
+    ['public', 'src', 'scripts', 'supabase'].forEach((d) => walk(fileURLToPath(new URL(`../${d}`, import.meta.url))));
+    files.push(fileURLToPath(new URL('../CHANGELOG.md', import.meta.url)), fileURLToPath(new URL('../.env.example', import.meta.url)));
+    for (const file of files) {
+      if (/\.(png|jpe?g|webp|mp4|woff2?|ico)$/i.test(file)) continue;
+      const text = fs.readFileSync(file, 'utf8');
+      secrets.forEach((secret) => expect(!text.includes(secret), `${path.basename(file)} contains the paybill details`));
     }
   });
 }
@@ -481,6 +601,7 @@ try {
   await identityChecks();
   const category = await emptyCategory();
   await rateChecks(user, category);
+  await commissionChecks(user, category);
   if (!category) {
     console.log('SKIP  Booking checks: every category has a verified fundi, so a test job would page a real person.');
   } else {

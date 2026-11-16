@@ -23,10 +23,17 @@
   }
 </script>
 <style>
+  /* Laid out like a driver app: the city sits behind everything, earnings
+     float on top, one big GO button, and the rest lives in a sheet that
+     scrolls up over the city. */
   :root {
     --spring: cubic-bezier(.22,1,.36,1);
-    --nav-h: 64px;
+    --safe-t: env(safe-area-inset-top, 0px);
     --safe-b: env(safe-area-inset-bottom, 0px);
+    --col: 32rem;
+    --edge: max(0px, calc(50% - var(--col) / 2));
+    --bar-h: 76px;
+    --field-h: 58svh;
   }
   body { -webkit-font-smoothing: antialiased; background: #F3F4F7; }
   :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 4px; }
@@ -47,44 +54,67 @@
   .status-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
   .map-box { height: 200px; border-radius: 12px; overflow: hidden; }
 
-  /* ---- depth: base (page) → elevated (cards) → floating (dock, nav) ---- */
+  /* ---- depth: city (base) → sheet and cards (elevated) → bar, GO, offer (floating) ---- */
   .surface { background: #fff; border: 1px solid rgba(4,21,48,0.08); border-radius: 16px;
     box-shadow: 0 1px 2px rgba(4,21,48,0.04), 0 8px 24px -16px rgba(4,21,48,0.18); }
 
-  /* ---- earnings strip ---- */
-  .metric-card {
-    position: relative; overflow: hidden; border-radius: 18px; color: #fff;
+  /* ---- the city: open jobs by area, drawn where each area is ---- */
+  .field {
+    position: fixed; top: 0; left: var(--edge); right: var(--edge); height: var(--field-h); z-index: 0; overflow: hidden; color: #fff;
     background:
-      radial-gradient(38% 60% at 100% 0%, rgba(254,105,2,0.26) 0%, rgba(254,105,2,0) 100%),
-      radial-gradient(80% 90% at 0% 100%, rgba(21,49,92,0.85) 0%, rgba(21,49,92,0) 70%),
+      radial-gradient(55% 45% at 62% 38%, rgba(254,105,2,0.16) 0%, rgba(254,105,2,0) 70%),
+      radial-gradient(70% 60% at 8% 92%, rgba(21,49,92,0.9) 0%, rgba(21,49,92,0) 70%),
       linear-gradient(180deg, #0A1F40 0%, #041530 100%);
-    box-shadow: 0 2px 4px rgba(4,21,48,0.10), 0 22px 40px -22px rgba(4,21,48,0.55);
   }
-  .metric-card::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.10; mix-blend-mode: overlay;
+  .field::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+    -webkit-mask-image: radial-gradient(80% 70% at 50% 45%, #000 30%, transparent 100%);
+    mask-image: radial-gradient(80% 70% at 50% 45%, #000 30%, transparent 100%);
+  }
+  .field::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  .metric-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  .metric-track::-webkit-scrollbar { display: none; }
-  .metric-slide { flex: 0 0 100%; scroll-snap-align: start; padding: 18px 20px 14px; }
-  .metric-dot { width: 18px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.28);
-    transition: background-color 200ms ease, transform 200ms var(--spring); }
-  .metric-dot-btn { padding: 10px 3px; }
-  .metric-dot-btn:hover .metric-dot { background: rgba(255,255,255,0.55); }
-  .metric-dot-btn:active .metric-dot { transform: scaleX(0.8); }
-  .metric-dot-btn[aria-current="true"] .metric-dot { background: #FE6902; }
-  /* From md up there is room for all four figures side by side. */
-  @media (min-width: 768px) {
-    .metric-track { overflow: visible; }
-    .metric-slide { flex: 1 1 0; padding: 20px 22px 22px; }
-    .metric-slide + .metric-slide { border-left: 1px solid rgba(255,255,255,0.09); }
-    .metric-slide .m-value { font-size: 1.55rem; white-space: nowrap; }
-    .metric-card .metric-controls { display: none; }
+  .field-map { position: absolute; left: 0; right: 0; top: calc(104px + var(--safe-t)); width: 100%; height: calc(var(--field-h) - 140px - var(--safe-t)); }
+  body.sheet-up .field-map { height: calc(30svh - 112px - var(--safe-t)); }
+  .field-map text { font-family: "Inter", sans-serif; paint-order: stroke; stroke: #041530; stroke-width: 3px; stroke-linejoin: round; }
+  .field-note {
+    position: absolute; left: 50%; top: calc(66px + var(--safe-t)); transform: translateX(-50%); white-space: nowrap;
+    background: rgba(4,21,48,0.72); border: 1px solid rgba(255,255,255,0.12); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
-  .m-cur { font-size: 0.5em; font-weight: 700; letter-spacing: 0; margin-right: 0.3em; color: rgba(255,255,255,0.6); vertical-align: 0.4em; }
-  .metric-arrow { transition: background-color 160ms ease, transform 160ms var(--spring); }
-  .metric-arrow:hover { background: rgba(255,255,255,0.12); }
-  .metric-arrow:active { transform: scale(0.92); }
+  .puck-pulse { transform-box: fill-box; transform-origin: center; animation: puck 2.4s var(--spring) infinite; }
+  @keyframes puck { from { transform: scale(1); opacity: 0.55; } to { transform: scale(3.4); opacity: 0; } }
+
+  /* ---- floating top bar ---- */
+  .topbar {
+    position: fixed; top: 0; left: var(--edge); right: var(--edge); z-index: 20; pointer-events: none;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(12px + var(--safe-t)) 16px 0;
+  }
+  .topbar > * { pointer-events: auto; }
+  /* Once the sheet slides under it, the bar gets a ground of its own. */
+  .topbar.is-over { background: rgba(243,244,247,0.94); padding-bottom: 10px; box-shadow: 0 1px 0 rgba(4,21,48,0.08);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .float { background: #fff; color: #041530; box-shadow: 0 1px 2px rgba(4,21,48,0.25), 0 10px 22px -8px rgba(4,21,48,0.6); }
+  .float-btn { transition: transform 180ms var(--spring); }
+  .float-btn:hover { transform: translateY(-1px); }
+  .float-btn:active { transform: scale(0.95); }
+  .float-btn:focus-visible { outline: 3px solid #FE6902; outline-offset: 3px; border-radius: 9999px; }
+
+  /* ---- the sheet ---- */
+  .sheet {
+    position: relative; z-index: 10; margin: calc(var(--field-h) - 28px) -16px 0;
+    min-height: calc(100svh - var(--field-h) + 28px); background: #F3F4F7; border-radius: 24px 24px 0 0;
+    padding: 10px 16px calc(var(--bar-h) + 120px + var(--safe-b));
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.4) inset, 0 -16px 32px -18px rgba(4,21,48,0.7);
+  }
+  /* A job in hand or money owed comes first, so the sheet starts higher. */
+  body.sheet-up .sheet { margin-top: 30svh; }
+  .sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: rgba(4,21,48,0.16); margin: 0 auto 16px; }
+  .earn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .earn-tile .m-value { font-variant-numeric: tabular-nums; }
+  .m-cur { font-size: 0.55em; font-weight: 700; letter-spacing: 0; margin-right: 0.25em; color: rgba(4,21,48,0.45); vertical-align: 0.3em; }
 
   /* ---- demand bars ---- */
   .demand-bar { height: 8px; border-radius: 3px; background: #FE6902; transform-origin: left center;
@@ -92,47 +122,58 @@
   .demand-bar.is-empty { background: rgba(4,21,48,0.12); }
   .demand-rows:not(.ready) .demand-bar { transform: scaleX(0); }
 
-  /* ---- go dock ---- */
-  .dock {
-    position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + var(--safe-b)); z-index: 30;
-    padding: 10px 16px 12px; pointer-events: none;
+  /* ---- GO and the status bar ---- */
+  .dock { position: fixed; bottom: 0; left: var(--edge); right: var(--edge); z-index: 30; }
+  .dock-state { position: relative; transition: opacity 220ms ease, transform 320ms var(--spring); }
+  .dock-state[aria-hidden="true"] { opacity: 0; transform: translateY(8px); pointer-events: none; position: absolute; inset: auto 0 0 0; }
+  .status-bar {
+    position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px;
+    min-height: calc(var(--bar-h) + var(--safe-b)); padding: 14px 20px calc(14px + var(--safe-b));
+    background: #fff; border-radius: 22px 22px 0 0;
+    box-shadow: 0 -1px 0 rgba(4,21,48,0.06), 0 -16px 32px -16px rgba(4,21,48,0.5);
   }
-  .dock-inner { pointer-events: auto; max-width: 42rem; margin: 0 auto; position: relative; }
-  .dock-state { transition: opacity 220ms ease, transform 320ms var(--spring); }
-  .dock-state[aria-hidden="true"] { opacity: 0; transform: translateY(8px); pointer-events: none; position: absolute; inset: 0; }
-  .go-btn { box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 16px 30px -10px rgba(254,105,2,0.55), 0 4px 10px -4px rgba(4,21,48,0.25); }
-  .online-panel { background: #041530; box-shadow: 0 18px 36px -14px rgba(4,21,48,0.6), 0 3px 8px -3px rgba(4,21,48,0.3); }
-  .offline-btn { transition: background-color 160ms ease, transform 160ms var(--spring); }
-  .offline-btn:hover { background: rgba(255,255,255,0.14); }
-  .offline-btn:active { transform: scale(0.97); }
-  .offline-btn:disabled { opacity: 0.55; pointer-events: none; }
+  .go-btn {
+    position: absolute; left: 50%; bottom: calc(100% - 30px); z-index: 1; width: 84px; height: 84px; border-radius: 9999px;
+    transform: translateX(-50%); color: #fff; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 23px; letter-spacing: 0.02em;
+    background: radial-gradient(circle at 34% 28%, #FF9F5E 0%, #FE6902 58%, #E85A00 100%);
+    box-shadow: 0 0 0 8px rgba(254,105,2,0.24), 0 20px 36px -10px rgba(254,105,2,0.7), 0 4px 12px -3px rgba(4,21,48,0.5);
+    transition: transform 220ms var(--spring);
+  }
+  .go-btn:hover { transform: translateX(-50%) scale(1.05); }
+  .go-btn:active { transform: translateX(-50%) scale(0.93); }
+  .go-btn:disabled { opacity: 0.7; pointer-events: none; }
+  .go-btn:focus-visible { outline: 3px solid #fff; outline-offset: 10px; border-radius: 9999px; }
+  /* GO sits half on the bar, so the bar's words start below it. */
+  #dockOffline .status-bar { padding-top: 42px; }
+  .stop-btn { background: #041530; color: #fff; transition: transform 180ms var(--spring), background-color 160ms ease; }
+  .stop-btn:hover { background: #15315C; }
+  .stop-btn:active { transform: scale(0.92); }
+  .stop-btn:disabled { opacity: 0.55; pointer-events: none; }
+  .stop-btn:focus-visible { outline: 3px solid #FE6902; outline-offset: 3px; border-radius: 9999px; }
+  .sweep { position: absolute; top: 0; left: 0; right: 0; height: 3px; overflow: hidden; }
+  .sweep::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+    background: linear-gradient(90deg, rgba(254,105,2,0), #FE6902, rgba(254,105,2,0)); animation: sweep 1.7s ease-in-out infinite; }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  .dock-error { position: absolute; left: 16px; right: 16px; bottom: calc(100% + 66px); }
   .live-dot { position: relative; width: 10px; height: 10px; }
   .live-dot::before, .live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 9999px; background: #FE6902; }
   .live-dot::after { animation: ping 1.8s var(--spring) infinite; }
+  .live-dot.is-paused::before, .live-dot.is-paused::after { background: rgba(4,21,48,0.3); animation: none; }
   @keyframes ping { from { transform: scale(1); opacity: 0.7; } to { transform: scale(2.6); opacity: 0; } }
 
-  /* ---- navigation: bottom bar on phones, side rail from md ---- */
-  .app-nav {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: calc(var(--nav-h) + var(--safe-b));
-    padding-bottom: var(--safe-b); background: rgba(255,255,255,0.96); border-top: 1px solid rgba(4,21,48,0.08);
-    display: flex; justify-content: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  /* ---- a job offer takes the screen ---- */
+  .offer-layer { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; background: rgba(4,21,48,0.62); }
+  .offer-layer > div { width: min(100%, var(--col)); }
+  .offer-card {
+    background: #fff; border-radius: 26px 26px 0 0; padding: 20px 20px calc(20px + var(--safe-b));
+    max-height: 92svh; overflow-y: auto; box-shadow: 0 -24px 48px -20px rgba(4,21,48,0.8);
+    animation: rise 460ms var(--spring);
   }
-  .nav-item { flex: 1; max-width: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    font-size: 12px; font-weight: 600; color: rgba(4,21,48,0.5); transition: color 160ms ease, background-color 160ms ease; }
-  .nav-item svg { transition: transform 220ms var(--spring); }
-  .nav-item:hover { color: #041530; }
-  .nav-item:active svg { transform: scale(0.9); }
-  .nav-item[aria-current="page"] { color: #FE6902; }
-  .main-pad { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 24px); }
-  .home-pad { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 120px); }
-  @media (min-width: 768px) {
-    :root { --nav-h: 0px; }
-    .app-nav { top: 0; right: auto; width: 96px; height: auto; flex-direction: column; justify-content: flex-start;
-      padding: 88px 0 0; border-top: 0; border-right: 1px solid rgba(4,21,48,0.08); gap: 6px; }
-    .nav-item { flex: 0 0 auto; width: 100%; max-width: none; padding: 12px 0; }
-    .app-shell { padding-left: 96px; }
-    .dock { left: 96px; bottom: 16px; }
-  }
+  .offer-card:focus { outline: none; }
+  @keyframes rise { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .accept-btn { position: relative; overflow: hidden; }
+  .o-drain { position: absolute; inset: 0; background: rgba(255,255,255,0.26); transform-origin: left center; animation: drain linear forwards; }
+  @keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
   /* ---- account links ---- */
   .row-link { transition: background-color 160ms ease; }
@@ -142,8 +183,8 @@
   .row-link:hover svg.chev { transform: translateX(3px); }
 
   @media (prefers-reduced-motion: reduce) {
-    .live-dot::after { animation: none; }
-    .demand-bar, .dock-state, .btn-primary, .nav-item svg, .row-link svg.chev { transition: none; }
+    .live-dot::after, .puck-pulse, .sweep::before, .offer-card { animation: none; }
+    .demand-bar, .dock-state, .btn-primary, .float-btn, .go-btn, .stop-btn, .row-link svg.chev { transition: none; }
     .btn-primary:hover { transform: none; }
   }
 </style>
@@ -151,19 +192,17 @@
 <body class="text-navy font-body antialiased min-h-screen">
 
 <div class="app-shell">
-  <header class="bg-white border-b border-navy/10 md:relative md:z-50">
-    <div class="max-w-2xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+  <header id="pageHeader" class="bg-white border-b border-navy/10">
+    <div class="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
       <a href="index.html" class="flex items-center gap-2.5 rounded-md">
         <img src="assets/logo-mark.png" alt="Find Fundi" class="h-8 w-8 object-contain">
         <span class="font-display font-700 text-[17px]"><span class="text-navy">Find</span><span class="text-orange">Fundi</span></span>
       </a>
-      <span id="statusChip" hidden class="inline-flex items-center gap-2 rounded-md border border-navy/10 bg-white px-2.5 py-1 text-[12.5px] font-semibold text-navy/60">
-        <span class="chip-dot w-2 h-2 rounded-sm bg-navy/25"></span><span class="chip-text">Offline</span>
-      </span>
+      <a id="headerBack" href="#home" hidden class="btn-outline rounded-lg border border-navy/15 px-3.5 py-2 text-[13.5px] font-semibold text-navy">Back to work</a>
     </div>
   </header>
 
-  <main id="main" class="max-w-2xl mx-auto px-4 md:px-6 pt-5 main-pad">
+  <main id="main" class="max-w-lg mx-auto px-4 pt-5 pb-10">
 
     <!-- ===== gates ===== -->
     <div id="signedOutNotice" hidden class="surface p-8 text-center">
@@ -193,64 +232,62 @@
 
     <!-- ===== home ===== -->
     <section id="panelHome" hidden aria-label="Home">
-      <div id="pushPrompt" hidden class="mb-4"></div>
-      <div class="metric-card">
-        <div id="metricTrack" class="metric-track" aria-roledescription="carousel" aria-label="Your earnings and rating">
-          <div class="metric-slide" data-metric="today" aria-roledescription="slide" aria-label="Earned today">
-            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Earned today</p>
-            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums">KSh 0</p>
-            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
-          </div>
-          <div class="metric-slide" data-metric="week" aria-roledescription="slide" aria-label="This week">
-            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">This week</p>
-            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums">KSh 0</p>
-            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
-          </div>
-          <div class="metric-slide" data-metric="last" aria-roledescription="slide" aria-label="Last job">
-            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Last job</p>
-            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums"></p>
-            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
-          </div>
-          <div class="metric-slide" data-metric="rating" aria-roledescription="slide" aria-label="Rating">
-            <p class="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-white/55">Rating</p>
-            <p class="m-value mt-1 font-display font-800 text-[2.1rem] leading-none tracking-[-0.03em] tabular-nums flex items-center gap-2"></p>
-            <p class="m-sub mt-2 text-[13px] text-white/60"></p>
-          </div>
-        </div>
-        <div class="metric-controls relative z-10 flex items-center justify-between px-3 pb-2">
-          <div id="metricDots" class="flex items-center pl-2"></div>
-          <div class="flex gap-1">
-            <button type="button" class="metric-arrow w-9 h-9 rounded-lg flex items-center justify-center text-white/70" data-dir="-1" aria-label="Previous figure">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
-            <button type="button" class="metric-arrow w-9 h-9 rounded-lg flex items-center justify-center text-white/70" data-dir="1" aria-label="Next figure">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-          </div>
-        </div>
+      <div class="field">
+        <p id="fieldNote" class="field-note rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold text-white/85"></p>
+        <svg id="fieldMap" class="field-map" viewBox="0 0 400 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Open jobs by area across Nairobi"></svg>
       </div>
 
-      <div class="surface mt-4 p-5">
-        <div class="flex items-baseline justify-between gap-3">
-          <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Where the work is</h2>
-          <span id="demandCategory" class="text-[12.5px] text-navy/50 text-right"></span>
+      <div class="topbar">
+        <a href="#account" id="topAvatar" class="float float-btn w-11 h-11 rounded-full overflow-hidden flex items-center justify-center font-display font-700 text-[14px]" aria-label="Your account"></a>
+        <button type="button" id="earnPill" class="float float-btn h-11 rounded-full px-4 font-display font-800 text-[17px] tracking-[-0.02em] tabular-nums" aria-label="Earned today. Show your earnings">KSh 0</button>
+        <span id="ratingPill" class="float h-11 rounded-full px-3.5 inline-flex items-center gap-1 text-[14px] font-semibold tabular-nums" aria-label="Your rating"></span>
+      </div>
+
+      <div class="sheet">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div id="pushPrompt" hidden class="mb-4"></div>
+        <div id="walletCard" hidden class="mb-4"></div>
+
+        <div id="myJobsBlock" hidden class="mb-7">
+          <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your jobs</h2>
+          <div id="myJobsList" class="mt-3 space-y-4"></div>
         </div>
-        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Open jobs in your category, by area.</p>
-        <div id="demandMap" hidden class="map-box mt-4 bg-gray-100"></div>
-        <div id="demandRows" class="demand-rows mt-4 space-y-3"></div>
-        <p id="demandEmpty" hidden class="mt-3 text-[13.5px] text-navy/60 leading-[1.6]">No open jobs in your category right now. Stay online so customers who book find you first.</p>
-      </div>
 
-      <div id="myJobsBlock" hidden class="mt-7">
-        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your jobs</h2>
-        <div id="myJobsList" class="mt-3 space-y-4"></div>
-      </div>
+        <div id="earningsBlock" class="scroll-mt-6">
+          <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Earnings</h2>
+          <div class="earn-grid mt-3">
+            <div class="earn-tile surface p-4" data-metric="today">
+              <p class="text-[12.5px] font-semibold text-navy/50">Today</p>
+              <p class="m-value mt-1 font-display font-800 text-[1.45rem] leading-none tracking-[-0.03em]">KSh 0</p>
+              <p class="m-sub mt-1.5 text-[12.5px] text-navy/55 leading-snug"></p>
+            </div>
+            <div class="earn-tile surface p-4" data-metric="week">
+              <p class="text-[12.5px] font-semibold text-navy/50">This week</p>
+              <p class="m-value mt-1 font-display font-800 text-[1.45rem] leading-none tracking-[-0.03em]">KSh 0</p>
+              <p class="m-sub mt-1.5 text-[12.5px] text-navy/55 leading-snug"></p>
+            </div>
+            <div class="earn-tile surface p-4" data-metric="last">
+              <p class="text-[12.5px] font-semibold text-navy/50">Last job</p>
+              <p class="m-value mt-1 font-display font-800 text-[1.45rem] leading-none tracking-[-0.03em]"></p>
+              <p class="m-sub mt-1.5 text-[12.5px] text-navy/55 leading-snug"></p>
+            </div>
+            <div class="earn-tile surface p-4" data-metric="rating">
+              <p class="text-[12.5px] font-semibold text-navy/50">Rating</p>
+              <p class="m-value mt-1 font-display font-800 text-[1.45rem] leading-none tracking-[-0.03em] flex items-center gap-1.5"></p>
+              <p class="m-sub mt-1.5 text-[12.5px] text-navy/55 leading-snug"></p>
+            </div>
+          </div>
+        </div>
 
-      <div class="mt-7">
-        <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your next job</h2>
-        <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Jobs come to you one at a time. Stay online and you get offered the ones nearest you first.</p>
-        <div id="offerSlot" class="mt-3"></div>
-        <p id="offerEmpty" hidden class="mt-3 text-[14px] text-navy/55">No job waiting for you right now.</p>
+        <div class="surface mt-7 p-5">
+          <div class="flex items-baseline justify-between gap-3">
+            <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Where the work is</h2>
+            <span id="demandCategory" class="text-[12.5px] text-navy/50 text-right"></span>
+          </div>
+          <p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Open jobs in your trade, by area. Jobs come to you one at a time, nearest first.</p>
+          <div id="demandRows" class="demand-rows mt-4 space-y-3"></div>
+          <p id="demandEmpty" hidden class="mt-3 text-[13.5px] text-navy/60 leading-[1.6]">No open jobs in your trade right now. Stay online so customers who book find you first.</p>
+        </div>
       </div>
     </section>
 
@@ -311,38 +348,37 @@
     </section>
   </main>
 
-  <!-- ===== go online dock (home only) ===== -->
-  <div id="dock" class="dock" hidden>
-    <div class="dock-inner">
-      <div id="dockOffline" class="dock-state" aria-hidden="false">
-        <button type="button" id="goOnlineBtn" class="go-btn btn-primary w-full rounded-xl py-4 text-white font-display font-700 text-[17px] tracking-[-0.01em]">
-          Go online
-        </button>
-      </div>
-      <div id="dockOnline" class="dock-state" aria-hidden="true">
-        <div class="online-panel flex items-center gap-3 rounded-xl py-3 pl-4 pr-3 text-white">
-          <span class="live-dot shrink-0" aria-hidden="true"></span>
-          <div class="min-w-0 flex-1">
-            <p class="font-display font-700 text-[15px] leading-tight">You're online</p>
-            <p class="text-[12.5px] text-white/60 leading-snug">Customers see you as available while this page is open.</p>
-          </div>
-          <button type="button" id="goOfflineBtn" class="offline-btn shrink-0 rounded-lg border border-white/25 px-3.5 py-2 text-[13.5px] font-semibold text-white">Go offline</button>
-        </div>
-      </div>
-      <p id="dockError" hidden role="alert" class="mt-2 rounded-lg bg-white px-3 py-2 text-[13px] text-red-600 shadow"></p>
-    </div>
+  <!-- ===== a job offer, over everything ===== -->
+  <div id="offerLayer" class="offer-layer" hidden role="dialog" aria-modal="true" aria-label="Job offered to you">
+    <div id="offerSlot"></div>
   </div>
 
-  <nav id="appNav" class="app-nav" hidden aria-label="Fundi app">
-    <a href="#home" class="nav-item" data-route="home">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4.2v-6h-5.6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>
-      Home
-    </a>
-    <a href="#account" class="nav-item" data-route="account">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
-      Account
-    </a>
-  </nav>
+  <!-- ===== GO and the status bar (home only) ===== -->
+  <div id="dock" class="dock" hidden>
+    <div id="dockOffline" class="dock-state" aria-hidden="false">
+      <button type="button" id="goOnlineBtn" class="go-btn" aria-label="Go online">GO</button>
+      <div class="status-bar justify-center text-center">
+        <div>
+          <p class="font-display font-700 text-[17px] leading-tight">You're offline</p>
+          <p class="mt-0.5 text-[12.5px] text-navy/55">Tap GO to start getting jobs</p>
+        </div>
+      </div>
+    </div>
+    <div id="dockOnline" class="dock-state" aria-hidden="true">
+      <div class="status-bar">
+        <span id="dockSweep" class="sweep" aria-hidden="true"></span>
+        <span id="dockDot" class="live-dot shrink-0" aria-hidden="true"></span>
+        <div class="min-w-0 flex-1">
+          <p id="dockTitle" class="font-display font-700 text-[16px] leading-tight">Finding jobs near you</p>
+          <p id="dockSub" class="mt-0.5 text-[12.5px] text-navy/55 leading-snug">Customers see you as available while this page is open.</p>
+        </div>
+        <button type="button" id="goOfflineBtn" class="stop-btn shrink-0 w-12 h-12 rounded-full flex items-center justify-center" aria-label="Go offline">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg>
+        </button>
+      </div>
+    </div>
+    <p id="dockError" hidden role="alert" class="dock-error rounded-lg bg-white px-3 py-2 text-[13px] text-red-600 shadow"></p>
+  </div>
 </div>
 
 <script src="assets/supabase-client.js"></script>
@@ -389,77 +425,154 @@
     });
   }
 
-  // ---------- earnings strip ----------
-  const metricTrack = document.getElementById('metricTrack');
-  const metricSlides = [...metricTrack.querySelectorAll('.metric-slide')];
-  const metricDots = document.getElementById('metricDots');
-
-  metricSlides.forEach((slide, i) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'metric-dot-btn';
-    btn.setAttribute('aria-label', `Show ${slide.getAttribute('aria-label').toLowerCase()}`);
-    btn.innerHTML = '<span class="metric-dot block"></span>';
-    btn.addEventListener('click', () => goToMetric(i));
-    metricDots.appendChild(btn);
-  });
-
-  function currentMetric() {
-    return Math.round(metricTrack.scrollLeft / Math.max(metricTrack.clientWidth, 1));
-  }
-  function goToMetric(i) {
-    const index = (i + metricSlides.length) % metricSlides.length;
-    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    metricTrack.scrollTo({ left: index * metricTrack.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
-  }
-  function syncMetricDots() {
-    const i = currentMetric();
-    [...metricDots.children].forEach((d, n) => d.setAttribute('aria-current', String(n === i)));
-  }
-  metricTrack.addEventListener('scroll', () => requestAnimationFrame(syncMetricDots), { passive: true });
-  document.querySelectorAll('.metric-arrow').forEach((btn) => {
-    btn.addEventListener('click', () => goToMetric(currentMetric() + Number(btn.dataset.dir)));
-  });
-  syncMetricDots();
-
+  // ---------- earnings ----------
   function setSlide(key, value, sub, html) {
-    const slide = metricTrack.querySelector(`[data-metric="${key}"]`);
-    const valueEl = slide.querySelector('.m-value');
+    const tile = document.querySelector(`.earn-tile[data-metric="${key}"]`);
+    const valueEl = tile.querySelector('.m-value');
     const money = !html && /^KSh (.+)$/.exec(value);
     if (html) valueEl.innerHTML = value;
     else if (money) valueEl.innerHTML = `<span class="m-cur">KSh</span>${escapeHtml(money[1])}`;
     else valueEl.textContent = value;
-    slide.querySelector('.m-sub').textContent = sub;
+    tile.querySelector('.m-sub').textContent = sub;
   }
 
   function renderMetrics() {
     const d = state.dashboard;
-    setSlide('today', formatKsh(d.today.amount), jobsText(d.today.jobs, 'completed today'));
-    setSlide('week', formatKsh(d.week.amount), jobsText(d.week.jobs, 'completed since Monday'));
+    setSlide('today', formatKsh(d.today.amount), jobsText(d.today.jobs, 'done today'));
+    setSlide('week', formatKsh(d.week.amount), jobsText(d.week.jobs, 'since Monday'));
     if (d.last_job) {
-      setSlide('last', formatKsh(d.last_job.amount || 0), `${CATEGORY_LABELS[d.last_job.category] || d.last_job.category} · ${whenText(d.last_job.completed_at)}`);
+      setSlide('last', formatKsh(d.last_job.amount || 0), `${CATEGORY_LABELS[d.last_job.category] || d.last_job.category}, ${whenText(d.last_job.completed_at)}`);
     } else {
-      setSlide('last', 'None yet', 'Your most recent completed job shows here');
+      setSlide('last', 'None yet', 'Your latest finished job shows here');
     }
-    if (d.rating.average != null) {
+    const rated = d.rating.average != null;
+    if (rated) {
       setSlide('rating', `${escapeHtml(d.rating.average.toFixed(1))}${STAR_SVG}`,
         d.rating.starting_only ? 'Moves with every rating you earn' : `From ${d.rating.count} review${d.rating.count === 1 ? '' : 's'}`, true);
     } else {
-      setSlide('rating', 'No reviews yet', 'Customers rate you after a completed job');
+      setSlide('rating', 'None yet', 'Customers rate you after a job');
     }
 
-    document.getElementById('accRating').textContent = d.rating.average != null ? d.rating.average.toFixed(1) : 'None';
+    // The two figures a fundi checks most float over the city, as in a driver app.
+    document.getElementById('earnPill').textContent = formatKsh(d.today.amount);
+    const ratingPill = document.getElementById('ratingPill');
+    ratingPill.hidden = !rated;
+    if (rated) ratingPill.innerHTML = `${STAR_SVG.replace('w-6 h-6', 'w-4 h-4')}${escapeHtml(d.rating.average.toFixed(1))}`;
+
+    document.getElementById('accRating').textContent = rated ? d.rating.average.toFixed(1) : 'None';
     document.getElementById('accJobs').textContent = String(d.jobs_completed);
   }
 
-  // ---------- demand ----------
-  let demandMapHandle = null;
+  const topbar = document.querySelector('.topbar');
+  window.addEventListener('scroll', () => {
+    const sheetTop = document.querySelector('.sheet').getBoundingClientRect().top;
+    topbar.classList.toggle('is-over', sheetTop < topbar.offsetHeight);
+  }, { passive: true });
 
-  async function renderDemand() {
+  document.getElementById('earnPill').addEventListener('click', () => {
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('earningsBlock').scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  });
+
+  // ---------- demand ----------
+  // Roughly where each area on the booking form sits (latitude, longitude), so
+  // open jobs can be drawn across the city without a maps service. Only the
+  // area is shown, never a customer's address.
+  const AREA_POINTS = {
+    Westlands: [-1.2676, 36.8108], Kilimani: [-1.2905, 36.7840], Kileleshwa: [-1.2810, 36.7830], Lavington: [-1.2790, 36.7670],
+    'Upper Hill': [-1.2980, 36.8150], Hurlingham: [-1.2965, 36.7990], Riverside: [-1.2690, 36.8000], Parklands: [-1.2610, 36.8210],
+    'Spring Valley': [-1.2470, 36.7920], Loresho: [-1.2500, 36.7620], Runda: [-1.2180, 36.8090], Gigiri: [-1.2330, 36.8030],
+    Muthaiga: [-1.2470, 36.8330], Karen: [-1.3190, 36.7080], "Lang'ata": [-1.3460, 36.7600], CBD: [-1.2864, 36.8172],
+    Eastleigh: [-1.2740, 36.8510], Kasarani: [-1.2210, 36.8970], 'South C': [-1.3170, 36.8280], Embakasi: [-1.3200, 36.9000],
+    Kikuyu: [-1.2460, 36.6630], Ruiru: [-1.1460, 36.9600],
+  };
+  // Framed on central and west Nairobi, where Find Fundi works most. Areas
+  // further out are held at the edge, in their direction.
+  const FIELD = { w: 400, h: 340, pad: 26, minLat: -1.355, maxLat: -1.205, minLng: 36.70, maxLng: 36.87 };
+
+  function fieldXY([lat, lng]) {
+    const clamp = (v, max) => Math.min(max - FIELD.pad / 2, Math.max(FIELD.pad / 2, v));
+    return [
+      clamp(FIELD.pad + ((lng - FIELD.minLng) / (FIELD.maxLng - FIELD.minLng)) * (FIELD.w - 2 * FIELD.pad), FIELD.w),
+      clamp(FIELD.pad + ((FIELD.maxLat - lat) / (FIELD.maxLat - FIELD.minLat)) * (FIELD.h - 2 * FIELD.pad), FIELD.h),
+    ];
+  }
+
+  // Labels go right of their dot, else left, above or below, wherever they
+  // overlap nothing already drawn. One with no room is left off; the list in
+  // the sheet still names it.
+  function fieldLabeller() {
+    const taken = [];
+    const hits = (b) => taken.some((t) => b.l < t.r && b.r > t.l && b.t < t.b && b.b > t.t);
+    return {
+      block(x, y, r) { taken.push({ l: x - r, r: x + r, t: y - r, b: y + r }); },
+      label(x, y, r, text, weight, fill) {
+        const w = text.length * 6.4 + 4;
+        const spots = [[x + r + 5, y + 4, 'start'], [x - r - 5, y + 4, 'end'], [x, y - r - 5, 'middle'], [x, y + r + 14, 'middle']];
+        for (const [tx, ty, anchor] of spots) {
+          const l = anchor === 'start' ? tx : anchor === 'end' ? tx - w : tx - w / 2;
+          const box = { l, r: l + w, t: ty - 11, b: ty + 3 };
+          if (box.l < 2 || box.r > FIELD.w - 2 || box.t < 2 || box.b > FIELD.h - 2 || hits(box)) continue;
+          taken.push(box);
+          return `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}" font-size="11.5" font-weight="${weight}" fill="${fill}">${escapeHtml(text)}</text>`;
+        }
+        return '';
+      },
+    };
+  }
+
+  // The city behind the sheet: every area a faint dot, areas with open jobs
+  // lit and sized by how many, and the fundi's own area marked.
+  function renderField(counts) {
+    const home = state.profile.area;
+    const at = (area) => fieldXY(AREA_POINTS[area]).map((v) => Number(v.toFixed(1)));
+    const lit = Object.keys(AREA_POINTS).filter((a) => counts[a] && a !== home).sort((a, b) => counts[b] - counts[a]);
+    const radius = (n) => 4 + 2.4 * Math.sqrt(n);
+    const labeller = fieldLabeller();
+
+    const dots = Object.keys(AREA_POINTS).map((area) => {
+      const [x, y] = at(area);
+      return `<circle cx="${x}" cy="${y}" r="2.2" fill="rgba(255,255,255,0.3)"/>`;
+    });
+    const glows = lit.slice().reverse().map((area) => {
+      const [x, y] = at(area);
+      const r = radius(counts[area]);
+      labeller.block(x, y, r);
+      return `<circle cx="${x}" cy="${y}" r="${(r * 1.9).toFixed(1)}" fill="#FE6902" opacity="0.18"/><circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="#FE6902" stroke="#041530" stroke-width="1.5"/>`;
+    });
+    let puck = '';
+    const labels = [];
+    if (AREA_POINTS[home]) {
+      const [x, y] = at(home);
+      const n = counts[home] || 0;
+      labeller.block(x, y, 8);
+      puck = `<circle class="puck-pulse" cx="${x}" cy="${y}" r="8" fill="#fff"/>`
+        + `<circle cx="${x}" cy="${y}" r="8" fill="#fff"/><circle cx="${x}" cy="${y}" r="3.6" fill="${n ? '#FE6902' : '#041530'}"/>`;
+      labels.push(labeller.label(x, y, 8, n ? `You, ${home} ${n}` : `You, ${home}`, 700, '#fff'));
+    }
+    lit.forEach((area) => {
+      const [x, y] = at(area);
+      labels.push(labeller.label(x, y, radius(counts[area]), `${area} ${counts[area]}`, 600, 'rgba(255,255,255,0.92)'));
+    });
+    if (!counts.CBD && home !== 'CBD') {
+      const [x, y] = at('CBD');
+      labels.push(labeller.label(x, y, 2, 'CBD', 500, 'rgba(255,255,255,0.45)'));
+    }
+    document.getElementById('fieldMap').innerHTML = dots.join('') + glows.join('') + puck + labels.join('');
+
+    const trade = CATEGORY_LABELS[state.profile.fundi_profile.category] || 'your trade';
+    const total = state.feed.length;
+    document.getElementById('fieldNote').textContent = total
+      ? `${total} open ${trade} job${total === 1 ? '' : 's'} right now`
+      : `No open ${trade} jobs right now`;
+  }
+
+  function renderDemand() {
     const rows = document.getElementById('demandRows');
     const fundiArea = state.profile.area;
     const counts = {};
     state.feed.forEach((job) => { counts[job.area] = (counts[job.area] || 0) + 1; });
+    renderField(counts);
     if (fundiArea && !(fundiArea in counts)) counts[fundiArea] = 0;
 
     const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -484,29 +597,13 @@
       return row;
     }));
     requestAnimationFrame(() => requestAnimationFrame(() => rows.classList.add('ready')));
+  }
 
-    // Map pins are rounded to about a kilometre, so an open job's pin shows
-    // the neighbourhood rather than the customer's exact spot.
-    const pinned = state.feed.filter((j) => j.customer_lat != null && j.customer_lng != null);
-    const mapBox = document.getElementById('demandMap');
-    if (!hasMapsKey() || !pinned.length) {
-      mapBox.hidden = true;
-      return;
-    }
-    mapBox.hidden = false;
-    const round = (x) => Math.round(x * 100) / 100;
-    const points = pinned.map((j) => ({
-      key: j.id,
-      position: { lat: round(j.customer_lat), lng: round(j.customer_lng) },
-      label: '',
-      title: j.area,
-    }));
-    try {
-      if (!demandMapHandle) demandMapHandle = await renderPinMap('demandMap', points);
-      else points.forEach((p) => demandMapHandle.setMarker(p.key, p.position, p.label, p.title));
-    } catch (err) {
-      mapBox.hidden = true;
-    }
+  // A job in hand or commission owed is what the fundi needs first, so the
+  // sheet rises over the city to show it.
+  function syncSheet() {
+    const busy = !document.getElementById('myJobsBlock').hidden || Boolean(state.wallet && state.wallet.owed);
+    document.body.classList.toggle('sheet-up', busy);
   }
 
   // ---------- jobs ----------
@@ -552,22 +649,29 @@
 
   function renderOffer(offer) {
     const slot = document.getElementById('offerSlot');
-    const empty = document.getElementById('offerEmpty');
+    const layer = document.getElementById('offerLayer');
 
     if (!offer) {
       shownOfferId = null;
       slot.replaceChildren();
-      empty.hidden = false;
+      layer.hidden = true;
       return;
     }
 
-    empty.hidden = true;
+    // An offer takes the whole screen until it is answered or runs out.
+    layer.hidden = false;
     // Keep the card while the same offer stands, so a voice note being played
     // is not cut off by the poll.
     if (shownOfferId !== offer.id) {
       const isNew = shownOfferId !== null || !firstOfferLoad;
       shownOfferId = offer.id;
       slot.replaceChildren(offerCard(offer, { onAccept: takeJob, onDecline: passJob }));
+      // The Accept button empties as the time to answer runs out.
+      const drain = slot.querySelector('.o-drain');
+      if (drain) drain.style.animationDuration = `${Math.max(1, offer.seconds_left)}s`;
+      // Screen readers land on the offer; the keyboard starts from it.
+      const card = slot.querySelector('.offer-card');
+      if (card) { card.tabIndex = -1; card.focus({ preventScroll: true }); }
       // Browser notifications do not reach every phone: some cannot register
       // with the push service at all. A fundi with the app open should still
       // know a job has landed, so the page makes its own noise.
@@ -645,6 +749,7 @@
       return card;
     }));
     document.getElementById('myJobsBlock').hidden = active.length === 0;
+    syncSheet();
     return true;
   }
 
@@ -662,6 +767,98 @@
   async function loadDashboard() {
     state.dashboard = await apiFetch('/fundi/dashboard');
     renderMetrics();
+    // The wallet follows the same refreshes, so a paid commission clears itself.
+    loadWallet().catch(() => {});
+  }
+
+  // ---------- commission wallet ----------
+  const shortDay = (iso) => new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', timeZone: 'Africa/Nairobi' });
+  let claimOpen = false;
+
+  async function loadWallet() {
+    state.wallet = await apiFetch('/fundi/wallet');
+    renderWallet();
+  }
+
+  function renderWallet() {
+    const w = state.wallet;
+    const box = document.getElementById('walletCard');
+    if (!w) return;
+    syncSheet();
+    renderStatus();
+
+    // Nothing owed: founding fundis see how many commission-free jobs remain.
+    if (!w.owed) {
+      if (!w.free_jobs_left) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = `<div class="surface p-4"><p class="text-[14px] font-semibold text-navy">${escapeHtml(String(w.free_jobs_left))} of your first ${escapeHtml(String(w.free_jobs_total))} jobs are commission-free</p><p class="mt-0.5 text-[13px] text-navy/55 leading-[1.6]">Find Fundi takes no commission on them. After that, 10% of the agreed price on jobs paid to you directly.</p></div>`;
+      return;
+    }
+
+    const rows = w.items.map((c) => `
+      <li class="flex items-baseline justify-between gap-3 py-2 text-[13.5px]">
+        <span class="min-w-0 truncate text-navy/70">${escapeHtml(CATEGORY_LABELS[c.category] || c.category)}, done ${escapeHtml(shortDay(c.completed_at))}</span>
+        <span class="shrink-0 tabular-nums text-navy"><span class="font-semibold">${escapeHtml(formatKsh(c.amount))}</span> <span class="${c.overdue ? 'text-red-600 font-semibold' : 'text-navy/50'}">${c.overdue ? 'overdue' : `due ${escapeHtml(shortDay(c.due_at))}`}</span></span>
+      </li>`).join('');
+
+    const payLine = w.pay_to
+      ? `<p class="mt-3 text-[13.5px] leading-[1.7] text-navy/75">Pay by M-Pesa. Go to <strong>Lipa na M-Pesa, Paybill</strong>. Business number <strong class="tabular-nums">${escapeHtml(w.pay_to.paybill)}</strong>, account number <strong class="tabular-nums">${escapeHtml(w.pay_to.account)}</strong>, amount <strong>${escapeHtml(formatKsh(w.owed))}</strong>.</p>`
+      : '<p class="mt-3 text-[13.5px] leading-[1.7] text-navy/75">Payment details are being set up. Contact Find Fundi to pay.</p>';
+
+    const claim = w.claim
+      ? `<p class="mt-3 rounded-lg bg-white/70 px-3 py-2.5 text-[13.5px] leading-[1.6] text-navy/75">You told us you paid (code ${escapeHtml(w.claim.ref)}). We are checking it. ${w.locked ? 'Offers start again as soon as we confirm it.' : 'It clears from here once confirmed.'}</p>`
+      : `<div class="mt-3">
+          <button type="button" id="walletPaidBtn" class="btn-primary text-white font-semibold text-[14px] px-4 py-2.5 rounded-lg" ${claimOpen ? 'hidden' : ''}>I've paid</button>
+          <form id="walletClaimForm" class="${claimOpen ? '' : 'hidden'}">
+            <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="walletRef">M-Pesa code from your payment message</label>
+            <div class="flex gap-2">
+              <input id="walletRef" type="text" maxlength="10" autocapitalize="characters" autocomplete="off" spellcheck="false" class="min-w-0 flex-1 rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[15px] uppercase outline-none focus:border-orange" placeholder="QK12ABC3DE">
+              <button type="submit" id="walletSendBtn" class="btn-primary shrink-0 text-white font-semibold text-[14px] px-4 py-2.5 rounded-lg">Send</button>
+            </div>
+            <p id="walletClaimError" class="hidden mt-2 text-[13px] text-red-600" role="alert"></p>
+          </form>
+        </div>`;
+
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="surface p-5 ${w.locked ? 'border-2 border-orange bg-orange-50' : ''}">
+        <p class="text-[13px] font-semibold ${w.locked ? 'text-orange-700' : 'text-navy/55'}">${w.locked ? 'Job offers are paused. A commission is overdue.' : 'Commission to pay'}</p>
+        <p class="mt-1 font-display font-800 text-[1.7rem] tracking-[-0.02em] tabular-nums">${escapeHtml(formatKsh(w.owed))}</p>
+        <p class="text-[13px] text-navy/55">${w.locked ? 'Pay it and offers come back as soon as we confirm.' : `Next one due ${escapeHtml(shortDay(w.next_due_at))}. You can pay any time.`}</p>
+        <ul class="mt-3 divide-y divide-navy/10 border-t border-navy/10">${rows}</ul>
+        ${payLine}
+        ${claim}
+      </div>`;
+
+    const paidBtn = document.getElementById('walletPaidBtn');
+    const form = document.getElementById('walletClaimForm');
+    if (paidBtn) {
+      paidBtn.addEventListener('click', () => {
+        claimOpen = true;
+        paidBtn.hidden = true;
+        form.classList.remove('hidden');
+        document.getElementById('walletRef').focus();
+      });
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorEl = document.getElementById('walletClaimError');
+        const send = document.getElementById('walletSendBtn');
+        errorEl.classList.add('hidden');
+        send.disabled = true;
+        try {
+          await apiFetch('/fundi/commissions/pay-claim', {
+            method: 'POST',
+            body: JSON.stringify({ ref: document.getElementById('walletRef').value }),
+          });
+          claimOpen = false;
+          await loadWallet();
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.classList.remove('hidden');
+          send.disabled = false;
+        }
+      });
+    }
   }
 
   onFundiJobsChanged = () => {
@@ -681,22 +878,30 @@
     dockOnline.setAttribute('aria-hidden', String(!state.online));
     goOnlineBtn.tabIndex = state.online ? -1 : 0;
     goOfflineBtn.tabIndex = state.online ? 0 : -1;
-
-    const chip = document.getElementById('statusChip');
-    chip.querySelector('.chip-text').textContent = state.online ? 'Online' : 'Offline';
-    chip.querySelector('.chip-dot').className = `chip-dot w-2 h-2 rounded-sm ${state.online ? 'bg-orange' : 'bg-navy/25'}`;
-    chip.className = `inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[12.5px] font-semibold ${state.online ? 'border-orange/30 bg-orange-50 text-orange-600' : 'border-navy/10 bg-white text-navy/60'}`;
+    renderStatus();
 
     clearInterval(checkInTimer);
     if (state.online) checkInTimer = setInterval(checkIn, CHECK_IN_MS);
   }
 
+  // What the status bar says while online. Overdue commission pauses offers,
+  // and the bar says so rather than claiming to look for jobs.
+  function renderStatus() {
+    const paused = Boolean(state.wallet && state.wallet.locked);
+    document.getElementById('dockTitle').textContent = paused ? 'Offers paused' : 'Finding jobs near you';
+    document.getElementById('dockSub').textContent = paused
+      ? 'Pay the commission you owe and offers come back once we confirm it.'
+      : 'Customers see you as available while this page is open.';
+    document.getElementById('dockSweep').hidden = paused;
+    document.getElementById('dockDot').classList.toggle('is-paused', paused);
+  }
+
   async function setOnline(online) {
     dockError.hidden = true;
     const btn = online ? goOnlineBtn : goOfflineBtn;
-    const label = btn.textContent;
     btn.disabled = true;
-    btn.textContent = online ? 'Going online…' : 'Going offline…';
+    btn.setAttribute('aria-busy', 'true');
+    if (online) goOnlineBtn.textContent = '…';
     try {
       const result = await apiFetch('/fundi/availability', { method: 'POST', body: JSON.stringify({ online }) });
       state.online = result.is_online;
@@ -707,7 +912,8 @@
       dockError.hidden = false;
     } finally {
       btn.disabled = false;
-      btn.textContent = label;
+      btn.removeAttribute('aria-busy');
+      goOnlineBtn.textContent = 'GO';
     }
   }
 
@@ -753,16 +959,18 @@
     const meta = (state.session && state.session.user.user_metadata) || {};
     // The selfie taken at sign-up is the face on a verified fundi's profile.
     const url = (state.dashboard && state.dashboard.selfie_url) || p.avatar_url || meta.avatar_url || meta.picture || '';
-    const avatar = document.getElementById('accAvatar');
-    avatar.textContent = initialsFor(p.full_name);
-    if (url) {
-      const img = document.createElement('img');
-      img.alt = '';
-      img.referrerPolicy = 'no-referrer';
-      img.className = 'w-full h-full object-cover';
-      img.onload = () => avatar.replaceChildren(img);
-      img.src = url;
-    }
+    ['accAvatar', 'topAvatar'].forEach((id) => {
+      const avatar = document.getElementById(id);
+      avatar.textContent = initialsFor(p.full_name);
+      if (url) {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.referrerPolicy = 'no-referrer';
+        img.className = 'w-full h-full object-cover';
+        img.onload = () => avatar.replaceChildren(img);
+        img.src = url;
+      }
+    });
     document.getElementById('accName').textContent = p.full_name || '';
     const category = p.fundi_profile.category;
     document.getElementById('accCategory').textContent = CATEGORY_LABELS[category] || category;
@@ -786,11 +994,11 @@
     document.getElementById('panelHome').hidden = name !== 'home';
     document.getElementById('panelAccount').hidden = name !== 'account';
     document.getElementById('dock').hidden = name !== 'home';
-    document.getElementById('main').classList.toggle('home-pad', name === 'home');
-    document.querySelectorAll('.nav-item').forEach((a) => {
-      if (a.dataset.route === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-    });
-    if (name === 'home') syncMetricDots();
+    // Home is the full-screen work view; Account keeps the ordinary header,
+    // with a way back.
+    document.getElementById('pageHeader').hidden = name === 'home';
+    document.getElementById('headerBack').hidden = name !== 'account';
+    document.getElementById('main').classList.toggle('pt-5', name !== 'home');
   }
   window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
 
@@ -839,8 +1047,6 @@
       onFundiJobsChanged();
     });
 
-    document.getElementById('statusChip').hidden = false;
-    document.getElementById('appNav').hidden = false;
     route();
     watchJobs();
   }

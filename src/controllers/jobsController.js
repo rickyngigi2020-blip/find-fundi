@@ -109,8 +109,8 @@ async function quote(req, res, next) {
 async function acceptQuote(req, res, next) {
   try {
     const { payment_method, quoted_at } = req.body;
-    if (!['mpesa', 'card', 'cash'].includes(payment_method)) {
-      return res.status(400).json({ error: { message: 'Choose how you will pay: M-Pesa, card, or cash', code: 'invalid_request' } });
+    if (!['mpesa', 'cash'].includes(payment_method)) {
+      return res.status(400).json({ error: { message: 'Choose how you will pay: M-Pesa or cash', code: 'invalid_request' } });
     }
     const job = await jobService.acceptQuote(req.params.id, req.user.id, { payment_method, quoted_at });
     res.json({ data: job });
