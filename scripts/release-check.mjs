@@ -247,6 +247,61 @@ async function identityChecks() {
   });
 }
 
+// ---------- fixed-rate services (1.5.0) ----------
+// A listed service always costs its listed price, whatever amount the caller
+// sends, and the menu can only name trades that exist.
+async function rateChecks(user, category) {
+  await check('Every trade list agrees, including the service menu', async () => {
+    const front = [...source('public/assets/categories.js').matchAll(/key: '([a-z_]+)',\s*label: '[^']*',\s*group:/g)].map((m) => m[1]).sort();
+    const back = [...require('../src/utils/categories').CATEGORIES].sort();
+    expect(JSON.stringify(front) === JSON.stringify(back), `categories.js has ${front.join(',')} but the API has ${back.join(',')}`);
+    const migration = source('supabase/migrations/0024_service_rates.sql');
+    back.forEach((c) => expect(migration.includes(`'${c}'`), `service_rates does not allow the ${c} trade`));
+    expect(/utils\/categories/.test(source('src/controllers/fundiController.js')), 'fundiController has its own copy of the trade list again');
+  });
+
+  await check('A listed service sets the price, and an unavailable one is refused', async () => {
+    expect(fs.existsSync(new URL('../supabase/migrations/0024_service_rates.sql', import.meta.url)), 'migration 0024 (service rates) is missing');
+    expect(/service_rate_id/.test(source('public/assets/fundi-jobs.js')), 'the fundi quote form no longer offers the menu');
+    if (!category) return;
+    const jobService = require('../src/services/jobService');
+    const made = [];
+    try {
+      const rate = async (fields) => {
+        const { data, error } = await admin.from('service_rates').insert({ price_kes: 2500, ...fields }).select().single();
+        if (error) throw error;
+        made.push(data.id);
+        return data;
+      };
+      const listed = await rate({ category, name: `Release check ${Date.now()}` });
+      const off = await rate({ category, name: `Release check off ${Date.now()}`, active: false });
+      const otherCategory = CATEGORIES.find((c) => c !== category);
+      const elsewhere = await rate({ category: otherCategory, name: `Release check elsewhere ${Date.now()}` });
+
+      const { data: job, error } = await admin.from('jobs').insert({
+        customer_id: user.id, fundi_id: user.id, status: 'matched', category, area: 'Kasarani',
+        description: `Release check: listed price ${Date.now()}`,
+      }).select().single();
+      if (error) throw error;
+
+      const sent = await jobService.sendQuote(job.id, user.id, { amount: 1, note: null, serviceRateId: listed.id });
+      expect(sent.quote_amount === 2500, `a listed service was priced at ${sent.quote_amount}, not its listed 2500`);
+      expect(sent.service_rate_id === listed.id && sent.service_name === listed.name, 'the job does not record which service it was priced from');
+
+      for (const [label, bad] of [['switched off', off], ['for another trade', elsewhere]]) {
+        let code = null;
+        try { await jobService.sendQuote(job.id, user.id, { amount: 1, note: null, serviceRateId: bad.id }); } catch (e) { code = e.code; }
+        expect(code === 'rate_unavailable', `a service ${label} was accepted`);
+      }
+
+      const own = await jobService.sendQuote(job.id, user.id, { amount: 1800, note: null });
+      expect(own.quote_amount === 1800 && own.service_rate_id === null && own.service_name === null, 'a job priced by hand still carries a service');
+    } finally {
+      if (made.length) await admin.from('service_rates').delete().in('id', made);
+    }
+  });
+}
+
 // ---------- matching ----------
 // A fundi who passed on a job, or took it and turned it down, kept being
 // offered it again in the next search round (found in the 1.2 stress test: one
@@ -425,6 +480,7 @@ try {
   await stressTestChecks();
   await identityChecks();
   const category = await emptyCategory();
+  await rateChecks(user, category);
   if (!category) {
     console.log('SKIP  Booking checks: every category has a verified fundi, so a test job would page a real person.');
   } else {

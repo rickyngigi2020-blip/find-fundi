@@ -184,6 +184,12 @@
       `;
       box.querySelector('.q-name').textContent = fundiName;
       box.querySelector('.q-amount').textContent = formatKsh(job.quote_amount);
+      if (job.service_name) {
+        const service = document.createElement('p');
+        service.className = 'text-[13.5px] font-semibold text-navy/70';
+        service.textContent = job.service_name;
+        box.querySelector('.q-amount').after(service);
+      }
       const note = box.querySelector('.q-note');
       if (job.quote_note) note.textContent = job.quote_note; else note.remove();
 

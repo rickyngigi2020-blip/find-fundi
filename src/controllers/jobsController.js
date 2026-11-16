@@ -85,14 +85,21 @@ async function myOffer(req, res, next) {
   }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function quote(req, res, next) {
   try {
+    // A listed service sets its own price; any amount sent with it is ignored.
+    const serviceRateId = typeof req.body.service_rate_id === 'string' && req.body.service_rate_id ? req.body.service_rate_id : null;
+    if (serviceRateId && !UUID_PATTERN.test(serviceRateId)) {
+      return res.status(400).json({ error: { message: 'Pick a service from the list.', code: 'invalid_request' } });
+    }
     const amount = Number(req.body.amount);
-    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+    if (!serviceRateId && (!Number.isInteger(amount) || amount < 1 || amount > 10000000)) {
       return res.status(400).json({ error: { message: 'Enter the agreed price in whole shillings', code: 'invalid_request' } });
     }
     const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim().slice(0, 500) : null;
-    const job = await jobService.sendQuote(req.params.id, req.user.id, { amount, note });
+    const job = await jobService.sendQuote(req.params.id, req.user.id, { amount, note, serviceRateId });
     res.json({ data: job });
   } catch (err) {
     next(err);

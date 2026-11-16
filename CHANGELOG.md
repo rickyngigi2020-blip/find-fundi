@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.5.0 — 16 November 2026
+
+Common jobs now have fixed prices, so a fundi picks the job from a list and the
+price fills in instead of being haggled.
+
+Run migration 0024 in the Supabase SQL editor before deploying. It adds the
+rates table empty: no prices are shown to anyone until an admin adds them.
+
+### Added
+- **A menu of fixed-price services.** Admins manage it on a new Rates tab: pick
+  a trade, name the service, set the price, and switch services on or off.
+  Nothing is pre-filled; enter only prices you have checked with real fundis.
+- **The fundi picks the job and the price fills in.** When a fundi sends a
+  price, a "What is the job?" list shows the services for their trade. Choosing
+  one sets the price, and the server sets it from the menu, so no amount sent
+  with it can change it. "Other job" keeps the old way: the fundi types their
+  own price. The customer sees the service name above the price. Booking is
+  still two taps: the customer never browses the menu.
+- A job remembers which service its price came from, and the name as it was
+  then, so renaming a service later does not rewrite old jobs.
+
+### Changed
+- Terms of Service updated (16 November 2026): listed services have fixed
+  prices; other jobs are priced by the fundi.
+- The list of trades is now defined once on the server (`src/utils/categories.js`),
+  and the release check fails if the website's list and the menu's list drift apart.
+
 ## 1.4.0 — 16 November 2026
 
 Fundis now prove who they are with a selfie and a KRA PIN as well as their ID.

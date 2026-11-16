@@ -1,5 +1,7 @@
 const adminService = require('../services/adminService');
+const serviceRateService = require('../services/serviceRateService');
 const { cleanReason } = require('./jobsController');
+const { CATEGORIES } = require('../utils/categories');
 
 async function insights(req, res, next) {
   try {
@@ -40,6 +42,65 @@ async function setStartingRating(req, res, next) {
       return res.status(400).json({ error: { message: 'rating must be from 1 to 5, in half-star steps', code: 'invalid_request' } });
     }
     const data = await adminService.setStartingRating(req.params.id, rating);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listServiceRates(req, res, next) {
+  try {
+    const data = await serviceRateService.listAll();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Shared by create and update: only the fields sent are checked.
+function rateFields(body, { requireAll }) {
+  const fields = {};
+  const bad = (message) => ({ error: { message, code: 'invalid_request' } });
+  if (requireAll || body.category !== undefined) {
+    if (!CATEGORIES.includes(body.category)) return bad('Pick a trade for this service.');
+    fields.category = body.category;
+  }
+  if (requireAll || body.name !== undefined) {
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (name.length < 2 || name.length > 120) return bad('Give the service a name of 2 to 120 characters.');
+    fields.name = name;
+  }
+  if (requireAll || body.price_kes !== undefined) {
+    const price = Number(body.price_kes);
+    if (!Number.isInteger(price) || price < 1 || price > 10000000) return bad('Enter the price in whole shillings.');
+    fields.price_kes = price;
+  }
+  if (body.active !== undefined) {
+    if (typeof body.active !== 'boolean') return bad('active must be true or false');
+    fields.active = body.active;
+  }
+  return { fields };
+}
+
+async function createServiceRate(req, res, next) {
+  try {
+    const parsed = rateFields(req.body, { requireAll: true });
+    if (parsed.error) return res.status(400).json(parsed);
+    const data = await serviceRateService.create(parsed.fields);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateServiceRate(req, res, next) {
+  try {
+    const parsed = rateFields(req.body, { requireAll: false });
+    if (parsed.error) return res.status(400).json(parsed);
+    if (!Object.keys(parsed.fields).length) {
+      return res.status(400).json({ error: { message: 'Nothing to change.', code: 'invalid_request' } });
+    }
+    const data = await serviceRateService.update(req.params.id, parsed.fields);
     res.json({ data });
   } catch (err) {
     next(err);
@@ -134,4 +195,4 @@ async function uncertifyFundi(req, res, next) {
   }
 }
 
-module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
+module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listServiceRates, createServiceRate, updateServiceRate, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };

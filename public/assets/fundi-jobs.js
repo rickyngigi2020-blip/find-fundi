@@ -37,6 +37,16 @@ function jobDetailsLine(job) {
 
 const URGENT_TAG = '<span class="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600">Urgent</span>';
 
+// The menu of fixed-price services for this fundi's trade, fetched once. An
+// empty list (or a failed fetch) just means every job is priced by hand.
+let serviceMenuPromise = null;
+function loadServiceMenu() {
+  if (!serviceMenuPromise) {
+    serviceMenuPromise = apiFetch('/service-rates').catch(() => []);
+  }
+  return serviceMenuPromise;
+}
+
 // After talking to the customer, the fundi sends a price. It can be changed
 // until the customer accepts; after that the job can be marked complete.
 function renderFundiQuoteSection(section, job, pill, card) {
@@ -52,6 +62,10 @@ function renderFundiQuoteSection(section, job, pill, card) {
     box.innerHTML = `
       <p class="text-[13.5px] font-semibold text-navy">Send your price</p>
       <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Call <span class="q-cust"></span> to understand the job first, then enter the price you agreed on.</p>
+      <label class="q-menu-wrap mt-3 hidden block">
+        <span class="block text-[12.5px] font-semibold text-navy/70 mb-1">What is the job?</span>
+        <select class="q-menu w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[14px] outline-none focus:border-orange"></select>
+      </label>
       <div class="mt-3 grid gap-2 sm:grid-cols-[180px_1fr]">
         <label class="block">
           <span class="sr-only">Price in shillings</span>
@@ -81,10 +95,34 @@ function renderFundiQuoteSection(section, job, pill, card) {
     }
     const errorEl = box.querySelector('.q-error');
     const sendBtn = box.querySelector('.q-send');
+
+    // A listed service fixes the price; "Other job" leaves it to the fundi.
+    const menuSelect = box.querySelector('.q-menu');
+    const menuWrap = box.querySelector('.q-menu-wrap');
+    const applyMenuChoice = (menu) => {
+      const chosen = menu.find((s) => s.id === menuSelect.value);
+      amountInput.readOnly = Boolean(chosen);
+      amountInput.classList.toggle('bg-gray-50', Boolean(chosen));
+      if (chosen) amountInput.value = chosen.price_kes;
+    };
+    loadServiceMenu().then((menu) => {
+      if (!menu.length || !box.contains(menuSelect)) return;
+      menuSelect.appendChild(new Option('Other job: I will type the price', ''));
+      menu.forEach((s) => menuSelect.appendChild(new Option(`${s.name}: ${formatKsh(s.price_kes)}`, s.id)));
+      if (existing && job.service_rate_id && menu.some((s) => s.id === job.service_rate_id)) menuSelect.value = job.service_rate_id;
+      menuWrap.classList.remove('hidden');
+      applyMenuChoice(menu);
+      menuSelect.addEventListener('change', () => {
+        if (!menuSelect.value) amountInput.value = '';
+        applyMenuChoice(menu);
+      });
+    });
+
     sendBtn.addEventListener('click', async () => {
       errorEl.classList.add('hidden');
+      const serviceRateId = menuSelect.value || null;
       const amount = Number(amountInput.value);
-      if (!Number.isInteger(amount) || amount < 1) {
+      if (!serviceRateId && (!Number.isInteger(amount) || amount < 1)) {
         errorEl.textContent = 'Enter the agreed price in whole shillings.';
         errorEl.classList.remove('hidden');
         amountInput.focus();
@@ -95,7 +133,7 @@ function renderFundiQuoteSection(section, job, pill, card) {
       try {
         const updated = await apiFetch(`/jobs/${job.id}/quote`, {
           method: 'POST',
-          body: JSON.stringify({ amount, note: noteInput.value.trim() || null }),
+          body: JSON.stringify({ amount, service_rate_id: serviceRateId, note: noteInput.value.trim() || null }),
         });
         renderFundiQuoteSection(section, { ...updated, counterpart: job.counterpart }, pill, card);
       } catch (err) {
@@ -126,6 +164,12 @@ function renderFundiQuoteSection(section, job, pill, card) {
       <p class="mt-1.5 text-[12.5px] text-navy/50">Waiting for <span class="q-cust"></span> to accept.</p>
     `;
     box.querySelector('.q-amount').textContent = formatKsh(job.quote_amount);
+    if (job.service_name) {
+      const service = document.createElement('p');
+      service.className = 'text-[13px] text-navy/65';
+      service.textContent = job.service_name;
+      box.querySelector('.q-amount').after(service);
+    }
     box.querySelector('.q-cust').textContent = customerName;
     const note = box.querySelector('.q-note');
     if (job.quote_note) note.textContent = job.quote_note; else note.remove();

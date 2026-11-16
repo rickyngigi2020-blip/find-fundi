@@ -4,6 +4,7 @@ const { apiError } = require('../utils/apiError');
 const notify = require('./notificationService');
 const matching = require('./matchingService');
 const fundiCards = require('./fundiCardService');
+const serviceRates = require('./serviceRateService');
 const { RELEASE_REASON_KEYS } = require('../utils/releaseReasons');
 
 // Job writes go through the service-role client, because jobs have no
@@ -147,13 +148,21 @@ async function listFeed(accessToken) {
   return data;
 }
 
-async function sendQuote(jobId, fundiId, { amount, note }) {
+// `serviceRateId` prices the job from the menu: the amount comes from the rate,
+// never from the caller, so a listed service always costs its listed price.
+// Without it the fundi types their own price, as for any job not on the menu.
+async function sendQuote(jobId, fundiId, { amount, note, serviceRateId }) {
   const job = await loadJob(jobId);
   if (job.fundi_id !== fundiId) throw apiError(403, 'Only the booked fundi can send a price.', 'forbidden');
   if (job.status !== 'matched') {
     throw apiError(409, 'The price can only be changed before the customer accepts it.', 'conflict');
   }
-  const updated = await updateJob(jobId, { quote_amount: amount, quote_note: note, quoted_at: new Date().toISOString() }, { status: 'matched' });
+  let price = { quote_amount: amount, service_rate_id: null, service_name: null };
+  if (serviceRateId) {
+    const rate = await serviceRates.usableForJob(serviceRateId, job);
+    price = { quote_amount: rate.price_kes, service_rate_id: rate.id, service_name: rate.name };
+  }
+  const updated = await updateJob(jobId, { ...price, quote_note: note, quoted_at: new Date().toISOString() }, { status: 'matched' });
   await notify.priceSent(updated);
   return updated;
 }
@@ -200,6 +209,7 @@ const OPEN_STATUSES = ['requested', 'matched', 'in_progress'];
 // Clears everything tied to the booked fundi, so the job can be booked again.
 const UNBOOKED = {
   fundi_id: null, quote_amount: null, quote_note: null, quoted_at: null,
+  service_rate_id: null, service_name: null,
   quote_accepted_at: null, final_cost: null, payment_method: null,
 };
 

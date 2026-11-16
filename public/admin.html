@@ -128,6 +128,7 @@
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="insights" aria-selected="false">Insights</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="rates" aria-selected="false">Rates</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="admins" aria-selected="false">Admins</button>
     </div>
 
@@ -223,6 +224,36 @@
     </section>
 
     <!-- ===== admins ===== -->
+    <section data-panel="rates" hidden class="mt-6">
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Rates</h1>
+      <p class="mt-1 text-[14px] text-navy/55 leading-[1.6]">Fixed prices for common jobs. A fundi who takes a matching job picks the service and the price fills in. Anything not listed here is still priced by the fundi. Switch a service off to hide it without losing it. Enter only prices you have checked with real fundis.</p>
+
+      <form id="rateForm" class="mt-5 bg-white rounded-xl border border-navy/10 p-5">
+        <p class="text-[13.5px] font-semibold text-navy">Add a service</p>
+        <div class="mt-3 grid gap-2.5 sm:grid-cols-[200px_1fr_140px_auto]">
+          <label class="block">
+            <span class="sr-only">Trade</span>
+            <select id="rateCategory" required class="w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[14.5px] outline-none"></select>
+          </label>
+          <label class="block">
+            <span class="sr-only">Service name</span>
+            <input id="rateName" required type="text" minlength="2" maxlength="120" placeholder="Replace a phone screen" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[14.5px] outline-none">
+          </label>
+          <label class="block">
+            <span class="sr-only">Price in shillings</span>
+            <span class="flex items-center rounded-lg border border-navy/15 bg-white focus-within:border-orange">
+              <span class="pl-3 text-[14px] text-navy/50">KSh</span>
+              <input id="ratePrice" required type="number" inputmode="numeric" min="1" step="1" class="w-full bg-transparent px-2 py-2.5 text-[14.5px] outline-none" placeholder="2500">
+            </span>
+          </label>
+          <button id="rateAddBtn" type="submit" class="btn-primary shrink-0 text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Add</button>
+        </div>
+        <p id="rateError" class="hidden mt-2.5 text-[13.5px] text-red-600" role="alert"></p>
+      </form>
+
+      <div id="rateList" class="mt-5 space-y-5"></div>
+    </section>
+
     <section data-panel="admins" hidden class="mt-6">
       <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Admins</h1>
       <p class="mt-1 text-[14px] text-navy/55 leading-[1.6]">Anyone here can verify fundis, suspend accounts and cancel jobs. Give it only to people you trust with that.</p>
@@ -775,8 +806,89 @@
     if (lastInsights) downloadCsv('cancel-reasons', ['Date', 'Trade', 'Cancelled by', 'Reason'], lastInsights.cancel_reasons.map((c) => [c.at, tradeName(c.category), c.by, c.reason]));
   });
 
+  // ---------- rates ----------
+  function fillRateCategories() {
+    const select = document.getElementById('rateCategory');
+    if (select.options.length) return;
+    select.appendChild(new Option('Select a trade', ''));
+    FUNDI_CATEGORIES.forEach((c) => select.appendChild(new Option(c.label, c.key)));
+  }
+
+  function renderRateRow(rate) {
+    const row = el('div', `bg-white rounded-xl border border-navy/10 p-4 ${rate.active ? '' : 'opacity-60'}`);
+    const top = el('div', 'flex flex-wrap items-center gap-2.5');
+    const name = el('input', 'min-w-0 flex-1 basis-48 rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none');
+    name.type = 'text'; name.value = rate.name; name.maxLength = 120;
+    name.setAttribute('aria-label', 'Service name');
+    const priceWrap = el('span', 'flex items-center rounded-lg border border-navy/15 bg-white focus-within:border-orange w-36');
+    priceWrap.appendChild(el('span', 'pl-3 text-[13.5px] text-navy/50', 'KSh'));
+    const price = el('input', 'w-full bg-transparent px-2 py-2 text-[14px] outline-none tabular-nums');
+    price.type = 'number'; price.min = '1'; price.step = '1'; price.value = rate.price_kes;
+    price.setAttribute('aria-label', 'Price in shillings');
+    priceWrap.appendChild(price);
+    const err = errorLine();
+    const run = async (changes) => {
+      try {
+        await apiFetch(`/admin/service-rates/${rate.id}`, { method: 'POST', body: JSON.stringify(changes) });
+        await loadRates();
+      } catch (e) { showError(err, e.message); }
+    };
+    top.append(
+      name, priceWrap,
+      button('Save', 'outline', () => run({ name: name.value, price_kes: Number(price.value) })),
+      button(rate.active ? 'Switch off' : 'Switch on', 'outline', () => run({ active: !rate.active })),
+    );
+    row.append(top, err);
+    return row;
+  }
+
+  async function loadRates() {
+    fillRateCategories();
+    const rates = await apiFetch('/admin/service-rates');
+    const list = document.getElementById('rateList');
+    if (!rates.length) {
+      list.replaceChildren(el('p', 'text-[14px] text-navy/55', 'No services yet. Add the first one above.'));
+      return;
+    }
+    const groups = FUNDI_CATEGORIES.map((c) => ({ c, rows: rates.filter((r) => r.category === c.key) })).filter((g) => g.rows.length);
+    list.replaceChildren(...groups.map((g) => {
+      const wrap = el('div');
+      wrap.appendChild(el('h2', 'font-display font-bold text-[15px] text-navy mb-2', g.c.label));
+      const rows = el('div', 'space-y-2');
+      rows.append(...g.rows.map(renderRateRow));
+      wrap.appendChild(rows);
+      return wrap;
+    }));
+  }
+
+  document.getElementById('rateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('rateError');
+    const btn = document.getElementById('rateAddBtn');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    try {
+      await apiFetch('/admin/service-rates', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: document.getElementById('rateCategory').value,
+          name: document.getElementById('rateName').value,
+          price_kes: Number(document.getElementById('ratePrice').value),
+        }),
+      });
+      document.getElementById('rateName').value = '';
+      document.getElementById('ratePrice').value = '';
+      await loadRates();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---------- tabs ----------
-  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, admins: loadAdmins };
+  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, rates: loadRates, admins: loadAdmins };
   function showTab(name) {
     if (!loaders[name]) name = 'applications';
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));

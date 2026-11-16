@@ -1,4 +1,5 @@
 const fundiService = require('../services/fundiService');
+const { CATEGORIES } = require('../utils/categories');
 
 // A trade rarely needs more than a handful of papers; this caps abuse of the
 // private documents bucket.
@@ -15,8 +16,6 @@ const PHOTO_TYPES = /\.(jpe?g|png|webp|heic|heif)$/i;
 // KRA PINs are a letter (A for a person, P for a company), nine digits and a
 // closing letter.
 const KRA_PIN = /^[AP]\d{9}[A-Z]$/;
-
-const CATEGORIES = ['phone_electronics', 'computer_laptop', 'appliance', 'mechanical', 'general_maintenance', 'installation', 'tailoring'];
 
 async function apply(req, res, next) {
   try {
