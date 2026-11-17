@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **New accounts are made with Google only.** The email and password form is
+  gone from the sign-up page. The 5 accounts made earlier with an email and
+  password still sign in as before, and Terms says so.
+
 ## 1.6.0 — 16 November 2026
 
 Find Fundi starts earning: a commission on jobs paid straight to the fundi, a

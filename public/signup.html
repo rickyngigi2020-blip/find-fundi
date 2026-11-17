@@ -33,20 +33,8 @@
   body { -webkit-font-smoothing: antialiased; }
   :focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; border-radius: 2px; }
 
-  .btn-primary {
-    background: linear-gradient(180deg, #FE8A3D 0%, #FE6902 100%);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 22px -6px rgba(254,105,2,0.45);
-    transition: transform 180ms cubic-bezier(.22,1,.36,1), filter 180ms ease;
-  }
-  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.03); }
-  .btn-primary:active { transform: translateY(0) scale(0.98); filter: brightness(0.97); }
-  .btn-primary:disabled { opacity: 0.6; pointer-events: none; }
-
   .role-tab { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
   .role-tab[aria-selected="true"] { background: #041530; color: #fff; border-color: #041530; }
-
-  input, select { transition: border-color 160ms ease, box-shadow 160ms ease; }
-  input:focus, select:focus { border-color: #FE6902; box-shadow: 0 0 0 3px rgba(254,105,2,0.12); }
 </style>
 </head>
 <body class="bg-gray-50 text-navy font-body antialiased min-h-screen flex items-center justify-center px-5 py-12">
@@ -66,7 +54,7 @@
       <button type="button" id="roleFundi" role="tab" aria-selected="false" class="role-tab rounded-md py-2 text-[14px] font-semibold border border-transparent">I'm a fundi</button>
     </div>
 
-    <button type="button" id="googleBtn" class="w-full mt-5 flex items-center justify-center gap-2.5 border border-navy/15 rounded-lg py-2.5 text-[14.5px] font-semibold text-navy hover:bg-navy/5 transition-colors">
+    <button type="button" id="googleBtn" class="w-full mt-5 flex items-center justify-center gap-2.5 border border-navy/15 rounded-lg py-2.5 text-[14.5px] font-semibold text-navy hover:bg-navy/5 active:bg-navy/10 transition-colors">
       <svg class="w-[18px] h-[18px]" viewBox="0 0 48 48">
         <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C33.9 6 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"/>
         <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.6 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C33.9 6 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
@@ -75,45 +63,6 @@
       </svg>
       Continue with Google
     </button>
-
-    <div class="flex items-center gap-3 my-5">
-      <div class="h-px bg-navy/10 flex-1"></div>
-      <span class="text-[11.5px] text-navy/40 font-semibold tracking-wide">OR</span>
-      <div class="h-px bg-navy/10 flex-1"></div>
-    </div>
-
-    <form id="signupForm" class="space-y-4">
-      <div>
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="fullName">Full name</label>
-        <input id="fullName" required type="text" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="Jane Wanjiru">
-      </div>
-      <div>
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="email">Email</label>
-        <input id="email" required type="email" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="jane@example.com">
-      </div>
-      <div>
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="password">Password</label>
-        <input id="password" required type="password" minlength="8" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="At least 8 characters">
-      </div>
-      <div>
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="phone">Phone number</label>
-        <input id="phone" required type="tel" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none" placeholder="0712 345 678">
-      </div>
-      <div>
-        <label class="block text-[13px] font-semibold text-navy/70 mb-1.5" for="area">Area</label>
-        <select id="area" required class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] outline-none bg-white">
-          <option value="">Select your area</option>
-          <optgroup label="Popular areas"><option>Westlands</option><option>Kilimani</option><option>Kileleshwa</option><option>Lavington</option><option>Upper Hill</option><option>Hurlingham</option><option>Riverside</option><option>Parklands</option><option>Spring Valley</option><option>Loresho</option><option>Runda</option><option>Gigiri</option><option>Muthaiga</option><option>Karen</option><option>Lang'ata</option><option>CBD</option></optgroup>
-          <optgroup label="Other areas"><option>Eastleigh</option><option>Kasarani</option><option>South C</option><option>Embakasi</option><option>Kikuyu</option><option>Ruiru</option></optgroup>
-        </select>
-      </div>
-
-      <p id="formError" class="hidden text-[13.5px] text-red-600"></p>
-
-      <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold text-[15px] px-6 py-3 rounded-lg">
-        Create account
-      </button>
-    </form>
 
     <p class="mt-5 text-center text-[12.5px] leading-[1.6] text-navy/50">By continuing, you confirm you are 18 or older and agree to our <a href="terms.html" class="text-navy/70 font-semibold underline underline-offset-2 hover:text-orange-700 active:text-orange focus-visible:text-orange-700">Terms of Service</a> and <a href="privacy.html" class="text-navy/70 font-semibold underline underline-offset-2 hover:text-orange-700 active:text-orange focus-visible:text-orange-700">Privacy Policy</a>.</p>
 
@@ -146,48 +95,6 @@
         queryParams: { prompt: 'select_account' },
       },
     });
-  });
-
-  const form = document.getElementById('signupForm');
-  const submitBtn = document.getElementById('submitBtn');
-  const formError = document.getElementById('formError');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    formError.classList.add('hidden');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating account…';
-
-    try {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const full_name = document.getElementById('fullName').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const area = document.getElementById('area').value;
-
-      const { data, error } = await sb.auth.signUp({ email, password });
-      if (error) throw error;
-
-      if (!data.session) {
-        formError.textContent = 'Check your email to confirm your account, then sign in.';
-        formError.classList.remove('hidden');
-        formError.classList.replace('text-red-600', 'text-navy/70');
-        submitBtn.textContent = 'Check your email';
-        return;
-      }
-
-      await apiFetch('/profile', {
-        method: 'POST',
-        body: JSON.stringify({ full_name, phone, role, area }),
-      });
-
-      window.location.href = role === 'fundi' ? 'apply.html' : 'book.html';
-    } catch (err) {
-      formError.textContent = err.message || 'Something went wrong.';
-      formError.classList.remove('hidden');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Create account';
-    }
   });
 </script>
 </body>

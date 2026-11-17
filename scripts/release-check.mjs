@@ -261,12 +261,19 @@ async function rateChecks(user, category) {
   });
 
   await check('Every area list is the same, with the urban areas first', async () => {
-    const lists = ['book', 'apply', 'signup', 'profile'].map((p) => {
+    const lists = ['book', 'apply', 'profile'].map((p) => {
       const select = source(`public/${p}.html`).split('<select id="area"')[1].split('</select>')[0];
       return [p, [...select.matchAll(/<option>([^<]+)<\/option>/g)].map((m) => m[1])];
     });
     lists.forEach(([p, areas]) => expect(JSON.stringify(areas) === JSON.stringify(lists[0][1]), `${p}.html lists different areas from book.html`));
     expect(lists[0][1].slice(0, 3).join() === 'Westlands,Kilimani,Kileleshwa', 'Westlands, Kilimani and Kileleshwa are no longer at the top of the area list');
+  });
+
+  await check('New accounts are made with Google only, while email accounts can still sign in', async () => {
+    const signup = source('public/signup.html');
+    expect(!/auth\.signUp\(|type="password"|type="email"/.test(signup), 'signup.html offers email sign-up again');
+    expect(/signInWithOAuth\(\{\s*provider: 'google'/.test(signup), 'signup.html has lost Continue with Google');
+    expect(/signInWithPassword\(/.test(source('public/login.html')), 'login.html no longer lets email accounts sign in');
   });
 
   await check('A listed service sets the price, and an unavailable one is refused', async () => {
