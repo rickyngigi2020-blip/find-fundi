@@ -129,6 +129,7 @@
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="users" aria-selected="false">Users</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="jobs" aria-selected="false">Jobs</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="rates" aria-selected="false">Rates</button>
+      <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="testimonials" aria-selected="false">Testimonials</button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="commissions" aria-selected="false">Commissions<span id="commissionBadge" hidden class="ml-1.5 rounded-md bg-orange px-1.5 py-0.5 text-[11.5px] text-white tabular-nums"></span></button>
       <button type="button" role="tab" class="tab rounded-md px-4 py-2 text-[14px] font-semibold text-navy/65" data-tab="admins" aria-selected="false">Admins</button>
     </div>
@@ -253,6 +254,47 @@
       </form>
 
       <div id="rateList" class="mt-5 space-y-5"></div>
+    </section>
+
+    <section data-panel="testimonials" hidden class="mt-6">
+      <h1 class="font-display font-extrabold text-[1.5rem] tracking-[-0.02em] text-navy">Testimonials</h1>
+      <p class="mt-1 text-[14px] text-navy/55 leading-[1.6]">What real customers and fundis have told you, in their words, with their agreement. Published ones show near the bottom of the home page with first name, customer or fundi, and area. With none published, the home page shows no testimonials at all.</p>
+
+      <form id="testimonialForm" class="mt-5 bg-white rounded-xl border border-navy/10 p-5">
+        <p class="text-[13.5px] font-semibold text-navy">Add a testimonial</p>
+        <div class="mt-3 grid gap-2.5 sm:grid-cols-[1fr_160px_1fr]">
+          <label class="block">
+            <span class="block text-[12.5px] font-semibold text-navy/60 mb-1">Name</span>
+            <input id="tName" required type="text" minlength="2" maxlength="60" placeholder="Wanjiru K." class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[14.5px] outline-none">
+          </label>
+          <label class="block">
+            <span class="block text-[12.5px] font-semibold text-navy/60 mb-1">They are a</span>
+            <select id="tRole" required class="w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[14.5px] outline-none">
+              <option value="customer">Customer</option>
+              <option value="fundi">Fundi</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[12.5px] font-semibold text-navy/60 mb-1">Area (optional)</span>
+            <input id="tArea" type="text" maxlength="60" placeholder="Kilimani" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[14.5px] outline-none">
+          </label>
+        </div>
+        <label class="mt-2.5 block">
+          <span class="block text-[12.5px] font-semibold text-navy/60 mb-1">What they said</span>
+          <textarea id="tQuote" required minlength="10" maxlength="400" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[14.5px] leading-[1.6] outline-none resize-none"></textarea>
+        </label>
+        <label class="mt-3 flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-navy/75">
+          <input id="tConsent" type="checkbox" required class="mt-0.5 w-4 h-4 accent-orange">
+          <span>This person agreed to be quoted on findfundi.com, and these are their words.</span>
+        </label>
+        <div class="mt-3.5 flex items-center gap-3">
+          <button id="tAddBtn" type="submit" class="btn-primary text-white font-semibold text-[14.5px] px-5 py-2.5 rounded-lg">Save as hidden</button>
+          <span class="text-[12.5px] text-navy/50">Publish it from the list once you have checked it.</span>
+        </div>
+        <p id="tError" class="hidden mt-2.5 text-[13.5px] text-red-600" role="alert"></p>
+      </form>
+
+      <div id="testimonialList" class="mt-5 space-y-3"></div>
     </section>
 
     <section data-panel="commissions" hidden class="mt-6">
@@ -566,7 +608,8 @@
     const top = el('div', 'flex items-start justify-between gap-3');
     const what = el('div', 'min-w-0');
     what.appendChild(el('p', 'font-display font-bold text-[15px] text-navy', job.subcategory || CATEGORY_LABELS[job.category] || job.category));
-    what.appendChild(el('p', 'text-[13.5px] text-navy/55 mt-0.5', jobSummaryText(job)));
+    if (job.requested_service_name) what.appendChild(el('p', 'text-[13.5px] font-semibold text-navy/70 mt-0.5', requestedServiceText(job)));
+    what.appendChild(el('p', 'whitespace-pre-line text-[13.5px] text-navy/55 mt-0.5', jobSummaryText(job)));
     top.append(what, pill(job.status, JOB_STATUS_LABELS[job.status] || job.status));
     card.appendChild(top);
 
@@ -582,23 +625,28 @@
     }
     card.appendChild(details);
 
-    // How the price moved and why. This is the only check on a fundi quoting
-    // low to win a job and raising it once they are on site, so every revision
-    // shows, including ones the customer turned down.
+    // Every quotation on the job, line by line. This is the only check on a
+    // fundi quoting low to win a job and raising it once they are on site, so
+    // every version shows, including ones replaced or turned down.
     if ((job.price_changes || []).length) {
       const history = el('div', 'mt-3 rounded-lg border border-navy/10 bg-gray-50 p-3');
-      history.appendChild(el('p', 'text-[12px] font-semibold uppercase tracking-[0.06em] text-navy/45', 'Price history'));
+      history.appendChild(el('p', 'text-[12px] font-semibold uppercase tracking-[0.06em] text-navy/45', 'Quotations'));
 
-      const first = job.price_changes[0];
-      history.appendChild(el('p', 'mt-1.5 text-[13px] text-navy/70', `Agreed ${formatKsh(first.previous_amount)}`));
-
-      job.price_changes.forEach((c) => {
-        const answered = c.accepted_at ? 'accepted' : (c.declined_at ? 'turned down' : 'waiting');
-        const tone = c.accepted_at ? 'text-navy/70' : (c.declined_at ? 'text-navy/45 line-through' : 'text-orange-700 font-semibold');
-        const row = el('div', 'mt-1.5');
-        row.appendChild(el('p', `text-[13px] ${tone}`,
-          `${formatKsh(c.previous_amount)} to ${formatKsh(c.amount)} (${answered}, ${shortDate(c.created_at)})`));
-        row.appendChild(el('p', 'text-[12.5px] text-navy/55 leading-[1.5]', c.reason));
+      const answered = { accepted: 'accepted', declined: 'turned down', replaced: 'replaced before an answer', waiting: 'waiting' };
+      job.price_changes.forEach((q) => {
+        const tone = q.status === 'accepted' ? 'text-navy/80' : (q.status === 'waiting' ? 'text-orange-700 font-semibold' : 'text-navy/45');
+        const row = el('div', 'mt-2 border-t border-navy/10 pt-2 first-of-type:border-0');
+        const what = q.stage === 'update'
+          ? `Update ${q.version}: ${formatKsh(q.previous_total)} to ${formatKsh(q.total)}`
+          : `Quotation ${q.version}: ${formatKsh(q.total)}`;
+        row.appendChild(el('p', `text-[13px] ${tone}`, `${what} (${answered[q.status]}, ${shortDate(q.created_at)})`));
+        (q.items || []).forEach((line) => {
+          const qty = line.qty ? ` × ${line.qty} ${line.unit || 'pcs'}` : '';
+          const fixed = line.kind === 'service' ? ' (fixed rate)' : '';
+          row.appendChild(el('p', 'text-[12.5px] text-navy/60 leading-[1.5] pl-3',
+            `${line.description}${qty}${fixed}: ${formatKsh(line.amount)}`));
+        });
+        if (q.note) row.appendChild(el('p', 'text-[12.5px] text-navy/55 leading-[1.5] italic', q.note));
         history.appendChild(row);
       });
 
@@ -953,8 +1001,68 @@
     }
   });
 
+  // ---------- testimonials ----------
+  function testimonialRow(t) {
+    const row = el('div', `bg-white rounded-xl border border-navy/10 p-4 ${t.published ? '' : 'opacity-70'}`);
+    const top = el('div', 'flex flex-wrap items-start justify-between gap-2');
+    top.appendChild(el('p', 'font-display font-bold text-[15px] text-navy', `${t.person_name}, ${t.role === 'fundi' ? 'fundi' : 'customer'}${t.area ? `, ${t.area}` : ''}`));
+    top.appendChild(pill(t.published ? 'completed' : 'requested', t.published ? 'On the home page' : 'Hidden'));
+    const quote = el('textarea', 'mt-2 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] leading-[1.6] outline-none resize-none');
+    quote.rows = 3; quote.maxLength = 400; quote.value = t.quote;
+    quote.setAttribute('aria-label', 'What they said');
+    const err = errorLine();
+    const run = async (path, changes) => {
+      try {
+        await apiFetch(path, { method: 'POST', body: JSON.stringify(changes || {}) });
+        await loadTestimonials();
+      } catch (e) { showError(err, e.message); }
+    };
+    const actions = el('div', 'mt-2 flex flex-wrap gap-2');
+    actions.append(
+      button(t.published ? 'Hide' : 'Publish', t.published ? 'outline' : 'primary', () => run(`/admin/testimonials/${t.id}`, { published: !t.published })),
+      button('Save wording', 'outline', () => run(`/admin/testimonials/${t.id}`, { quote: quote.value })),
+      button('Delete', 'outline', () => { if (confirm(`Delete ${t.person_name}'s testimonial? This cannot be undone.`)) run(`/admin/testimonials/${t.id}/delete`); }),
+    );
+    row.append(top, quote, actions, err);
+    return row;
+  }
+
+  async function loadTestimonials() {
+    const list = await apiFetch('/admin/testimonials');
+    document.getElementById('testimonialList').replaceChildren(...(list.length
+      ? list.map(testimonialRow)
+      : [el('p', 'text-[14px] text-navy/55', 'None yet. Add one above when someone tells you about their experience and agrees to be quoted.')]));
+  }
+
+  document.getElementById('testimonialForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('tError');
+    const btn = document.getElementById('tAddBtn');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    try {
+      await apiFetch('/admin/testimonials', {
+        method: 'POST',
+        body: JSON.stringify({
+          person_name: document.getElementById('tName').value,
+          role: document.getElementById('tRole').value,
+          area: document.getElementById('tArea').value,
+          quote: document.getElementById('tQuote').value,
+          consent_confirmed: document.getElementById('tConsent').checked,
+        }),
+      });
+      e.target.reset();
+      await loadTestimonials();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---------- tabs ----------
-  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, rates: loadRates, commissions: loadCommissions, admins: loadAdmins };
+  const loaders = { applications: loadApps, insights: loadInsights, users: loadUsers, jobs: loadJobs, rates: loadRates, testimonials: loadTestimonials, commissions: loadCommissions, admins: loadAdmins };
   function showTab(name) {
     if (!loaders[name]) name = 'applications';
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));

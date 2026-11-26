@@ -40,6 +40,28 @@ function distanceKm(aLat, aLng, bLat, bLng) {
 // took it and then turned it down. A job a fundi has turned down must never
 // come back to them. A fundi whose offer merely ran out of time is not here:
 // they may simply not have seen it, so the next round can try them again.
+// A fundi with a job in hand (booked, or with a price agreed) is not offered
+// another until they mark it complete, so one fundi is never booked twice at
+// once. Like the commission lock, it is worked out from the jobs each time and
+// lifts the moment the job is finished, cancelled or handed back.
+const BUSY_STATUSES = ['matched', 'in_progress'];
+const BUSY_MESSAGE = 'Finish your current job first. New offers come once you mark it complete.';
+
+async function busyFundiIds(ids) {
+  if (!ids.length) return new Set();
+  const { data, error } = await adminClient
+    .from('jobs')
+    .select('fundi_id')
+    .in('fundi_id', ids)
+    .in('status', BUSY_STATUSES);
+  if (error) throw toApiError(error);
+  return new Set(data.map((j) => j.fundi_id));
+}
+
+async function isBusy(fundiId) {
+  return (await busyFundiIds([fundiId])).has(fundiId);
+}
+
 async function fundisWhoTurnedDown(jobId) {
   const { data, error } = await adminClient
     .from('job_offers')
@@ -80,8 +102,11 @@ async function rankCandidates(job, round = job.search_round || 1) {
   // A fundi with a commission past its due date is not offered work until it
   // is paid. Worked out here from timestamps, so no background job is needed
   // and paying lifts it at once.
-  const locked = await commissions.lockedFundiIds(notYetOffered.map((f) => f.id));
-  const eligible = notYetOffered.filter((f) => !locked.has(f.id));
+  const ids = notYetOffered.map((f) => f.id);
+  const [locked, busy] = await Promise.all([commissions.lockedFundiIds(ids), busyFundiIds(ids)]);
+  // A busy fundi is skipped for now, not counted as having said no: once the
+  // job in hand is done they can be offered this one on a later pass.
+  const eligible = notYetOffered.filter((f) => !locked.has(f.id) && !busy.has(f.id));
   if (!eligible.length) return [];
 
   // Live locations are only set while a fundi has sharing toggled on, so many
@@ -248,6 +273,8 @@ async function advanceAllWaiting() {
 async function offerForFundi(fundiId) {
   // An offer made before the commission fell due is not shown once it has.
   if (await commissions.isLocked(fundiId)) return null;
+  // An offer made before they took another job waits until that one is done.
+  if (await isBusy(fundiId)) return null;
   await expireStaleOffers();
   const { data, error } = await adminClient
     .from('job_offers')
@@ -269,6 +296,7 @@ async function acceptOffer(jobId, fundiId) {
   if (await commissions.isLocked(fundiId)) {
     throw apiError(403, commissions.LOCKED_MESSAGE, 'commission_locked');
   }
+  if (await isBusy(fundiId)) throw apiError(409, BUSY_MESSAGE, 'busy');
   await expireStaleOffers(jobId);
 
   // Claim the offer first. If this matches nothing the offer expired or was
@@ -335,5 +363,8 @@ module.exports = {
   expireStaleOffers,
   rankCandidates,
   fundisWhoTurnedDown,
+  busyFundiIds,
+  isBusy,
+  BUSY_MESSAGE,
   OFFER_WINDOW_MS,
 };

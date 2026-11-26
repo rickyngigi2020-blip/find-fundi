@@ -1,8 +1,88 @@
 # Changelog
 
-## Unreleased
+## Coming in 1.8
+
+- **Panic button for fundis.** Built alongside 1.7, then held back on
+  26 November 2026 so it can be tested on its own. It comes with migration
+  0028 and its own Terms and Privacy wording.
+
+## 1.7.0 — 26 November 2026
+
+Prices are agreed by quotation, not haggled, plus the fixes from a tester's
+feedback (25 November 2026) and testimonials. The panic button moved to 1.8.
+
+Database (Supabase SQL editor):
+1. Migration 0026: done 26 November 2026.
+2. Migration 0027: done. It is now safe to run again; its last row should show
+   `requested_columns = 3` and `testimonials_table = true`.
+3. **Straight after deploying, run `0026b_quotations_catch_up.sql` again**, even
+   though it was run once on 26 November. Until the deploy, the live 1.6 code
+   writes prices the old way, and only 0026b copies those into quotations.
+   Running it twice is safe. Its last row must show
+   `jobs_with_price_but_no_quotation = 0` and `price_changes_not_copied = 0`.
+
+### Fixed (tester feedback)
+- **A fundi on a job is not offered another.** A booked fundi kept getting
+  offers and the bar kept saying "Finding jobs near you". Offers now wait until
+  the job in hand is marked complete, and the bar says "On a job". A busy fundi
+  is skipped for now, not counted as having said no.
+- **Screens no longer go stale.** The booking confirmation now follows the job
+  (quotation sent, accepted, complete) instead of saying "booked" for ever; it
+  also showed "Your fundi" instead of the fundi's name. My activity no longer
+  redraws itself every 15 seconds (the fundi's photo link changed on every
+  check). A live connection that drops is opened again, and pages check again
+  when the phone comes back online.
+- **The fixed price is set when booking.** A customer can pick a service from
+  the trade's fixed-price list while booking. It becomes the locked first line
+  of the fundi's quotation, so the fundi only adds parts, labour or transport.
+- **Fundis know what the job is before they call.** Each trade asks two or
+  three quick questions answered with a tap (which appliance, what's wrong, can
+  the car be driven). A booking needs one thing to go on: a service, an answer
+  or a sentence, a voice note or a photo.
+
+### Added
+- **Itemised quotations.** The fundi lists each charge on its own line: the
+  listed service at its fixed price (locked, set by the server from the Rates
+  menu), then labour, parts, transport or anything else, with an optional
+  quantity. The customer sees the total first, then the table, ending in
+  TOTAL QUOTATION.
+- **A thread for each job.** Opening a quotation shows the job's price history
+  laid out like a chat, in Find Fundi's colours: every quotation, every update,
+  and every answer, with times. There are no typed messages; customer and fundi
+  still talk by phone. A call button sits in the header.
+- **"Find another fundi".** A customer who would rather not go ahead at the
+  quoted price can turn the quotation down. The job goes straight to the next
+  fundi, and the fundi whose quotation was turned down is never offered it again.
+- **Updated quotations show what changed.** After the customer accepts, a new
+  price is sent as an updated quotation: lines from the agreed quotation, with
+  any changed amount struck through, and an "Added since" section for new
+  charges. The fixed-rate line can't be changed. Work carries on at the agreed
+  price until the customer accepts.
+- Notifications about a quotation open its thread directly, even when the app
+  is already open.
+- Admins see every quotation on a job, line by line, and a count of quotations
+  customers turned down.
+- **Testimonials.** Admins type in what real customers and fundis said, tick
+  that the person agreed to be quoted, and publish it. Published ones show near
+  the bottom of the home page with first name, customer or fundi, and area. With
+  none published the section does not appear. None are made up.
+- A fundi whose quotation was turned down sees a notice on Home saying the job
+  went to another fundi, until they dismiss it.
 
 ### Changed
+- Every version of a price is kept in one table (`job_quotations`). Old prices
+  and price changes are copied in; `job_price_changes` is no longer written to.
+- Phones still running the old app can send a single price; it becomes a
+  one-line quotation.
+- Terms of Service updated (26 November 2026): quotations list each charge,
+  customers can turn one down for another fundi, and updates only count once
+  accepted; a fixed-price service picked while booking is the quotation's first
+  line; testimonials.
+- Privacy Policy updated (26 November 2026): what a testimonial shows.
+- Migration 0027 can be run twice without an error (it stopped with "column
+  requested_rate_id already exists"), and `npm run check` now fails on any
+  migration from 0027 on that can't be.
+- Wording across the booking and fundi pages says "quotation" instead of "price".
 - **New accounts are made with Google only.** The email and password form is
   gone from the sign-up page. The 5 accounts made earlier with an email and
   password still sign in as before, and Terms says so.

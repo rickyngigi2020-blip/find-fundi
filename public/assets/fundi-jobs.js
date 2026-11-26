@@ -12,7 +12,7 @@ const STATUS_STYLES = {
 const STATUS_LABELS = { matched: 'Booked', in_progress: 'Price agreed', completed: 'Completed', cancelled: 'Cancelled' };
 
 function statusLabel(job) {
-  if (job.status === 'matched' && job.quote_amount) return 'Price sent';
+  if (job.status === 'matched' && job.quote_amount) return 'Quotation sent';
   return STATUS_LABELS[job.status] || job.status;
 }
 
@@ -37,18 +37,13 @@ function jobDetailsLine(job) {
 
 const URGENT_TAG = '<span class="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[11.5px] font-semibold text-orange-600">Urgent</span>';
 
-// The menu of fixed-price services for this fundi's trade, fetched once. An
-// empty list (or a failed fetch) just means every job is priced by hand.
-let serviceMenuPromise = null;
-function loadServiceMenu() {
-  if (!serviceMenuPromise) {
-    serviceMenuPromise = apiFetch('/service-rates').catch(() => []);
-  }
-  return serviceMenuPromise;
+// After talking to the customer, the fundi sends a quotation. Writing it, and
+// changing it until the customer accepts, happens in the job thread
+// (quote-thread.js); the card says where things stand and opens it.
+function openThread(job, thenCompose) {
+  QuoteThread.open(job.id, 'fundi').then(() => { if (thenCompose) QuoteThread.compose(); });
 }
 
-// After talking to the customer, the fundi sends a price. It can be changed
-// until the customer accepts; after that the job can be marked complete.
 function renderFundiQuoteSection(section, job, pill, card) {
   section.replaceChildren();
   pill.textContent = statusLabel(job);
@@ -58,95 +53,14 @@ function renderFundiQuoteSection(section, job, pill, card) {
   const box = document.createElement('div');
   box.className = 'mt-3 rounded-xl border border-navy/10 px-4 py-3';
 
-  const showForm = (existing) => {
+  if (job.status === 'matched' && !job.quote_amount) {
     box.innerHTML = `
-      <p class="text-[13.5px] font-semibold text-navy">Send your price</p>
-      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Call <span class="q-cust"></span> to understand the job first, then enter the price you agreed on.</p>
-      <label class="q-menu-wrap mt-3 hidden block">
-        <span class="block text-[12.5px] font-semibold text-navy/70 mb-1">What is the job?</span>
-        <select class="q-menu w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-[14px] outline-none focus:border-orange"></select>
-      </label>
-      <div class="mt-3 grid gap-2 sm:grid-cols-[180px_1fr]">
-        <label class="block">
-          <span class="sr-only">Price in shillings</span>
-          <span class="flex items-center rounded-lg border border-navy/15 bg-white focus-within:border-orange">
-            <span class="pl-3 text-[14px] text-navy/50">KSh</span>
-            <input type="number" inputmode="numeric" min="1" step="1" class="q-amount w-full bg-transparent px-2 py-2.5 text-[15px] outline-none" placeholder="2500">
-          </span>
-        </label>
-        <label class="block">
-          <span class="sr-only">Note for the customer (optional)</span>
-          <input type="text" maxlength="500" class="q-note w-full rounded-lg border border-navy/15 px-3 py-2.5 text-[14px] outline-none focus:border-orange" placeholder="What the price covers (optional)">
-        </label>
-      </div>
-      <p class="q-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
-      <div class="mt-3 flex gap-2">
-        <button type="button" class="q-send btn-primary text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg">Send price</button>
-        ${existing ? '<button type="button" class="q-cancel btn-outline text-navy font-semibold text-[13.5px] px-4 py-2 rounded-lg border border-navy/15 hover:bg-navy/5">Keep current price</button>' : ''}
-      </div>
+      <p class="text-[13.5px] font-semibold text-navy">Send your quotation</p>
+      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Call <span class="q-cust"></span> to understand the job first, then list each charge: the job, labour, parts, transport.</p>
+      <button type="button" class="q-send btn-primary mt-3 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg">Write quotation</button>
     `;
     box.querySelector('.q-cust').textContent = customerName;
-    const amountInput = box.querySelector('.q-amount');
-    const noteInput = box.querySelector('.q-note');
-    if (existing) {
-      amountInput.value = job.quote_amount;
-      noteInput.value = job.quote_note || '';
-      box.querySelector('.q-cancel').addEventListener('click', () => renderFundiQuoteSection(section, job, pill, card));
-    }
-    const errorEl = box.querySelector('.q-error');
-    const sendBtn = box.querySelector('.q-send');
-
-    // A listed service fixes the price; "Other job" leaves it to the fundi.
-    const menuSelect = box.querySelector('.q-menu');
-    const menuWrap = box.querySelector('.q-menu-wrap');
-    const applyMenuChoice = (menu) => {
-      const chosen = menu.find((s) => s.id === menuSelect.value);
-      amountInput.readOnly = Boolean(chosen);
-      amountInput.classList.toggle('bg-gray-50', Boolean(chosen));
-      if (chosen) amountInput.value = chosen.price_kes;
-    };
-    loadServiceMenu().then((menu) => {
-      if (!menu.length || !box.contains(menuSelect)) return;
-      menuSelect.appendChild(new Option('Other job: I will type the price', ''));
-      menu.forEach((s) => menuSelect.appendChild(new Option(`${s.name}: ${formatKsh(s.price_kes)}`, s.id)));
-      if (existing && job.service_rate_id && menu.some((s) => s.id === job.service_rate_id)) menuSelect.value = job.service_rate_id;
-      menuWrap.classList.remove('hidden');
-      applyMenuChoice(menu);
-      menuSelect.addEventListener('change', () => {
-        if (!menuSelect.value) amountInput.value = '';
-        applyMenuChoice(menu);
-      });
-    });
-
-    sendBtn.addEventListener('click', async () => {
-      errorEl.classList.add('hidden');
-      const serviceRateId = menuSelect.value || null;
-      const amount = Number(amountInput.value);
-      if (!serviceRateId && (!Number.isInteger(amount) || amount < 1)) {
-        errorEl.textContent = 'Enter the agreed price in whole shillings.';
-        errorEl.classList.remove('hidden');
-        amountInput.focus();
-        return;
-      }
-      sendBtn.disabled = true;
-      sendBtn.textContent = 'Sending…';
-      try {
-        const updated = await apiFetch(`/jobs/${job.id}/quote`, {
-          method: 'POST',
-          body: JSON.stringify({ amount, service_rate_id: serviceRateId, note: noteInput.value.trim() || null }),
-        });
-        renderFundiQuoteSection(section, { ...updated, counterpart: job.counterpart }, pill, card);
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove('hidden');
-        sendBtn.disabled = false;
-        sendBtn.textContent = 'Send price';
-      }
-    });
-  };
-
-  if (job.status === 'matched' && !job.quote_amount) {
-    showForm(false);
+    box.querySelector('.q-send').addEventListener('click', () => openThread(job, true));
     section.appendChild(box);
     return;
   }
@@ -155,25 +69,16 @@ function renderFundiQuoteSection(section, job, pill, card) {
     box.innerHTML = `
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="text-[12px] font-semibold uppercase tracking-wide text-navy/50">Price sent</p>
-          <p class="q-amount mt-0.5 font-display font-800 text-[1.35rem] tracking-[-0.02em] text-navy"></p>
+          <p class="text-[13px] font-semibold text-navy/55">Quotation sent</p>
+          <p class="q-amount mt-0.5 font-display font-800 text-[1.35rem] tracking-[-0.02em] text-navy tabular-nums"></p>
         </div>
-        <button type="button" class="q-change btn-outline shrink-0 text-navy font-semibold text-[13px] px-3 py-1.5 rounded-lg border border-navy/15 hover:bg-navy/5">Change price</button>
+        <button type="button" class="q-open btn-outline shrink-0 text-navy font-semibold text-[13px] px-3 py-1.5 rounded-lg border border-navy/15 hover:bg-navy/5">Open quotation</button>
       </div>
-      <p class="q-note mt-1 text-[13px] text-navy/65 whitespace-pre-line"></p>
-      <p class="mt-1.5 text-[12.5px] text-navy/50">Waiting for <span class="q-cust"></span> to accept.</p>
+      <p class="mt-1.5 text-[12.5px] text-navy/50">Waiting for <span class="q-cust"></span> to accept. You can change it until they do.</p>
     `;
     box.querySelector('.q-amount').textContent = formatKsh(job.quote_amount);
-    if (job.service_name) {
-      const service = document.createElement('p');
-      service.className = 'text-[13px] text-navy/65';
-      service.textContent = job.service_name;
-      box.querySelector('.q-amount').after(service);
-    }
     box.querySelector('.q-cust').textContent = customerName;
-    const note = box.querySelector('.q-note');
-    if (job.quote_note) note.textContent = job.quote_note; else note.remove();
-    box.querySelector('.q-change').addEventListener('click', () => showForm(true));
+    box.querySelector('.q-open').addEventListener('click', () => openThread(job, false));
     section.appendChild(box);
     return;
   }
@@ -186,6 +91,12 @@ function renderFundiQuoteSection(section, job, pill, card) {
     p.querySelector('.q-amount').textContent = formatKsh(job.final_cost);
     p.querySelector('.q-pay').textContent = job.payment_method ? ` · Customer pays by ${PAYMENT_LABELS[job.payment_method]}` : '';
     box.appendChild(p);
+    const view = document.createElement('button');
+    view.type = 'button';
+    view.className = 'btn-outline -ml-2 mt-1 rounded-md px-2 py-1 text-[13px] font-semibold text-orange-700 hover:bg-navy/5';
+    view.textContent = job.status === 'in_progress' ? 'View or update quotation' : 'View quotation';
+    view.addEventListener('click', () => openThread(job, false));
+    box.appendChild(view);
     section.appendChild(box);
   }
 
@@ -222,7 +133,6 @@ function renderFundiQuoteSection(section, job, pill, card) {
 function renderRevisionSection(section, job) {
   const wrap = document.createElement('div');
   wrap.className = 'mt-4 border-t border-navy/10 pt-3';
-  const agreed = job.final_cost || job.quote_amount;
 
   const showError = (message) => {
     const el = wrap.querySelector('.v-error');
@@ -234,8 +144,8 @@ function renderRevisionSection(section, job) {
     if (job.pending_price_change) {
       const c = job.pending_price_change;
       wrap.innerHTML = `
-        <p class="text-[13.5px] font-semibold text-navy">New price sent: ${formatKsh(c.amount)}</p>
-        <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Was ${formatKsh(c.previous_amount)}. Waiting for the customer to accept. Carry on at the agreed price until they do.</p>
+        <p class="text-[13.5px] font-semibold text-navy">Updated quotation sent: ${formatKsh(c.amount)}</p>
+        <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">Agreed ${formatKsh(c.previous_amount)}. Waiting for the customer to accept. Carry on at the agreed price until they do.</p>
       `;
       return;
     }
@@ -262,46 +172,13 @@ function renderRevisionSection(section, job) {
 
     wrap.innerHTML = `
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="v-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">The price needs to change</button>
+        <button type="button" class="v-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">Update quotation</button>
         <button type="button" class="m-open btn-outline rounded-lg border border-navy/15 px-3.5 py-1.5 text-[13px] font-semibold text-navy/70 hover:bg-navy/5">I have gone for materials</button>
       </div>
       <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
     `;
-    wrap.querySelector('.v-open').addEventListener('click', showRevise);
+    wrap.querySelector('.v-open').addEventListener('click', () => openThread(job, true));
     wrap.querySelector('.m-open').addEventListener('click', showMaterials);
-  };
-
-  const showRevise = () => {
-    wrap.innerHTML = `
-      <p class="text-[13.5px] font-semibold text-navy">Send a new price</p>
-      <p class="mt-0.5 text-[12.5px] text-navy/55 leading-[1.5]">The customer agreed ${formatKsh(agreed)}. Say exactly what changed: they have to accept it before it counts.</p>
-      <input type="number" inputmode="numeric" min="1" class="v-amount mt-2.5 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none" placeholder="New total in KSh">
-      <textarea class="v-reason mt-2 w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none resize-none" rows="3" maxlength="500" placeholder="What changed? For example: the pipe under the sink is cracked and needs replacing, parts cost KSh 1,200"></textarea>
-      <p class="v-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
-      <div class="mt-2.5 flex flex-wrap gap-2">
-        <button type="button" class="v-send btn-primary rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Send new price</button>
-        <button type="button" class="v-cancel btn-outline rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy hover:bg-navy/5">Back</button>
-      </div>
-    `;
-    wrap.querySelector('.v-cancel').addEventListener('click', render);
-    const send = wrap.querySelector('.v-send');
-    send.addEventListener('click', async () => {
-      wrap.querySelector('.v-error').classList.add('hidden');
-      const amount = Number(wrap.querySelector('.v-amount').value);
-      const reason = wrap.querySelector('.v-reason').value.trim();
-      if (!amount || amount < 1) return showError('Enter the new total.');
-      if (reason.length < 10) return showError('Say what changed, in a sentence.');
-      send.disabled = true;
-      send.textContent = 'Sending...';
-      try {
-        await apiFetch(`/jobs/${job.id}/revise-price`, { method: 'POST', body: JSON.stringify({ amount, reason }) });
-        onFundiJobsChanged();
-      } catch (err) {
-        showError(err.message);
-        send.disabled = false;
-        send.textContent = 'Send new price';
-      }
-    });
   };
 
   const showMaterials = () => {
@@ -443,7 +320,8 @@ function offerCard(offer, { onAccept, onDecline }) {
     <h2 class="mt-4 font-display font-800 text-[1.7rem] leading-[1.15] tracking-[-0.03em] text-navy">${escapeHtml(jobTitle(job))}</h2>
     <p class="mt-1 text-[14px] text-navy/60">${escapeHtml(jobDetailsLine(job))}</p>
     ${job.urgency === 'urgent' ? `<div class="mt-2.5">${URGENT_TAG}</div>` : ''}
-    <p class="mt-3 text-[15px] leading-[1.6] text-navy/80">${escapeHtml(jobSummaryText(job))}</p>
+    ${requestedServiceText(job) ? `<p class="mt-3 inline-flex rounded-lg bg-orange-50 px-2.5 py-1.5 text-[13.5px] font-semibold text-navy">${escapeHtml(requestedServiceText(job))}</p>` : ''}
+    <p class="mt-3 whitespace-pre-line text-[15px] leading-[1.6] text-navy/80">${escapeHtml(jobSummaryText(job))}</p>
     <div class="o-media"></div>
     <p class="o-error hidden mt-3 text-[13px] text-red-600" role="alert"></p>
     <button type="button" class="o-accept accept-btn btn-primary mt-5 w-full rounded-2xl py-4 text-white font-display font-700 text-[18px]"><span class="o-drain" aria-hidden="true"></span><span class="o-label relative">Accept job</span></button>
@@ -495,7 +373,8 @@ function myJobCard(job) {
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="font-display font-700 text-[15.5px] text-navy">${escapeHtml(jobTitle(job))}</p>
-        <p class="text-[13.5px] text-navy/55 mt-0.5">${escapeHtml(jobSummaryText(job))}</p>
+        ${requestedServiceText(job) ? `<p class="mt-0.5 text-[13.5px] font-semibold text-navy/75">${escapeHtml(requestedServiceText(job))}</p>` : ''}
+        <p class="whitespace-pre-line text-[13.5px] text-navy/55 mt-0.5">${escapeHtml(jobSummaryText(job))}</p>
       </div>
       <div class="flex shrink-0 items-center gap-1.5">${job.urgency === 'urgent' ? URGENT_TAG : ''}<span class="status-pill"></span></div>
     </div>

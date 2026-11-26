@@ -33,7 +33,15 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const open = windows.find((client) => new URL(client.url).pathname === target.pathname);
-    if (open) return open.focus();
+    if (open) {
+      // A link to one job's quotation (?job=…&thread=1) has to load, not just
+      // bring the page forward.
+      if (target.search && 'navigate' in open) {
+        const moved = await open.navigate(target.href).catch(() => null);
+        if (moved) return moved.focus();
+      }
+      return open.focus();
+    }
     return self.clients.openWindow(target.href);
   })());
 });

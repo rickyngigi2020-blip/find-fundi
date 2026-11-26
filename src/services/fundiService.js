@@ -86,8 +86,28 @@ function totalSince(jobs, since) {
 
 // Figures for the top of the fundi app: online state, earnings from completed
 // jobs, and rating. Amounts are the agreed prices of completed jobs.
+// Quotations a customer turned down in the last 3 days. The job has already
+// gone to another fundi, so without this it would just vanish from Home.
+// Best effort: Home still loads if this can't be read.
+const DECLINED_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+async function recentlyDeclined(userId) {
+  const { data, error } = await adminClient
+    .from('job_quotations')
+    .select('id, total, declined_at, jobs!inner(subcategory, category, area)')
+    .eq('fundi_id', userId)
+    .eq('stage', 'quote')
+    .gte('declined_at', new Date(Date.now() - DECLINED_WINDOW_MS).toISOString())
+    .order('declined_at', { ascending: false })
+    .limit(5);
+  if (error) { console.error('declined quotations not read', error.message); return []; }
+  return data.map((q) => ({
+    id: q.id, total: q.total, declined_at: q.declined_at,
+    subcategory: q.jobs.subcategory, category: q.jobs.category, area: q.jobs.area,
+  }));
+}
+
 async function getDashboard(userId) {
-  const [fundiResult, jobsResult, cards] = await Promise.all([
+  const [fundiResult, jobsResult, cards, declined] = await Promise.all([
     adminClient.from('fundi_profiles').select('is_online, last_seen_at').eq('id', userId).maybeSingle(),
     adminClient
       .from('jobs')
@@ -96,6 +116,7 @@ async function getDashboard(userId) {
       .eq('status', 'completed')
       .order('completed_at', { ascending: false }),
     fundiCards.cardsFor([userId]),
+    recentlyDeclined(userId),
   ]);
   for (const result of [fundiResult, jobsResult]) {
     if (result.error) throw toApiError(result.error);
@@ -119,6 +140,7 @@ async function getDashboard(userId) {
     jobs_completed: jobs.length,
     rating: card.rating,
     selfie_url: card.selfie_url,
+    declined_quotes: declined,
   };
 }
 

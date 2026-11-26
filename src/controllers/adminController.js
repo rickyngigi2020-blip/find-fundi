@@ -1,6 +1,7 @@
 const adminService = require('../services/adminService');
 const serviceRateService = require('../services/serviceRateService');
 const commissionService = require('../services/commissionService');
+const testimonialService = require('../services/testimonialService');
 const { cleanReason } = require('./jobsController');
 const { CATEGORIES } = require('../utils/categories');
 
@@ -223,4 +224,13 @@ async function uncertifyFundi(req, res, next) {
   }
 }
 
-module.exports = { insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listServiceRates, createServiceRate, updateServiceRate, listCommissions, confirmCommissionPaid, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };
+const handle = (work) => async (req, res, next) => {
+  try { res.json({ data: await work(req) }); } catch (err) { next(err); }
+};
+
+const listTestimonials = handle(() => testimonialService.listAll());
+const createTestimonial = handle((req) => testimonialService.create(req.user.id, req.body || {}));
+const updateTestimonial = handle((req) => testimonialService.update(req.params.id, req.body || {}));
+const deleteTestimonial = handle((req) => testimonialService.remove(req.params.id));
+
+module.exports = { listTestimonials, createTestimonial, updateTestimonial, deleteTestimonial, insights, certifyFundi, uncertifyFundi, listFundiApplications, setVerificationStatus, setStartingRating, listServiceRates, createServiceRate, updateServiceRate, listCommissions, confirmCommissionPaid, listUsers, setSuspension, listJobs, cancelJob, listAdmins, grantAdmin, revokeAdmin };

@@ -247,6 +247,7 @@
         <div class="sheet-handle" aria-hidden="true"></div>
         <div id="pushPrompt" hidden class="mb-4"></div>
         <div id="walletCard" hidden class="mb-4"></div>
+        <div id="declinedNotices" class="space-y-2.5"></div>
 
         <div id="myJobsBlock" hidden class="mb-7">
           <h2 class="font-display font-700 text-[16px] tracking-[-0.01em]">Your jobs</h2>
@@ -386,6 +387,7 @@
 <script src="assets/categories.js"></script>
 <script src="assets/job-media.js"></script>
 <script src="assets/fundi-jobs.js"></script>
+<script src="assets/quote-thread.js"></script>
 <script src="assets/push.js"></script>
 <script>
   // While online, the page checks in this often so customers keep seeing the
@@ -396,7 +398,7 @@
 
   const STAR_SVG = '<svg class="w-6 h-6 text-orange" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9L3.4 9.5l6-.8z"/></svg>';
 
-  const state = { profile: null, dashboard: null, feed: [], online: false };
+  const state = { profile: null, dashboard: null, feed: [], online: false, activeJobs: 0 };
   let checkInTimer = null;
 
   // ---------- helpers ----------
@@ -436,7 +438,34 @@
     tile.querySelector('.m-sub').textContent = sub;
   }
 
+  // A customer turned down this fundi's quotation and the job went to someone
+  // else. Said once on Home, until dismissed, so the job doesn't just vanish.
+  const SEEN_DECLINES_KEY = 'ff-seen-declined-quotes';
+  function renderDeclined() {
+    const seen = new Set(JSON.parse(localStorage.getItem(SEEN_DECLINES_KEY) || '[]'));
+    const items = (state.dashboard.declined_quotes || []).filter((q) => !seen.has(q.id));
+    document.getElementById('declinedNotices').replaceChildren(...items.map((q) => {
+      const card = document.createElement('div');
+      card.className = 'surface mb-4 flex items-start gap-3 p-4';
+      card.setAttribute('role', 'status');
+      card.innerHTML = `
+        <div class="min-w-0 flex-1">
+          <p class="font-display font-700 text-[15px] leading-snug">${escapeHtml(q.subcategory || CATEGORY_LABELS[q.category] || 'A job')} went to another fundi</p>
+          <p class="mt-1 text-[13.5px] leading-[1.55] text-navy/60">The customer in ${escapeHtml(q.area)} didn't go ahead at ${escapeHtml(formatKsh(q.total))}, ${escapeHtml(whenText(q.declined_at))}. It won't be offered to you again.</p>
+        </div>
+        <button type="button" class="d-dismiss btn-quiet shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-navy/60 hover:bg-navy/5 active:bg-navy/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange">Got it</button>`;
+      card.querySelector('.d-dismiss').addEventListener('click', () => {
+        seen.add(q.id);
+        localStorage.setItem(SEEN_DECLINES_KEY, JSON.stringify([...seen].slice(-50)));
+        card.remove();
+        syncSheet();
+      });
+      return card;
+    }));
+  }
+
   function renderMetrics() {
+    renderDeclined();
     const d = state.dashboard;
     setSlide('today', formatKsh(d.today.amount), jobsText(d.today.jobs, 'done today'));
     setSlide('week', formatKsh(d.week.amount), jobsText(d.week.jobs, 'since Monday'));
@@ -738,7 +767,7 @@
   async function loadMyJobs() {
     const jobs = await apiFetch('/jobs/mine?role=fundi');
     const active = jobs.filter((j) => j.status === 'matched' || j.status === 'in_progress');
-    const snapshot = JSON.stringify(active);
+    const snapshot = jobsSnapshot(active);
     if (snapshot === drawnJobs || writingInJobs()) return false;
     drawnJobs = snapshot;
     Object.keys(activeWatchers).forEach(stopSharing);
@@ -749,6 +778,8 @@
       return card;
     }));
     document.getElementById('myJobsBlock').hidden = active.length === 0;
+    state.activeJobs = active.length;
+    renderStatus();
     syncSheet();
     return true;
   }
@@ -761,6 +792,7 @@
     watchingJobs = true;
     watchMyJobs(state.session.user.id, 'fundi_id', async () => {
       if (await loadMyJobs()) loadDashboard().catch(() => {});
+      await QuoteThread.refresh();
     });
   }
 
@@ -865,6 +897,8 @@
     loadMyJobs().catch(() => {});
     loadDashboard().catch(() => {});
   };
+  // Sending or changing a quotation in the thread updates the cards behind it.
+  QuoteThread.onChange = () => onFundiJobsChanged();
 
   // ---------- online / offline ----------
   const dockOffline = document.getElementById('dockOffline');
@@ -885,15 +919,21 @@
   }
 
   // What the status bar says while online. Overdue commission pauses offers,
-  // and the bar says so rather than claiming to look for jobs.
+  // and so does a job in hand (the API offers nothing new until it is marked
+  // complete), so the bar never claims to be looking for jobs when it isn't.
   function renderStatus() {
-    const paused = Boolean(state.wallet && state.wallet.locked);
-    document.getElementById('dockTitle').textContent = paused ? 'Offers paused' : 'Finding jobs near you';
-    document.getElementById('dockSub').textContent = paused
+    const locked = Boolean(state.wallet && state.wallet.locked);
+    const busy = !locked && state.activeJobs > 0;
+    const title = locked ? 'Offers paused' : busy ? 'On a job' : 'Finding jobs near you';
+    const sub = locked
       ? 'Pay the commission you owe and offers come back once we confirm it.'
-      : 'Customers see you as available while this page is open.';
-    document.getElementById('dockSweep').hidden = paused;
-    document.getElementById('dockDot').classList.toggle('is-paused', paused);
+      : busy
+        ? 'New offers come after you mark it complete.'
+        : 'Customers see you as available while this page is open.';
+    document.getElementById('dockTitle').textContent = title;
+    document.getElementById('dockSub').textContent = sub;
+    document.getElementById('dockSweep').hidden = locked || busy;
+    document.getElementById('dockDot').classList.toggle('is-paused', locked || busy);
   }
 
   async function setOnline(online) {
@@ -1039,16 +1079,18 @@
     // Coming back to the page while still marked online counts as a check-in.
     if (state.online) checkIn();
 
-    mountPushPrompt(document.getElementById('pushPrompt'), 'Get a notification the moment a job is offered to you, and when a price is accepted.');
+    mountPushPrompt(document.getElementById('pushPrompt'), 'Get a notification the moment a job is offered to you, and when a customer accepts your quotation.');
     // A notification means a job changed: refresh without waiting for the timer.
     onPushUpdate(() => {
       loadFeed().catch(() => {});
       loadOffer();
       onFundiJobsChanged();
+      QuoteThread.refresh();
     });
 
     route();
     watchJobs();
+    QuoteThread.openFromUrl('fundi');
   }
 
   document.getElementById('retryBtn').addEventListener('click', init);

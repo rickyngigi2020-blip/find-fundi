@@ -91,6 +91,37 @@
   @keyframes drift { from { transform: translate3d(-50%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
   .cat-card:hover .cat-track, .cat-card:focus-visible .cat-track { animation-play-state: paused; }
 
+  /* ---- fixed-price services and quick questions ----
+     Same pressed look as the trade cards, so a choice reads the same everywhere. */
+  .svc-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%; padding: 12px 14px; text-align: left; background: #fff;
+    border: 1px solid rgba(4,21,48,0.12); border-radius: 12px;
+    transition: transform 200ms cubic-bezier(.22,1,.36,1), border-color 160ms ease, background-color 160ms ease;
+  }
+  .svc-row:hover { border-color: rgba(4,21,48,0.24); }
+  .svc-row:active { transform: scale(0.99); }
+  .svc-row[aria-pressed="true"] { border-color: #FE6902; background: #FFF1E6; box-shadow: inset 0 0 0 1px #FE6902; }
+  .svc-check {
+    width: 20px; height: 20px; flex-shrink: 0; border-radius: 9999px; border: 1.5px solid rgba(4,21,48,0.25);
+    display: flex; align-items: center; justify-content: center; color: transparent;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+  .svc-row[aria-pressed="true"] .svc-check { background: #FE6902; border-color: #FE6902; color: #fff; }
+  .chip {
+    display: inline-flex; align-items: center; padding: 7px 12px; font-size: 13.5px; font-weight: 500; line-height: 1.2;
+    color: rgba(4,21,48,0.78); background: #fff; border: 1px solid rgba(4,21,48,0.14); border-radius: 9px;
+    transition: transform 200ms cubic-bezier(.22,1,.36,1), border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+  .chip:hover { border-color: rgba(4,21,48,0.28); color: #041530; }
+  .chip:active { transform: scale(0.97); }
+  .chip[aria-pressed="true"] { border-color: #FE6902; background: #FFF1E6; color: #041530; box-shadow: inset 0 0 0 1px #FE6902; }
+  .svc-row:focus-visible, .chip:focus-visible { outline: 2px solid #FE6902; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .svc-row, .chip { transition: none; }
+    .svc-row:active, .chip:active { transform: none; }
+  }
+
   /* ---- voice note + photos ---- */
   .rec-dot { width: 8px; height: 8px; border-radius: 9999px; background: #DC2626; animation: blink 1.2s ease-in-out infinite; }
   @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
@@ -169,14 +200,25 @@
     <!-- STEP 1: describe -->
     <section id="step1" class="step active bg-white rounded-2xl border border-navy/10 p-5 sm:p-7">
       <h1 class="font-display font-800 text-[1.5rem] sm:text-[1.65rem] leading-[1.15] tracking-[-0.02em] text-navy">What can a fundi help you with?</h1>
-      <p class="mt-1.5 text-navy/55 text-[14.5px] leading-[1.6]">Pick the closest match, then tap Find a fundi. Everything below is optional: your fundi calls you before sending a price.</p>
+      <p class="mt-1.5 text-navy/55 text-[14.5px] leading-[1.6]">Pick the closest match, then tell the fundi a little about the job so they come ready.</p>
 
       <div id="categoryGroups" class="mt-6 space-y-5"></div>
 
+      <!-- Shown once a trade is picked. -->
+      <div id="jobDetails" hidden class="mt-7 pt-6 border-t border-navy/10 space-y-6">
+        <div id="serviceBlock" hidden>
+          <p class="text-[13px] font-semibold text-navy/70">Fixed-price services</p>
+          <p class="mt-0.5 mb-2.5 text-[12.5px] text-navy/50">Pick one if it matches your job. Its price is set by Find Fundi.</p>
+          <div id="serviceList" class="space-y-2" role="group" aria-label="Fixed-price services"></div>
+          <p id="serviceNote" hidden class="mt-2.5 rounded-lg bg-orange-50 px-3 py-2.5 text-[13px] leading-[1.55] text-navy/75"></p>
+        </div>
+        <div id="quickQuestions" class="space-y-4"></div>
+      </div>
+
       <div class="mt-7 pt-6 border-t border-navy/10">
-        <label class="block text-[13px] font-semibold text-navy/70" for="description">Describe what you need <span class="font-normal text-navy/45">(optional)</span></label>
-        <p class="mt-0.5 mb-2 text-[12.5px] text-navy/50">Type it, record a voice note, or both. It helps the fundi come prepared.</p>
-        <textarea id="description" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] leading-[1.6] outline-none resize-none" placeholder="What's going on, and anything the fundi should know before coming?"></textarea>
+        <label class="block text-[13px] font-semibold text-navy/70" for="description">What's wrong?</label>
+        <p class="mt-0.5 mb-2 text-[12.5px] text-navy/50">A sentence or a voice note is enough. The more the fundi knows, the fewer questions on the call.</p>
+        <textarea id="description" rows="3" class="w-full rounded-lg border border-navy/15 px-3.5 py-2.5 text-[15px] leading-[1.6] outline-none resize-none" placeholder="For example: the fridge stopped cooling two days ago and the light still comes on."></textarea>
 
         <div id="voiceBox" class="mt-2.5 rounded-xl border border-navy/10 bg-gray-50 px-3 py-2.5">
           <div id="voiceIdle" class="flex items-center justify-between gap-3">
@@ -251,7 +293,7 @@
       <div class="send-bar mt-6">
         <p id="sendWhat" hidden class="mb-2 text-center text-[13px] text-navy/60"></p>
         <p id="step1Error" class="hidden mb-2 text-center text-[13.5px] text-red-600" role="alert"></p>
-        <button id="toStep2" class="btn-primary w-full text-white font-semibold text-[15.5px] px-6 py-3.5 rounded-lg">
+        <button type="button" id="toStep2" class="btn-primary w-full text-white font-semibold text-[15.5px] px-6 py-3.5 rounded-lg">
           Find a fundi
         </button>
       </div>
@@ -285,7 +327,7 @@
         <p class="text-[13.5px] font-semibold text-navy">What happens next</p>
         <ol class="mt-2.5 space-y-2 text-[13.5px] text-navy/65 leading-[1.55]">
           <li class="flex gap-2.5"><span class="font-display font-700 text-orange">1</span><span>The fundi who takes it calls you to understand the job.</span></li>
-          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">2</span><span>They send you a price in My activity.</span></li>
+          <li class="flex gap-2.5"><span class="font-display font-700 text-orange">2</span><span>They send you a quotation in My activity, with each charge listed.</span></li>
           <li class="flex gap-2.5"><span class="font-display font-700 text-orange">3</span><span>You accept it and choose how to pay. Nothing is agreed until you do.</span></li>
         </ol>
       </div>
@@ -299,8 +341,8 @@
       <div class="w-14 h-14 rounded-full bg-orange-50 text-orange flex items-center justify-center mx-auto">
         <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
       </div>
-      <h1 class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
-      <p id="doneMessage" class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi will call you to discuss the job, then send you a price to accept in My activity.</p>
+      <h1 id="doneTitle" class="font-display font-800 text-[1.4rem] text-navy mt-4">Booking confirmed</h1>
+      <p id="doneMessage" class="mt-2 text-navy/60 text-[15px] max-w-sm mx-auto">Your fundi will call you to discuss the job, then send you a quotation to accept in My activity.</p>
       <div id="donePush" hidden class="mt-5 text-left"></div>
       <a href="my-jobs.html" class="btn-primary inline-block mt-6 text-white font-semibold text-[14.5px] px-6 py-2.5 rounded-lg">Go to My activity</a>
     </section>
@@ -360,7 +402,10 @@
         card.addEventListener('click', () => {
           document.querySelectorAll('.cat-card').forEach((b) => b.setAttribute('aria-pressed', 'false'));
           card.setAttribute('aria-pressed', 'true');
-          selectedCategory = cat.key;
+          if (selectedCategory !== cat.key) {
+            selectedCategory = cat.key;
+            renderJobDetails(cat.key);
+          }
           updateQuickSend();
         });
         grid.appendChild(card);
@@ -370,6 +415,87 @@
       root.appendChild(section);
     });
     tuneDriftSpeed();
+  }
+
+  // ---------- what the job is ----------
+  // A service from the trade's fixed-price menu, and tap answers to the trade's
+  // quick questions. Both reset when the trade changes.
+  let selectedRate = null;
+  let quickAnswers = {};
+  let ratesRequest = 0;
+  const CHECK_SVG = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>';
+
+  function renderJobDetails(category) {
+    selectedRate = null;
+    quickAnswers = {};
+    document.getElementById('jobDetails').hidden = false;
+    renderQuickQuestions(category);
+    renderServices(category, []);
+    const request = ++ratesRequest;
+    apiFetch(`/service-rates?category=${encodeURIComponent(category)}`)
+      .then((rates) => { if (request === ratesRequest) renderServices(category, rates); })
+      .catch(() => { /* no menu shown: they describe the job instead */ });
+  }
+
+  function renderQuickQuestions(category) {
+    const root = document.getElementById('quickQuestions');
+    root.replaceChildren(...(QUICK_QUESTIONS[category] || []).map((q, qi) => {
+      const block = document.createElement('div');
+      const id = `qq-${category}-${qi}`;
+      block.innerHTML = `<p id="${id}" class="mb-2 text-[13px] font-semibold text-navy/70">${escapeHtml(q.label)}</p><div class="flex flex-wrap gap-2" role="group" aria-labelledby="${id}"></div>`;
+      const group = block.querySelector('[role="group"]');
+      q.answers.forEach((answer) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip';
+        chip.textContent = answer;
+        chip.setAttribute('aria-pressed', 'false');
+        chip.addEventListener('click', () => {
+          const on = quickAnswers[q.label] !== answer;
+          group.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+          if (on) { quickAnswers[q.label] = answer; chip.setAttribute('aria-pressed', 'true'); } else { delete quickAnswers[q.label]; }
+        });
+        group.appendChild(chip);
+      });
+      return block;
+    }));
+  }
+
+  function renderServices(category, rates) {
+    const block = document.getElementById('serviceBlock');
+    const list = document.getElementById('serviceList');
+    const note = document.getElementById('serviceNote');
+    block.hidden = !rates.length;
+    note.hidden = true;
+    if (!rates.length) { list.replaceChildren(); return; }
+    const row = (rate) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'svc-row';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = `
+        <span class="min-w-0 text-[14.5px] font-semibold leading-[1.3] text-navy">${escapeHtml(rate ? rate.name : 'Something else')}</span>
+        <span class="flex shrink-0 items-center gap-3">
+          ${rate ? `<span class="font-display font-700 text-[14.5px] tabular-nums text-navy">${escapeHtml(formatKsh(rate.price_kes))}</span>` : ''}
+          <span class="svc-check">${CHECK_SVG}</span>
+        </span>`;
+      btn.addEventListener('click', () => {
+        list.querySelectorAll('.svc-row').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        selectedRate = rate;
+        note.hidden = !rate;
+        if (rate) note.textContent = `${formatKsh(rate.price_kes)} service charge. Your fundi adds any parts or labour to the quotation, and nothing is agreed until you accept it.`;
+      });
+      return btn;
+    };
+    list.replaceChildren(...rates.map(row), row(null));
+  }
+
+  // The tap answers lead the description, one "Question: answer" per line.
+  function jobDescription() {
+    const answers = Object.entries(quickAnswers).map(([q, a]) => `${q}: ${a}`).join('\n');
+    const typed = document.getElementById('description').value.trim();
+    return [answers, typed].filter(Boolean).join('\n\n');
   }
 
   // ---------- send bar ----------
@@ -677,7 +803,7 @@
     const errorEl = document.getElementById('step1Error');
     errorEl.classList.add('hidden');
 
-    const description = document.getElementById('description').value.trim();
+    const description = jobDescription();
     const area = document.getElementById('area').value;
     const fail = (message) => { errorEl.textContent = message; errorEl.classList.remove('hidden'); };
 
@@ -685,6 +811,10 @@
     if (preparingPhotos) return fail('Your photos are still being added. Try again in a second.');
     if (!selectedCategory) return fail('Pick what a fundi can help you with.');
     if (!area) return fail('Select your area.');
+    // Matches the API: something for the fundi to go on, any one will do.
+    if (!currentJob && !selectedRate && !voiceBlob && !photos.length && description.length < 15) {
+      return fail('Tell the fundi a little about the job: pick a service, answer a question, or add a sentence, a voice note or a photo.');
+    }
 
     const btn = document.getElementById('toStep2');
     btn.disabled = true;
@@ -707,6 +837,7 @@
           category: selectedCategory,
           subcategory: document.getElementById('subcategory').value.trim() || null,
           description: description || null,
+          requested_rate_id: selectedRate ? selectedRate.id : null,
           voice_note_path,
           photo_paths,
           area,
@@ -750,7 +881,8 @@
     }
     document.getElementById('searchSummary').innerHTML = `
       <p><span class="text-navy font-semibold">${escapeHtml(CATEGORY_LABELS[currentJob.category] || currentJob.category)}</span></p>
-      ${currentJob.description ? `<p>${escapeHtml(currentJob.description)}</p>` : ''}
+      ${currentJob.requested_service_name ? `<p>${escapeHtml(currentJob.requested_service_name)}, ${escapeHtml(formatKsh(currentJob.requested_price_kes))}</p>` : ''}
+      ${currentJob.description ? `<p class="whitespace-pre-line">${escapeHtml(currentJob.description)}</p>` : ''}
       ${extras.length ? `<p>${escapeHtml(extras.join(' · '))}</p>` : ''}
       <p>Area: ${escapeHtml(currentJob.area)}</p>
     `;
@@ -793,12 +925,13 @@
       if (job.status !== 'requested' && job.fundi_id) {
         stopPolling();
         stopSearchWatch();
-        currentJob = job;
-        const name = job.fundi && job.fundi.full_name ? job.fundi.full_name : 'Your fundi';
-        document.getElementById('doneMessage').textContent =
-          `${name} took the job. They will call you to discuss it, then send you a price to accept in My activity.`;
+        showBooked(job);
         showStep('stepDone');
-        mountPushPrompt(document.getElementById('donePush'), 'Get a notification when your fundi sends the price.');
+        mountPushPrompt(document.getElementById('donePush'), 'Get a notification when your fundi sends the quotation.');
+        // Customers often stay on this screen. It follows the job from here, so
+        // it never says "booked" about a job that is under way or finished.
+        const { user } = await getSession();
+        stopWatching = watchMyJobs(user.id, 'customer_id', followBooked);
         return;
       }
 
@@ -823,6 +956,50 @@
       searchError.classList.remove('hidden');
       schedulePoll();
     }
+  }
+
+  // What the confirmation screen says, from where the job has got to.
+  function showBooked(job) {
+    currentJob = job;
+    const name = job.counterpart && job.counterpart.full_name ? job.counterpart.full_name.split(' ')[0] : 'Your fundi';
+    const headings = {
+      matched: 'Booking confirmed', in_progress: 'Quotation accepted', completed: 'Job complete', cancelled: 'Job cancelled',
+    };
+    let text;
+    if (job.status === 'matched' && job.quote_amount) {
+      text = `${name} sent you a quotation of ${formatKsh(job.quote_amount)}. Open My activity to see each charge and accept it.`;
+    } else if (job.status === 'matched') {
+      text = `${name} took the job. They will call you to discuss it, then send you a quotation to accept in My activity.`;
+    } else if (job.status === 'in_progress') {
+      text = `You accepted ${formatKsh(job.final_cost)}. ${name} is on the job.`;
+    } else if (job.status === 'completed') {
+      text = `${name} marked the job complete. You can rate them in My activity.`;
+    } else {
+      text = 'This job was cancelled. It is still in My activity.';
+    }
+    document.getElementById('doneTitle').textContent = headings[job.status] || 'Booking confirmed';
+    document.getElementById('doneMessage').textContent = text;
+  }
+
+  async function followBooked() {
+    const jobs = await apiFetch('/jobs/mine');
+    const job = jobs.find((j) => j.id === currentJob.id);
+    if (!job) return;
+    // The fundi turned it down, or the customer asked for another: the search
+    // is running again, so show it.
+    if (job.status === 'requested') {
+      stopSearchWatch();
+      currentJob = job;
+      watchingSince = Date.now();
+      showSearching();
+      showStep('stepSearching');
+      const { user } = await getSession();
+      stopWatching = watchMyJobs(user.id, 'customer_id', pollForMatch, { pollMs: 0 });
+      pollForMatch();
+      return;
+    }
+    showBooked(job);
+    if (job.status === 'completed' || job.status === 'cancelled') stopSearchWatch();
   }
 
   function schedulePoll() {

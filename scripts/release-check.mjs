@@ -179,12 +179,30 @@ async function stressTestChecks() {
       expect(source(page).includes('watchMyJobs('), `${page} no longer watches for job changes`);
     }
     expect(fs.existsSync(new URL('../supabase/migrations/0018_jobs_realtime.sql', import.meta.url)), 'migration 0018 (jobs in Realtime) is missing');
+    // 1.7 tester feedback: screens kept saying "booked" after the job moved on.
+    const client = source('public/assets/supabase-client.js');
+    expect(/CHANNEL_ERROR/.test(client) && /addEventListener\('online'/.test(client), 'a dropped live connection is no longer opened again');
+    for (const page of ['public/my-jobs.html', 'public/fundi.html']) {
+      expect(source(page).includes('jobsSnapshot('), `${page} compares signed links, so it redraws on every check`);
+    }
+    const book = source('public/book.html');
+    expect(/followBooked/.test(book), 'the booking confirmation stops following the job once a fundi takes it');
+    expect(!/job\.fundi\b/.test(book), 'the booking page reads job.fundi, which the API does not send (it is job.counterpart)');
   });
 
-  await check('Booking needs only a trade and an area', async () => {
+  // 1.7 tester feedback: descriptions were too vague for the fundi, so a job
+  // needs something to go on, but any one thing is enough.
+  await check('A booking says something about the job, and any one detail is enough', async () => {
     const page = source('public/book.html');
-    expect(!/Describe what you need, or record a voice note/.test(page), 'booking requires a description again');
-    expect(!/Describe the problem in writing or record a voice note/.test(source('src/controllers/jobsController.js')), 'the API requires a description again');
+    expect(/QUICK_QUESTIONS\[/.test(page) && /QUICK_QUESTIONS = \{/.test(source('public/assets/categories.js')), 'the booking page no longer asks the quick questions');
+    const controller = source('src/controllers/jobsController.js');
+    expect(/MIN_DESCRIPTION/.test(controller) && /requestedRateId/.test(controller) && /voice_note_path/.test(controller), 'the API no longer checks that a job says something');
+    const jobsController = require('../src/controllers/jobsController');
+    const refused = await new Promise((resolve) => {
+      const res = { status: (code) => ({ json: (body) => resolve({ code, body }) }), json: (body) => resolve({ code: 200, body }) };
+      jobsController.create({ body: { category: 'mechanical', area: 'Kasarani', description: 'Fix it' }, user: { id: '00000000-0000-0000-0000-000000000000' } }, res, (err) => resolve({ code: 500, body: err }));
+    });
+    expect(refused.code === 400, `a job with only "Fix it" was not refused (got ${refused.code})`);
     expect(/class="send-bar/.test(page) && /\.send-bar \{[^}]*position: sticky/.test(page), 'the Find a fundi button no longer stays on screen');
   });
 }
@@ -278,7 +296,7 @@ async function rateChecks(user, category) {
 
   await check('A listed service sets the price, and an unavailable one is refused', async () => {
     expect(fs.existsSync(new URL('../supabase/migrations/0024_service_rates.sql', import.meta.url)), 'migration 0024 (service rates) is missing');
-    expect(/service_rate_id/.test(source('public/assets/fundi-jobs.js')), 'the fundi quote form no longer offers the menu');
+    expect(/service_rate_id/.test(source('public/assets/quote-thread.js')), 'the fundi quotation form no longer offers the menu');
     if (!category) return;
     const jobService = require('../src/services/jobService');
     const made = [];
@@ -300,21 +318,180 @@ async function rateChecks(user, category) {
       }).select().single();
       if (error) throw error;
 
-      const sent = await jobService.sendQuote(job.id, user.id, { amount: 1, note: null, serviceRateId: listed.id });
+      const sent = await jobService.sendQuote(job.id, user.id, { items: [], note: null, serviceRateId: listed.id });
       expect(sent.quote_amount === 2500, `a listed service was priced at ${sent.quote_amount}, not its listed 2500`);
       expect(sent.service_rate_id === listed.id && sent.service_name === listed.name, 'the job does not record which service it was priced from');
 
       for (const [label, bad] of [['switched off', off], ['for another trade', elsewhere]]) {
         let code = null;
-        try { await jobService.sendQuote(job.id, user.id, { amount: 1, note: null, serviceRateId: bad.id }); } catch (e) { code = e.code; }
+        try { await jobService.sendQuote(job.id, user.id, { items: [], note: null, serviceRateId: bad.id }); } catch (e) { code = e.code; }
         expect(code === 'rate_unavailable', `a service ${label} was accepted`);
       }
 
-      const own = await jobService.sendQuote(job.id, user.id, { amount: 1800, note: null });
+      const own = await jobService.sendQuote(job.id, user.id, { items: [{ id: 'own', kind: 'other', description: 'Price for the job', qty: null, unit: null, amount: 1800 }], note: null });
       expect(own.quote_amount === 1800 && own.service_rate_id === null && own.service_name === null, 'a job priced by hand still carries a service');
+
+      // 1.7: the customer can pick the service while booking. The stored price
+      // is the menu's, whatever the booking request says.
+      const { error: colError } = await admin.from('jobs').select('requested_rate_id').limit(1);
+      expect(!colError, 'jobs.requested_rate_id is missing: run migration 0027_feedback_1_7.sql in the Supabase SQL editor');
+      const jobsController = require('../src/controllers/jobsController');
+      const createAs = (body) => new Promise((resolve) => {
+        const res = { status: (code) => ({ json: (b) => resolve({ code, body: b }) }), json: (b) => resolve({ code: 200, body: b }) };
+        jobsController.create({ body, user: { id: user.id } }, res, (err) => resolve({ code: err.status || 500, body: err }));
+      });
+      const booked = await createAs({ category, area: 'Kasarani', requested_rate_id: listed.id, requested_price_kes: 1 });
+      expect(booked.code === 200, `booking with a listed service failed: ${booked.body && (booked.body.message || JSON.stringify(booked.body))}`);
+      const saved = booked.body.data;
+      expect(saved.requested_rate_id === listed.id && saved.requested_price_kes === 2500 && saved.requested_service_name === listed.name,
+        `the booking stored ${saved.requested_price_kes} for the service, not the menu's 2500`);
+      const wrongTrade = await createAs({ category, area: 'Kasarani', requested_rate_id: elsewhere.id });
+      expect(wrongTrade.code === 409, 'a booking with a service from another trade was accepted');
+      const listedForCustomers = await require('../src/services/serviceRateService').listForCategory(category);
+      expect(listedForCustomers.some((r) => r.id === listed.id) && !listedForCustomers.some((r) => r.id === off.id), 'customers see switched-off services, or not the listed ones');
     } finally {
       if (made.length) await admin.from('service_rates').delete().in('id', made);
     }
+  });
+}
+
+// ---------- quotations (no more haggling) ----------
+// A price is a list of charges. A listed service keeps its fixed price, extras
+// show apart, a customer can turn a quotation down for another fundi, and a
+// change after acceptance only counts once the customer says yes.
+async function quotationChecks(user, category) {
+  const jobService = require('../src/services/jobService');
+  const jobsController = require('../src/controllers/jobsController');
+  const matching = require('../src/services/matchingService');
+  const { cleanItems } = require('../src/utils/quoteItems');
+
+  const tableMissing = async () => {
+    const { error } = await admin.from('job_quotations').select('id').limit(1);
+    return error ? 'job_quotations is missing: run migration 0026_quotations.sql in the Supabase SQL editor' : null;
+  };
+  const bookedJob = async (fields = {}) => {
+    const { data, error } = await admin.from('jobs').insert({
+      customer_id: user.id, fundi_id: user.id, status: 'matched', category, area: 'Kasarani',
+      description: `Release check: quotation ${Date.now()}`, ...fields,
+    }).select().single();
+    if (error) throw error;
+    return data;
+  };
+  const versions = async (jobId) => {
+    const { data, error } = await admin.from('job_quotations').select('*').eq('job_id', jobId).order('version');
+    if (error) throw error;
+    return data;
+  };
+  const withRate = async (work) => {
+    const { data: rate, error } = await admin.from('service_rates')
+      .insert({ category, name: `Release check quotation ${Date.now()}`, price_kes: 2500 }).select().single();
+    if (error) throw error;
+    try { return await work(rate); } finally { await admin.from('service_rates').delete().eq('id', rate.id); }
+  };
+  const extras = () => cleanItems([
+    { kind: 'labour', description: 'Fitting and testing', amount: 1500 },
+    { kind: 'parts', description: 'Roll bolts 10 mm', qty: 10, unit: 'pcs', amount: 3000 },
+  ]);
+
+  await check('A quotation lists each charge, and a listed service keeps its fixed price', async () => {
+    const missing = await tableMissing();
+    expect(!missing, missing);
+    let refused = null;
+    try { cleanItems([{ kind: 'service', description: 'Made-up service', amount: 1 }]); } catch (e) { refused = e.code; }
+    expect(refused === 'invalid_request', 'a quotation line claiming to be the listed service was accepted from the app');
+
+    await withRate(async (rate) => {
+      const job = await bookedJob();
+      const sent = await jobService.sendQuote(job.id, user.id, { items: extras(), note: null, serviceRateId: rate.id });
+      expect(sent.quote_amount === 7000, `service 2500 + labour 1500 + parts 3000 came to ${sent.quote_amount}, not 7000`);
+      const [first] = await versions(job.id);
+      expect(first.items.length === 3 && first.items[0].kind === 'service' && first.items[0].amount === 2500,
+        'the listed service is not the first line at its fixed price');
+      expect(first.items[2].qty === 10 && first.items[2].unit === 'pcs', 'the quantity on a parts line was lost');
+
+      await jobService.sendQuote(job.id, user.id, { items: extras().slice(0, 1), note: null, serviceRateId: rate.id });
+      const [old, latest] = await versions(job.id);
+      expect(old.replaced_at && !latest.replaced_at && latest.total === 4000, 'changing a quotation does not replace the one before it');
+    });
+  });
+
+  await check('A customer who turns down a quotation gets another fundi, and that fundi is never offered the job again', async () => {
+    const missing = await tableMissing();
+    expect(!missing, missing);
+    const job = await bookedJob();
+    const { error } = await admin.from('job_offers').insert({
+      job_id: job.id, fundi_id: user.id, round: 1, status: 'accepted', responded_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 60000).toISOString(),
+    });
+    if (error) throw error;
+    await jobService.sendQuote(job.id, user.id, { items: extras(), note: null });
+    const after = await jobService.declineQuote(job.id, user.id, { note: 'Release check' });
+    expect(after.status === 'requested' && after.fundi_id === null && after.quote_amount === null,
+      'a turned-down quotation did not send the job back into the search');
+    expect((await matching.fundisWhoTurnedDown(job.id)).has(user.id), 'the fundi whose quotation was turned down can be offered the job again');
+    const [q] = await versions(job.id);
+    expect(q.declined_at, 'the turned-down quotation is not marked as turned down');
+  });
+
+  await check("An updated quotation needs the customer's yes, shows what was added, and keeps the fixed line", async () => {
+    const missing = await tableMissing();
+    expect(!missing, missing);
+    await withRate(async (rate) => {
+      const job = await bookedJob();
+      const [labour, parts] = extras();
+      await jobService.sendQuote(job.id, user.id, { items: [labour], note: null, serviceRateId: rate.id });
+      const accepted = await jobService.acceptQuote(job.id, user.id, { payment_method: 'cash' });
+      expect(accepted.final_cost === 4000, `the agreed price is ${accepted.final_cost}, not 4000`);
+
+      const change = await jobService.revisePrice(job.id, user.id, { items: [{ ...labour, amount: 2000 }, parts], reason: 'Release check: bolts were needed' });
+      expect(change.amount === 7500 && change.previous_amount === 4000, `the update went from ${change.previous_amount} to ${change.amount}, not 4000 to 7500`);
+      const { data: still } = await admin.from('jobs').select('final_cost').eq('id', job.id).single();
+      expect(still.final_cost === 4000, 'an update changed the agreed price before the customer accepted it');
+
+      let second = null;
+      try { await jobService.revisePrice(job.id, user.id, { items: [labour], reason: 'Release check: second update' }); } catch (e) { second = e.code; }
+      expect(second === 'conflict', 'a second update was allowed while one was waiting');
+
+      const thread = await jobService.thread(user.id, job.id);
+      const update = thread.events.filter((e) => e.type === 'quotation').pop().quotation;
+      expect(update.stage === 'update' && update.items[0].kind === 'service' && update.items[0].amount === 2500,
+        'the fixed-rate line changed in an update');
+      expect(update.items.some((l) => l.id === parts.id) && !thread.events.some((e) => e.type === 'update_answer'),
+        'the thread does not show the added line, or shows an answer nobody gave');
+
+      const done = await jobService.answerPriceChange(job.id, user.id, true);
+      expect(done.final_cost === 7500, `accepting the update left the price at ${done.final_cost}`);
+    });
+  });
+
+  await check('Old app versions can still send a single price', async () => {
+    const missing = await tableMissing();
+    expect(!missing, missing);
+    const job = await bookedJob();
+    let failure = null;
+    await jobsController.quote(
+      { params: { id: job.id }, user: { id: user.id }, body: { amount: 1800, note: null } },
+      { json: () => {}, status() { return this; } },
+      (err) => { failure = err; },
+    );
+    expect(!failure, failure && failure.message);
+    const [q] = await versions(job.id);
+    expect(q && q.total === 1800 && q.items.length === 1, 'a price sent the old way did not become a one-line quotation');
+  });
+
+  await check('The job thread is only for the customer and the booked fundi', async () => {
+    const missing = await tableMissing();
+    expect(!missing, missing);
+    const job = await bookedJob();
+    let code = null;
+    try { await jobService.thread('00000000-0000-4000-8000-000000000000', job.id); } catch (e) { code = e.code; }
+    expect(code === 'not_found', 'someone with nothing to do with the job could read its quotations');
+  });
+
+  await check("Terms say a turned-down quotation goes to another fundi, and updates need the customer's yes", async () => {
+    const terms = source('public/terms.html');
+    expect(/whose quotation you turn down/.test(terms), 'Terms section 4 does not say a fundi whose quotation was turned down is not offered the job again');
+    expect(/updated quotation/.test(terms) && /only counts once the customer accepts it/.test(terms), 'Terms do not describe updated quotations');
   });
 }
 
@@ -460,6 +637,87 @@ async function matchingChecks(user, category) {
     const source = fs.readFileSync(new URL('../src/services/matchingService.js', import.meta.url), 'utf8');
     const uses = (source.match(/fundisWhoTurnedDown\(/g) || []).length;
     expect(uses >= 3, 'rankCandidates and eligibleFundiCount must both exclude fundis who turned the job down');
+  });
+
+  // 1.7 tester feedback: a fundi already booked kept seeing "Finding jobs near
+  // you" and kept getting offers.
+  await check('A fundi with a job in hand is not offered another', async () => {
+    // Earlier checks leave booked test jobs on this account; close them so
+    // only this check's job decides whether the account is busy.
+    await admin.from('jobs').update({ status: 'cancelled' }).eq('fundi_id', user.id).in('status', ['matched', 'in_progress']);
+    const { data: job, error } = await admin.from('jobs').insert({
+      customer_id: user.id, fundi_id: user.id, status: 'matched', category, area: 'Kasarani',
+      description: `Release check: busy fundi ${Date.now()}`,
+    }).select().single();
+    if (error) throw error;
+    expect(await matching.isBusy(user.id), 'a fundi with a booked job does not count as busy');
+    await admin.from('jobs').update({ status: 'in_progress' }).eq('id', job.id);
+    expect(await matching.isBusy(user.id), 'a fundi with a job under way does not count as busy');
+    await admin.from('jobs').update({ status: 'completed' }).eq('id', job.id);
+    expect(!(await matching.isBusy(user.id)), 'a fundi stays busy after marking the job complete');
+
+    const source = fs.readFileSync(new URL('../src/services/matchingService.js', import.meta.url), 'utf8');
+    const body = (name) => source.slice(source.indexOf(`async function ${name}(`), source.indexOf('\n}\n', source.indexOf(`async function ${name}(`)));
+    expect(/busyFundiIds\(/.test(body('rankCandidates')), 'busy fundis are still ranked for offers');
+    expect(/isBusy\(/.test(body('offerForFundi')), 'a busy fundi is still shown an offer waiting');
+    expect(/isBusy\(/.test(body('acceptOffer')), 'a busy fundi can still accept another job');
+    expect(!/busy/i.test(body('eligibleFundiCount')), 'a busy fundi counts as having turned the job down, so customers are told everyone said no');
+    const home = fs.readFileSync(new URL('../public/fundi.html', import.meta.url), 'utf8');
+    expect(/'On a job'/.test(home), 'the fundi status bar no longer says when they are on a job');
+  });
+}
+
+// ---------- 1.7: testimonials ----------
+// The check never publishes a testimonial (that would show on the live home page).
+async function safetyChecks(user) {
+  const source = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+  const tables = async () => {
+    for (const t of ['testimonials']) {
+      const { error } = await admin.from(t).select('id').limit(1);
+      if (error) return `${t} is missing: run migration 0027_feedback_1_7.sql in the Supabase SQL editor`;
+    }
+    return null;
+  };
+
+  // 0027 stopped with "column requested_rate_id already exists" when it was
+  // run a second time. A migration from 0027 on must be safe to run again.
+  await check('Migrations from 0027 on can be run twice without an error', async () => {
+    const dir = new URL('../supabase/migrations/', import.meta.url);
+    const files = fs.readdirSync(dir).filter((f) => /^\d{4}/.test(f) && f >= '0027' && f.endsWith('.sql'));
+    expect(files.length, 'migration 0027 is missing');
+    for (const f of files) {
+      const sql = fs.readFileSync(new URL(f, dir), 'utf8').replace(/--.*$/gm, '');
+      expect(!/add\s+column\s+(?!if\s+not\s+exists)/i.test(sql), `${f} adds a column without "if not exists"`);
+      expect(!/create\s+(table|index|unique\s+index)\s+(?!if\s+not\s+exists)/i.test(sql), `${f} creates a table or index without "if not exists"`);
+    }
+    return `${files.length} file(s)`;
+  });
+
+  // The panic button is held back for 1.8. Until then no page may offer it,
+  // because Terms and Privacy don't describe it.
+  await check('The panic button is not offered before 1.8', async () => {
+    expect(!/sos-btn|\/fundi\/panic|tel:999/.test(source('public/fundi.html')), 'fundi.html offers the panic button, but Terms and Privacy do not explain it');
+    expect(!/data-tab="alerts"/.test(source('public/admin.html')), 'admin.html shows a panic Alerts tab');
+  });
+
+  await check('Testimonials need the person\'s agreement, and the home page gets only published ones', async () => {
+    const missing = await tables();
+    expect(!missing, missing);
+    const testimonials = require('../src/services/testimonialService');
+    let code = null;
+    try { await testimonials.create(user.id, { person_name: 'Release check', role: 'customer', quote: 'Release check testimonial, never published.' }); } catch (e) { code = e.code; }
+    expect(code === 'invalid_request', 'a testimonial without the person\'s agreement was saved');
+    const made = await testimonials.create(user.id, { person_name: 'Release check', role: 'customer', quote: `Release check testimonial ${Date.now()}, never published.`, consent_confirmed: true });
+    try {
+      expect(made.published === false, 'a new testimonial goes straight onto the home page');
+      const shown = await testimonials.listPublished();
+      expect(!shown.some((t) => t.quote === made.quote), 'an unpublished testimonial is on the home page');
+      expect(testimonials.PUBLIC_FIELDS === 'person_name, role, area, quote', 'the home page is sent more than name, role, area and words');
+      const page = source('public/index.html');
+      expect(/id="testimonials" class="bg-white" hidden/.test(page), 'the testimonials section shows before any are published');
+    } finally {
+      await admin.from('testimonials').delete().eq('id', made.id);
+    }
   });
 }
 
@@ -609,10 +867,12 @@ try {
   const category = await emptyCategory();
   await rateChecks(user, category);
   await commissionChecks(user, category);
+  await safetyChecks(user);
   if (!category) {
     console.log('SKIP  Booking checks: every category has a verified fundi, so a test job would page a real person.');
   } else {
     await matchingChecks(user, category);
+    await quotationChecks(user, category);
     await browserChecks(user, category);
   }
 } finally {

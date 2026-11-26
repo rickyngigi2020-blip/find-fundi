@@ -202,17 +202,30 @@ async function uploadPrivateFile(bucket, userId, file) {
   }
 }
 
+// A job list as text, for telling whether anything changed since it was drawn.
+// Signed storage links (a fundi's selfie) get a new token on every read, so
+// only the path counts; otherwise every check looks like a change and the
+// list redraws itself every few seconds.
+function jobsSnapshot(jobs) {
+  return JSON.stringify(jobs, (key, value) => (typeof value === 'string' && value.includes('/object/sign/')
+    ? value.split('?')[0]
+    : value));
+}
+
 // Runs `onChange` whenever one of this person's jobs changes, so a page never
 // has to be refreshed by hand. `column` is 'customer_id' or 'fundi_id'.
 //
 // Supabase Realtime says so straight away. It cannot be the only source: a
 // phone that slept, a dropped connection or a page restored by the Back button
-// all miss events, so the page also asks again when it comes back into view
-// and, unless `pollMs` is 0, on a slow timer while it is open. The event only
-// signals; `onChange` should reload through the API. Returns a stop function.
+// all miss events, so the page also asks again when it comes back into view or
+// back online and, unless `pollMs` is 0, on a slow timer while it is open. A
+// channel that fails or times out is opened again, a little later each time.
+// The event only signals; `onChange` should reload through the API. Returns a
+// stop function.
 function watchMyJobs(userId, column, onChange, { pollMs = 15000 } = {}) {
   let running = false;
   let again = false;
+  let stopped = false;
   const refresh = async () => {
     // Several events can land together; one reload at a time is enough.
     if (running) { again = true; return; }
@@ -224,18 +237,46 @@ function watchMyJobs(userId, column, onChange, { pollMs = 15000 } = {}) {
   const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
   const onShow = (e) => { if (e.persisted) refresh(); };
 
-  const channel = sb.channel(`jobs-${column}-${userId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs', filter: `${column}=eq.${userId}` }, whenVisible)
-    .subscribe();
+  let channel = null;
+  let retryTimer = null;
+  let retries = 0;
+  const open = () => {
+    if (stopped) return;
+    channel = sb.channel(`jobs-${column}-${userId}-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs', filter: `${column}=eq.${userId}` }, whenVisible)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Anything that changed while it was down is picked up now.
+          if (retries) whenVisible();
+          retries = 0;
+          return;
+        }
+        if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !stopped && !retryTimer) {
+          const wait = Math.min(30000, 2000 * 2 ** retries);
+          retries += 1;
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            if (channel) sb.removeChannel(channel);
+            open();
+          }, wait);
+        }
+      });
+  };
+  open();
+
   const timer = pollMs ? setInterval(whenVisible, pollMs) : null;
   document.addEventListener('visibilitychange', whenVisible);
   window.addEventListener('pageshow', onShow);
+  window.addEventListener('online', whenVisible);
 
   return () => {
+    stopped = true;
     if (timer) clearInterval(timer);
+    if (retryTimer) clearTimeout(retryTimer);
     document.removeEventListener('visibilitychange', whenVisible);
     window.removeEventListener('pageshow', onShow);
-    sb.removeChannel(channel);
+    window.removeEventListener('online', whenVisible);
+    if (channel) sb.removeChannel(channel);
   };
 }
 

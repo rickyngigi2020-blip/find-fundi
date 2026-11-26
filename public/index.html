@@ -57,6 +57,14 @@
   html { scroll-behavior: smooth; }
   body { -webkit-font-smoothing: antialiased; }
   ::selection { background: #FE6902; color: #fff; }
+  [hidden] { display: none !important; }
+  /* A short orange rule and an open quote mark; no boxes, so the words lead. */
+  .testimonial { position: relative; padding-top: 22px; border-top: 2px solid #FE6902; }
+  .testimonial::before {
+    content: "\201C"; position: absolute; top: 10px; right: 0;
+    font: 800 44px/1 Poppins, sans-serif; color: rgba(254,105,2,0.22);
+  }
+  .testimonial figcaption span + span::before { content: ""; display: inline-block; width: 10px; }
   :focus-visible { outline: 2px solid #FE6902; outline-offset: 3px; border-radius: 2px; }
 
   .grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay; }
@@ -202,7 +210,7 @@
     </nav>
     <div class="flex items-center gap-2">
       <a id="accountLink" href="login.html?next=start.html" class="inline-flex items-center rounded-lg border border-navy/15 px-3.5 py-2 text-[14px] font-semibold text-navy transition-colors hover:bg-navy/5 active:bg-navy/10">Sign in</a>
-      <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center text-navy" aria-label="Open menu" aria-expanded="false">
+      <button type="button" id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center text-navy" aria-label="Open menu" aria-expanded="false">
         <svg class="w-6 h-6"><use href="#icon-menu"/></svg>
       </button>
     </div>
@@ -555,7 +563,7 @@
         Your tools. Your hours. More work.
       </h2>
       <p class="mt-4 text-navy/75 leading-[1.7] text-[15.5px] max-w-md">
-        See open jobs in your trade, talk to the customer, and send your own price. Go online when you're free to work, and track what you've earned.
+        See open jobs in your trade, talk to the customer, and send a quotation that lists each charge. Go online when you're free to work, and track what you've earned.
       </p>
       <a href="apply.html" class="btn-dark mt-7 inline-flex items-center gap-2 bg-navy text-white font-semibold text-[15px] px-6 py-3.5 rounded-lg hover:bg-navy-soft">
         Apply as a fundi <svg class="w-4 h-4"><use href="#icon-arrow"/></svg>
@@ -578,6 +586,18 @@
         <p class="text-[13px] text-white/55 mt-1 leading-[1.5]">Switch yourself online and nearby jobs are offered to you first. See your earnings for the day and the week in the fundi app.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ============ TESTIMONIALS ============
+     Typed in by admins from real customers and fundis who agreed to be quoted.
+     Hidden until at least one is published; nothing here is ever made up. -->
+<section id="testimonials" class="bg-white" hidden aria-labelledby="testimonialsTitle">
+  <div class="max-w-6xl mx-auto px-5 md:px-8 py-20 md:py-24">
+    <h2 id="testimonialsTitle" class="font-display font-800 text-[2rem] md:text-[2.4rem] leading-[1.1] tracking-[-0.03em] text-navy max-w-xl">
+      What customers and fundis tell us
+    </h2>
+    <div id="testimonialGrid" class="mt-10 md:mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3"></div>
   </div>
 </section>
 
@@ -726,5 +746,35 @@
   }
 </script>
 
+<script>
+  // Testimonials: shown only when the API has published ones. Same address
+  // rule as supabase-client.js (not loaded on this page): pages from the local
+  // static server on port 3000 call the API on 3001.
+  (function loadTestimonials() {
+    const api = window.location.port === '3000'
+      ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
+      : '/api/v1';
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    fetch(`${api}/testimonials`)
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then(({ data }) => {
+        if (!Array.isArray(data) || !data.length) return;
+        document.getElementById('testimonialGrid').innerHTML = data.map((t) => {
+          const first = String(t.person_name).trim().split(/\s+/)[0];
+          const who = [t.role === 'fundi' ? 'Fundi' : 'Customer', t.area].filter(Boolean).join(', ');
+          return `
+            <figure class="testimonial">
+              <blockquote class="text-[16px] leading-[1.7] text-navy/85">${esc(t.quote)}</blockquote>
+              <figcaption class="mt-4 text-[14px]">
+                <span class="font-display font-700 text-navy">${esc(first)}</span>
+                <span class="text-navy/55">${esc(who)}</span>
+              </figcaption>
+            </figure>`;
+        }).join('');
+        document.getElementById('testimonials').hidden = false;
+      })
+      .catch(() => { /* the section stays hidden */ });
+  })();
+</script>
 </body>
 </html>

@@ -257,6 +257,13 @@ function jobSummaryText(job) {
   return job.voice_note_path ? 'Described in a voice note' : 'No details given. The customer explains on the call.';
 }
 
+// The fixed-price service the customer picked when booking, if any. Its price
+// becomes the locked first line of the fundi's quotation.
+function requestedServiceText(job) {
+  if (!job.requested_service_name) return '';
+  return `Customer chose: ${job.requested_service_name}, ${formatKsh(job.requested_price_kes)}`;
+}
+
 function formatKsh(amount) {
   return `KSh ${Number(amount).toLocaleString('en-KE')}`;
 }

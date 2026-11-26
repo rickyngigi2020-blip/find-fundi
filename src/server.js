@@ -73,6 +73,7 @@ if (missingEnv.length) {
   app.use('/api/v1/fundi', require('./routes/fundi'));
   app.use('/api/v1/jobs', require('./routes/jobs'));
   app.use('/api/v1/service-rates', require('./routes/serviceRates'));
+  app.use('/api/v1/testimonials', require('./routes/testimonials'));
   app.use('/api/v1/admin', require('./routes/admin'));
   app.use('/api/v1/push', require('./routes/push'));
 }

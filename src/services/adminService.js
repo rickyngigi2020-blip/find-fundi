@@ -141,18 +141,26 @@ async function listUsers({ query }) {
     .slice(0, USER_LIMIT);
 }
 
-// Admins see how a price moved and why, which is the only check on a fundi
-// quoting low to win a job and raising it once they are on site.
+// Admins see every quotation on a job, line by line, and how it moved and why,
+// which is the only check on a fundi quoting low to win a job and raising it
+// once they are on site.
+function quotationStatus(q) {
+  if (q.accepted_at) return 'accepted';
+  if (q.declined_at) return 'declined';
+  if (q.replaced_at) return 'replaced';
+  return 'waiting';
+}
+
 async function priceHistory(jobIds) {
   if (!jobIds.length) return {};
   const { data, error } = await adminClient
-    .from('job_price_changes')
+    .from('job_quotations')
     .select('*')
     .in('job_id', jobIds)
-    .order('created_at', { ascending: true });
+    .order('version', { ascending: true });
   if (error) throw toApiError(error);
-  return data.reduce((acc, c) => {
-    (acc[c.job_id] = acc[c.job_id] || []).push(c);
+  return data.reduce((acc, q) => {
+    (acc[q.job_id] = acc[q.job_id] || []).push({ ...q, status: quotationStatus(q) });
     return acc;
   }, {});
 }
@@ -370,7 +378,7 @@ async function insights() {
     readAll('jobs', 'id, customer_id, category, area, urgency, status, created_at, quote_amount, final_cost, cancelled_by, cancel_reason, cancelled_at, search_exhausted_at'),
     readAll('job_offers', 'job_id, status, offered_at, responded_at, release_reason'),
     readAll('reviews', 'job_id, rating'),
-    readAll('job_price_changes', 'job_id, previous_amount, amount'),
+    readAll('job_quotations', 'job_id, stage'),
     readAll('push_subscriptions', 'user_id'),
   ]);
   const jobById = Object.fromEntries(jobs.map((j) => [j.id, j]));
@@ -405,7 +413,7 @@ async function insights() {
   // ----- money and quality, by trade -----
   const categories = [...new Set(jobs.map((j) => j.category))];
   const revisionsByJob = {};
-  changes.forEach((c) => { revisionsByJob[c.job_id] = (revisionsByJob[c.job_id] || 0) + 1; });
+  changes.filter((c) => c.stage === 'update').forEach((c) => { revisionsByJob[c.job_id] = (revisionsByJob[c.job_id] || 0) + 1; });
   const ratingByJob = Object.fromEntries(reviews.map((r) => [r.job_id, r.rating]));
   const byTrade = categories.map((category) => {
     const these = jobs.filter((j) => j.category === category);
@@ -456,7 +464,8 @@ async function insights() {
         rows: countInto(['Taken', 'Passed', 'No answer in time', 'Waiting'], offers,
           (o) => ({ accepted: 'Taken', declined: 'Passed', expired: 'No answer in time' }[o.status] || 'Waiting')),
       },
-      { title: 'Why fundis turned jobs down after taking them', rows: countBy(offers.filter((o) => o.release_reason), (o) => reasonLabel[o.release_reason] || o.release_reason) },
+      { title: 'Why fundis turned jobs down after taking them', rows: countBy(offers.filter((o) => o.release_reason && o.release_reason !== 'customer_declined_price'), (o) => reasonLabel[o.release_reason] || o.release_reason) },
+      { title: 'Quotations customers turned down for another fundi', rows: [{ label: 'Turned down', value: offers.filter((o) => o.release_reason === 'customer_declined_price').length }] },
       { title: 'Where jobs ended up', labels: 'status', rows: countBy(jobs, (j) => j.status) },
       { title: 'Who cancelled', rows: countBy(jobs.filter((j) => j.cancelled_by), (j) => ({ customer: 'The customer', admin: 'Find Fundi' }[j.cancelled_by] || j.cancelled_by)) },
     ],

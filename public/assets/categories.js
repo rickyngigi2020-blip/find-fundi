@@ -57,6 +57,42 @@ const CATEGORY_GROUPS = [
   { key: 'services', label: 'Maintenance & services' },
 ];
 
+// Questions the booking page asks once a trade is picked, answered with a tap.
+// Fundis said descriptions were too vague to come prepared, so these cover what
+// they ask first on the phone. Answers go at the top of the description as
+// "Question: answer" lines, so every page that shows a description shows them.
+const QUICK_QUESTIONS = {
+  phone_electronics: [
+    { label: 'Item', answers: ['Phone', 'TV', 'Speaker or radio', 'Gaming console', 'Other'] },
+    { label: 'Problem', answers: ['Cracked screen', 'Battery or charging', 'No power', 'No sound or picture', 'Water damage', 'Other'] },
+  ],
+  computer_laptop: [
+    { label: 'Item', answers: ['Laptop', 'Desktop', 'Printer', 'Monitor', 'Other'] },
+    { label: 'Problem', answers: ['Will not turn on', 'Slow or freezing', 'Screen', 'Keyboard', 'Virus or software', 'Lost files', 'Other'] },
+  ],
+  appliance: [
+    { label: 'Appliance', answers: ['Fridge', 'Washing machine', 'Cooker or oven', 'Microwave', 'Water dispenser', 'Other'] },
+    { label: 'Problem', answers: ['Not working at all', 'Not cooling or heating', 'Leaking', 'Noisy', 'Tripping the power', 'Other'] },
+  ],
+  mechanical: [
+    { label: 'Vehicle', answers: ['Car', 'Motorbike', 'Van or pick-up', 'Other'] },
+    { label: 'Problem', answers: ['Will not start', 'Brakes', 'Battery', 'Tyres', 'Engine noise or warning light', 'Electrics', 'Other'] },
+    { label: 'Can it be driven?', answers: ['Yes', 'No'] },
+  ],
+  general_maintenance: [
+    { label: 'Work', answers: ['Plumbing', 'Electrical', 'Painting', 'Carpentry', 'Tiling', 'Roof', 'Other'] },
+    { label: 'Where', answers: ['Kitchen', 'Bathroom', 'Living room or bedroom', 'Outside', 'Whole house'] },
+  ],
+  installation: [
+    { label: 'Install', answers: ['TV mount', 'CCTV', 'Solar', 'Water heater', 'Curtain rails', 'Shelves', 'Other'] },
+    { label: 'Wall', answers: ['Concrete or stone', 'Drywall or board', 'Not sure'] },
+  ],
+  tailoring: [
+    { label: 'Garment', answers: ['Dress or skirt', 'Trousers', 'Shirt or blouse', 'Suit', 'Curtains', 'School uniform', 'Other'] },
+    { label: 'Work', answers: ['Repair', 'Alteration', 'Make new'] },
+  ],
+};
+
 const CATEGORY_LABELS = Object.fromEntries(FUNDI_CATEGORIES.map((c) => [c.key, c.label]));
 // Jobs created before the category restructure may still carry this key.
 CATEGORY_LABELS.electrical = 'General Maintenance';

@@ -20,6 +20,10 @@ const PAYMENT_LABELS = { mpesa: 'M-Pesa', card: 'card', cash: 'cash' };
 const FUNDI_URL = '/fundi.html';
 const CUSTOMER_URL = '/my-jobs.html';
 
+// Price events open the job's quotation thread rather than the job list.
+const customerThread = (job) => `${CUSTOMER_URL}?job=${job.id}&thread=1`;
+const fundiThread = (job) => `${FUNDI_URL}?job=${job.id}&thread=1`;
+
 const jobTitle = (job) => job.subcategory || CATEGORY_LABELS[job.category] || 'your job';
 const ksh = (amount) => `KSh ${Number(amount).toLocaleString('en-KE')}`;
 
@@ -56,27 +60,27 @@ async function searchExhausted(job) {
 async function priceRevised(job, change) {
   const name = await firstName(job.fundi_id);
   await notifyUsers([job.customer_id], {
-    title: 'Your fundi has sent a new price',
-    body: `${name} now says ${ksh(change.amount)} instead of ${ksh(change.previous_amount)}. Open My activity to read why and decide.`,
-    url: CUSTOMER_URL,
+    title: `${name} updated the quotation`,
+    body: `${ksh(change.amount)} instead of the agreed ${ksh(change.previous_amount)}. Open it to see what was added and decide.`,
+    url: customerThread(job),
     tag: `job-${job.id}`,
   });
 }
 
 async function priceRevisionAccepted(job, change) {
   await notifyUsers([job.fundi_id], {
-    title: 'New price accepted',
+    title: 'Updated quotation accepted',
     body: `The customer agreed ${ksh(change.amount)} for ${jobTitle(job)}.`,
-    url: FUNDI_URL,
+    url: fundiThread(job),
     tag: `job-${job.id}`,
   });
 }
 
 async function priceRevisionDeclined(job, change) {
   await notifyUsers([job.fundi_id], {
-    title: 'New price turned down',
+    title: 'Updated quotation turned down',
     body: `The customer kept the agreed ${ksh(change.previous_amount)} for ${jobTitle(job)}. Call them before going further.`,
-    url: FUNDI_URL,
+    url: fundiThread(job),
     tag: `job-${job.id}`,
   });
 }
@@ -108,7 +112,7 @@ async function fundiBooked(job) {
   const name = await firstName(job.customer_id);
   await notifyUsers([job.fundi_id], {
     title: "You've been booked",
-    body: `${name} booked you for ${jobTitle(job)} in ${job.area}. Call them, then send your price.`,
+    body: `${name} booked you for ${jobTitle(job)} in ${job.area}. Call them, then send your quotation.`,
     url: FUNDI_URL,
     tag: `job-${job.id}`,
   });
@@ -119,7 +123,7 @@ async function fundiFound(job) {
   const name = await firstName(job.fundi_id);
   await notifyUsers([job.customer_id], {
     title: `${name} is taking your job`,
-    body: `${name} took ${jobTitle(job)} and will call you, then send a price.`,
+    body: `${name} took ${jobTitle(job)} and will call you, then send a quotation.`,
     url: CUSTOMER_URL,
     tag: `job-${job.id}`,
   });
@@ -128,9 +132,9 @@ async function fundiFound(job) {
 async function priceSent(job) {
   const name = await firstName(job.fundi_id);
   await notifyUsers([job.customer_id], {
-    title: `${name} sent a price`,
-    body: `${ksh(job.quote_amount)} for ${jobTitle(job)}. Review it in My activity.`,
-    url: CUSTOMER_URL,
+    title: `${name} sent a quotation`,
+    body: `${ksh(job.quote_amount)} for ${jobTitle(job)}. Open it to see each charge and decide.`,
+    url: customerThread(job),
     tag: `job-${job.id}`,
   });
 }
@@ -139,9 +143,9 @@ async function priceAccepted(job) {
   const name = await firstName(job.customer_id);
   const pay = job.payment_method ? `, paying by ${PAYMENT_LABELS[job.payment_method]}` : '';
   await notifyUsers([job.fundi_id], {
-    title: 'Price accepted',
-    body: `${name} accepted ${ksh(job.final_cost)} for ${jobTitle(job)}${pay}.`,
-    url: FUNDI_URL,
+    title: 'Quotation accepted',
+    body: `${name} accepted ${ksh(job.final_cost)} for ${jobTitle(job)}${pay}. You can start the job.`,
+    url: fundiThread(job),
     tag: `job-${job.id}`,
   });
 }
@@ -182,6 +186,26 @@ async function fundiReleased(job, fundiId) {
   });
 }
 
+// The customer turned the quotation down and asked for someone else. The job
+// is already on its way to the next fundi; this one is not offered it again.
+// `fundiId` is the fundi whose quotation it was, `amount` what they quoted.
+async function quoteDeclined(job, fundiId, amount) {
+  await Promise.all([
+    notifyUsers([fundiId], {
+      title: 'Quotation turned down',
+      body: `The customer chose not to go ahead at ${ksh(amount)} for ${jobTitle(job)}. The job has gone to another fundi.`,
+      url: FUNDI_URL,
+      tag: `job-${job.id}`,
+    }),
+    notifyUsers([job.customer_id], {
+      title: 'Finding you another fundi',
+      body: `We're offering ${jobTitle(job)} to the next fundi. They'll call you and send their own quotation.`,
+      url: CUSTOMER_URL,
+      tag: `job-${job.id}`,
+    }),
+  ]);
+}
+
 // A fundi says they have paid their commission and sends the M-Pesa code. Every
 // admin is told straight away, so a payment is never sitting unnoticed while
 // the fundi is locked out. Opens the Commissions tab to confirm it.
@@ -199,4 +223,4 @@ async function commissionPaymentClaimed(fundiId, total, ref) {
   });
 }
 
-module.exports = { commissionPaymentClaimed, jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, fundiFound, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };
+module.exports = { commissionPaymentClaimed, quoteDeclined, jobOffered, priceRevised, priceRevisionAccepted, priceRevisionDeclined, gettingMaterials, backOnSite, searchExhausted, fundiBooked, fundiFound, priceSent, priceAccepted, jobCompleted, jobCancelled, fundiReleased };

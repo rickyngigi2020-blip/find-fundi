@@ -24,6 +24,10 @@ router.get('/admins', controller.listAdmins);
 router.post('/admins', controller.grantAdmin);
 router.post('/admins/:id/revoke', controller.revokeAdmin);
 router.get('/jobs', controller.listJobs);
+router.get('/testimonials', controller.listTestimonials);
+router.post('/testimonials', controller.createTestimonial);
+router.post('/testimonials/:id', controller.updateTestimonial);
+router.post('/testimonials/:id/delete', controller.deleteTestimonial);
 router.post('/jobs/:id/cancel', controller.cancelJob);
 
 module.exports = router;

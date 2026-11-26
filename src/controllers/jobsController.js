@@ -1,5 +1,10 @@
 const jobService = require('../services/jobService');
 const matching = require('../services/matchingService');
+const { cleanItems } = require('../utils/quoteItems');
+const serviceRates = require('../services/serviceRateService');
+
+const MIN_DESCRIPTION = 15;
+const DETAILS_NEEDED = 'Tell the fundi a little about the job: pick a service, answer a question, or add a sentence, a voice note or a photo.';
 
 async function create(req, res, next) {
   try {
@@ -11,8 +16,14 @@ async function create(req, res, next) {
     if (!category || !area) {
       return res.status(400).json({ error: { message: 'category and area are required', code: 'invalid_request' } });
     }
-    // A description or voice note is welcome but optional: the fundi calls the
-    // customer before quoting, so a job can be booked in two taps.
+    // The fundi should know what they are walking into before they call, so a
+    // job needs something to go on: a service from the menu, a short
+    // description (the booking page's quick answers count), a voice note or a
+    // photo. Any one is enough, so booking stays quick.
+    const requestedRateId = typeof req.body.requested_rate_id === 'string' && req.body.requested_rate_id ? req.body.requested_rate_id : null;
+    if (!requestedRateId && !voice_note_path && !photo_paths.length && (!description || description.length < MIN_DESCRIPTION)) {
+      return res.status(400).json({ error: { message: DETAILS_NEEDED, code: 'invalid_request' } });
+    }
     if (photo_paths.length > 5) {
       return res.status(400).json({ error: { message: 'You can attach up to 5 photos', code: 'invalid_request' } });
     }
@@ -24,9 +35,17 @@ async function create(req, res, next) {
       return res.status(400).json({ error: { message: 'Attached media must be your own uploads', code: 'invalid_request' } });
     }
 
+    // The name and price are read from the menu, never taken from the request.
+    let requested = {};
+    if (requestedRateId) {
+      const rate = await serviceRates.usableForBooking(requestedRateId, category);
+      requested = { requested_rate_id: rate.id, requested_service_name: rate.name, requested_price_kes: rate.price_kes };
+    }
+
     const job = await jobService.createJob(req.user.id, {
       category, subcategory, description, urgency, area, voice_note_path, photo_paths,
       customer_lat: customer_lat ?? null, customer_lng: customer_lng ?? null,
+      ...requested,
     });
     res.json({ data: job });
   } catch (err) {
@@ -89,18 +108,50 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 async function quote(req, res, next) {
   try {
-    // A listed service sets its own price; any amount sent with it is ignored.
+    // A listed service sets its own price, and the server adds it as the first
+    // line; the fundi's lines are the extras (labour, parts, transport, other).
     const serviceRateId = typeof req.body.service_rate_id === 'string' && req.body.service_rate_id ? req.body.service_rate_id : null;
     if (serviceRateId && !UUID_PATTERN.test(serviceRateId)) {
       return res.status(400).json({ error: { message: 'Pick a service from the list.', code: 'invalid_request' } });
     }
-    const amount = Number(req.body.amount);
-    if (!serviceRateId && (!Number.isInteger(amount) || amount < 1 || amount > 10000000)) {
-      return res.status(400).json({ error: { message: 'Enter the agreed price in whole shillings', code: 'invalid_request' } });
+    let items;
+    if (Array.isArray(req.body.items)) {
+      items = cleanItems(req.body.items, { allowEmpty: !!serviceRateId });
+    } else if (serviceRateId) {
+      items = [];
+    } else {
+      // An app version from before quotations sends one number.
+      const amount = Number(req.body.amount);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+        return res.status(400).json({ error: { message: 'Enter the agreed price in whole shillings', code: 'invalid_request' } });
+      }
+      items = cleanItems([{ kind: 'other', description: 'Price for the job', amount }]);
     }
     const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim().slice(0, 500) : null;
-    const job = await jobService.sendQuote(req.params.id, req.user.id, { amount, note, serviceRateId });
+    const job = await jobService.sendQuote(req.params.id, req.user.id, { items, note, serviceRateId });
     res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The customer turns the quotation down and the job goes to another fundi.
+async function declineQuote(req, res, next) {
+  try {
+    const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim().slice(0, 500) : null;
+    const quotedAt = typeof req.body.quoted_at === 'string' ? req.body.quoted_at : null;
+    const job = await jobService.declineQuote(req.params.id, req.user.id, { note, quoted_at: quotedAt });
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function thread(req, res, next) {
+  try {
+    if (!UUID_PATTERN.test(req.params.id)) return res.status(404).json({ error: { message: 'Job not found.', code: 'not_found' } });
+    const data = await jobService.thread(req.user.id, req.params.id);
+    res.json({ data });
   } catch (err) {
     next(err);
   }
@@ -168,15 +219,24 @@ async function release(req, res, next) {
 
 async function revisePrice(req, res, next) {
   try {
-    const amount = Number(req.body.amount);
-    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
-      return res.status(400).json({ error: { message: 'Enter the new price in whole shillings', code: 'invalid_request' } });
-    }
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
     if (reason.length < 10) {
       return res.status(400).json({ error: { message: 'Say what changed, so the customer can decide fairly.', code: 'invalid_request' } });
     }
-    const data = await jobService.revisePrice(req.params.id, req.user.id, { amount, reason: reason.slice(0, 500) });
+    let items = null;
+    let legacyTotal = null;
+    if (Array.isArray(req.body.items)) {
+      // The listed service line is kept by the server, so the fundi may send
+      // no other lines (taking every extra off).
+      items = cleanItems(req.body.items, { allowEmpty: true });
+    } else {
+      // An app version from before quotations sends one new total.
+      legacyTotal = Number(req.body.amount);
+      if (!Number.isInteger(legacyTotal) || legacyTotal < 1 || legacyTotal > 10000000) {
+        return res.status(400).json({ error: { message: 'Enter the new price in whole shillings', code: 'invalid_request' } });
+      }
+    }
+    const data = await jobService.revisePrice(req.params.id, req.user.id, { items, legacyTotal, reason: reason.slice(0, 500) });
     res.json({ data });
   } catch (err) {
     next(err);
@@ -204,4 +264,4 @@ async function materials(req, res, next) {
   }
 }
 
-module.exports = { revisePrice, answerPriceChange, materials, create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, review, cleanReason };
+module.exports = { thread, declineQuote, revisePrice, answerPriceChange, materials, create, mine, feed, acceptOffer, declineOffer, myOffer, quote, acceptQuote, complete, cancel, release, review, cleanReason };

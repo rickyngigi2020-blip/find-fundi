@@ -20,6 +20,31 @@ async function listForFundi(userId) {
   return data;
 }
 
+// The menu a customer sees while booking: active services in the trade they
+// picked. Only the name and price, which are what the booking page shows.
+async function listForCategory(category) {
+  const { data, error } = await adminClient
+    .from('service_rates')
+    .select('id, name, price_kes')
+    .eq('category', category)
+    .eq('active', true)
+    .order('price_kes', { ascending: true });
+  if (error) throw toApiError(error);
+  return data;
+}
+
+// The service a customer picked while booking. The price comes from here, never
+// from the booking request, so what they were shown is what is stored.
+async function usableForBooking(rateId, category) {
+  const { data, error } = await adminClient
+    .from('service_rates').select('id, name, price_kes, category, active').eq('id', rateId).maybeSingle();
+  if (error) throw toApiError(error);
+  if (!data || !data.active || data.category !== category) {
+    throw apiError(409, 'That service is not on the menu any more. Pick another or describe the job.', 'rate_unavailable');
+  }
+  return data;
+}
+
 async function listAll() {
   const { data, error } = await adminClient
     .from('service_rates')
@@ -70,4 +95,4 @@ async function usableForJob(rateId, job) {
   return data;
 }
 
-module.exports = { listForFundi, listAll, create, update, usableForJob };
+module.exports = { listForFundi, listForCategory, listAll, create, update, usableForJob, usableForBooking };

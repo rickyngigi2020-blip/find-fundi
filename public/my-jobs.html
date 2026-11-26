@@ -103,7 +103,8 @@
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="font-display font-700 text-[15.5px] text-navy category"></p>
-        <p class="text-[13.5px] text-navy/55 mt-0.5 description"></p>
+        <p class="text-[13.5px] font-semibold text-navy/70 mt-0.5 requested-service" hidden></p>
+        <p class="whitespace-pre-line text-[13.5px] text-navy/55 mt-0.5 description"></p>
       </div>
       <span class="status-pill shrink-0"></span>
     </div>
@@ -124,6 +125,7 @@
 <script src="assets/categories.js"></script>
 <script src="assets/job-media.js"></script>
 <script src="assets/push.js"></script>
+<script src="assets/quote-thread.js"></script>
 <script>
   const STATUS_STYLES = {
     requested: 'bg-gray-100 text-navy/60',
@@ -138,7 +140,7 @@
   };
 
   function statusLabel(job) {
-    if (job.status === 'matched' && job.quote_amount) return 'Price to review';
+    if (job.status === 'matched' && job.quote_amount) return 'Quotation to review';
     return STATUS_LABELS[job.status] || job.status;
   }
 
@@ -158,73 +160,25 @@
       box.classList.add('border-navy/10');
       const p = document.createElement('p');
       p.className = 'text-[13.5px] text-navy/65 leading-[1.55]';
-      p.textContent = `Waiting for a price. ${fundiName} will call you to understand the job, then send the price here.`;
+      p.textContent = `Waiting for a quotation. ${fundiName} will call you to understand the job, then send it here.`;
       box.appendChild(p);
       section.appendChild(box);
       return;
     }
 
     if (job.status === 'matched' && job.quote_amount) {
+      // The quotation itself, line by line, and accepting it, live in the
+      // thread. The card says there is one and opens it.
       box.classList.add('border-orange/40', 'bg-orange-50/60');
       box.innerHTML = `
-        <p class="text-[12px] font-semibold uppercase tracking-wide text-navy/50">Price from <span class="q-name"></span></p>
-        <p class="mt-0.5 font-display font-800 text-[1.6rem] tracking-[-0.02em] text-navy q-amount"></p>
-        <p class="q-note mt-1 text-[13.5px] text-navy/70 leading-[1.55] whitespace-pre-line"></p>
-        <fieldset class="mt-3">
-          <legend class="text-[13px] font-semibold text-navy/70 mb-2">How will you pay?</legend>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="pay-choice cursor-pointer rounded-lg border border-navy/15 bg-white py-2.5 text-center text-[13.5px] font-semibold text-navy"><input type="radio" name="pay-${job.id}" value="mpesa" class="sr-only">M-Pesa</label>
-            <label class="pay-choice cursor-pointer rounded-lg border border-navy/15 bg-white py-2.5 text-center text-[13.5px] font-semibold text-navy"><input type="radio" name="pay-${job.id}" value="cash" class="sr-only">Cash</label>
-          </div>
-        </fieldset>
-        <p class="q-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
-        <button type="button" class="q-accept btn-primary mt-3 w-full text-white font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Accept price</button>
-        <p class="mt-2 text-[12.5px] text-navy/50 leading-[1.5]">Not right? Call your fundi to talk it through. They can send a new price before you accept.</p>
+        <p class="text-[13px] font-semibold text-navy/60">Quotation from <span class="q-name"></span></p>
+        <p class="mt-0.5 font-display font-800 text-[1.6rem] tracking-[-0.02em] text-navy tabular-nums q-amount"></p>
+        <p class="text-[13px] text-navy/60 leading-[1.5]">See each charge, then accept it or ask for another fundi.</p>
+        <button type="button" class="q-open btn-primary mt-3 w-full text-white font-semibold text-[14.5px] px-4 py-2.5 rounded-lg">Open quotation</button>
       `;
       box.querySelector('.q-name').textContent = fundiName;
       box.querySelector('.q-amount').textContent = formatKsh(job.quote_amount);
-      if (job.service_name) {
-        const service = document.createElement('p');
-        service.className = 'text-[13.5px] font-semibold text-navy/70';
-        service.textContent = job.service_name;
-        box.querySelector('.q-amount').after(service);
-      }
-      const note = box.querySelector('.q-note');
-      if (job.quote_note) note.textContent = job.quote_note; else note.remove();
-
-      const errorEl = box.querySelector('.q-error');
-      const btn = box.querySelector('.q-accept');
-      btn.addEventListener('click', async () => {
-        errorEl.classList.add('hidden');
-        const chosen = box.querySelector(`input[name="pay-${job.id}"]:checked`);
-        if (!chosen) {
-          errorEl.textContent = 'Choose how you will pay first.';
-          errorEl.classList.remove('hidden');
-          return;
-        }
-        btn.disabled = true;
-        btn.textContent = 'Accepting…';
-        try {
-          const updated = await apiFetch(`/jobs/${job.id}/accept-quote`, {
-            method: 'POST',
-            body: JSON.stringify({ payment_method: chosen.value, quoted_at: job.quoted_at }),
-          });
-          renderQuoteSection(section, { ...updated, counterpart: job.counterpart }, pill);
-        } catch (err) {
-          errorEl.textContent = err.message;
-          errorEl.classList.remove('hidden');
-          btn.disabled = false;
-          btn.textContent = 'Accept price';
-          if (/changed the price/i.test(err.message)) {
-            const fresh = (await apiFetch('/jobs/mine?role=customer')).find((j) => j.id === job.id);
-            if (fresh) {
-              renderQuoteSection(section, fresh, pill);
-              const again = section.querySelector('.q-error');
-              if (again) { again.textContent = err.message; again.classList.remove('hidden'); }
-            }
-          }
-        }
-      });
+      box.querySelector('.q-open').addEventListener('click', () => QuoteThread.open(job.id, 'customer'));
       section.appendChild(box);
       return;
     }
@@ -239,6 +193,14 @@
       p.querySelector('.q-amount').textContent = formatKsh(job.final_cost);
       p.querySelector('.q-pay').textContent = job.payment_method ? ` · Paying by ${PAYMENT_LABELS[job.payment_method]}` : '';
       box.appendChild(p);
+      if (job.status !== 'cancelled') {
+        const view = document.createElement('button');
+        view.type = 'button';
+        view.className = 'btn-quiet -ml-2 mt-1 rounded-md px-2 py-1 text-[13px] font-semibold text-orange-700';
+        view.textContent = 'View quotation';
+        view.addEventListener('click', () => QuoteThread.open(job.id, 'customer'));
+        box.appendChild(view);
+      }
       section.appendChild(box);
     }
   }
@@ -318,39 +280,17 @@
     const box = document.createElement('div');
     box.className = 'mt-3 rounded-xl border-2 border-orange bg-orange-50 px-4 py-3.5';
     box.innerHTML = `
-      <p class="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-orange-700">New price to agree</p>
-      <div class="mt-1.5 flex items-baseline gap-2.5 flex-wrap">
+      <p class="text-[13px] font-semibold text-orange-700">Updated quotation to answer</p>
+      <div class="mt-1 flex items-baseline gap-2.5 flex-wrap">
         <span class="font-display font-800 text-[1.35rem] text-navy tabular-nums">${formatKsh(change.amount)}</span>
-        <span class="text-[13.5px] text-navy/50">was <span class="line-through">${formatKsh(change.previous_amount)}</span></span>
+        <span class="text-[13.5px] text-navy/50">agreed <span class="line-through">${formatKsh(change.previous_amount)}</span></span>
       </div>
-      <p class="mt-2 text-[13.5px] text-navy/70 leading-[1.6]">${escapeHtml(change.reason)}</p>
-      <p class="mt-2 text-[12.5px] text-navy/55 leading-[1.5]">${up
-        ? 'You only pay the new amount if you accept it. Turn it down and the price you already agreed stands.'
+      <p class="mt-1.5 text-[12.5px] text-navy/55 leading-[1.5]">${up
+        ? 'See what was added since you agreed. You only pay the new amount if you accept it.'
         : 'Your fundi has lowered the price.'}</p>
-      <p class="pc-error hidden mt-2 text-[13px] text-red-600" role="alert"></p>
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button type="button" class="pc-yes btn-primary rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Accept ${formatKsh(change.amount)}</button>
-        <button type="button" class="pc-no btn-quiet rounded-lg border border-navy/15 px-4 py-2 text-[13.5px] font-semibold text-navy">Keep the old price</button>
-      </div>
+      <button type="button" class="pc-open btn-primary mt-3 rounded-lg px-4 py-2 text-[13.5px] font-semibold text-white">Open quotation</button>
     `;
-
-    const errorEl = box.querySelector('.pc-error');
-    const answer = async (btn, accept, label) => {
-      errorEl.classList.add('hidden');
-      box.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-      btn.textContent = label;
-      try {
-        await apiFetch(`/jobs/${job.id}/answer-price`, { method: 'POST', body: JSON.stringify({ accept }) });
-        await loadJobs();
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove('hidden');
-        box.querySelectorAll('button').forEach((b) => { b.disabled = false; });
-      }
-    };
-
-    box.querySelector('.pc-yes').addEventListener('click', (e) => answer(e.target, true, 'Accepting...'));
-    box.querySelector('.pc-no').addEventListener('click', (e) => answer(e.target, false, 'Saving...'));
+    box.querySelector('.pc-open').addEventListener('click', () => QuoteThread.open(job.id, 'customer'));
     section.appendChild(box);
   }
 
@@ -413,6 +353,8 @@
     const tpl = document.getElementById('jobCardTemplate').content.cloneNode(true);
     tpl.querySelector('.category').textContent = CATEGORY_LABELS[job.category] || job.category;
     tpl.querySelector('.description').textContent = jobSummaryText(job);
+    const service = tpl.querySelector('.requested-service');
+    if (job.requested_service_name) { service.textContent = `${job.requested_service_name}, ${formatKsh(job.requested_price_kes)} service charge`; service.hidden = false; }
     renderJobMedia(tpl.querySelector('.media-section'), job);
     const pill = tpl.querySelector('.status-pill');
     tpl.querySelector('.area-urgency').textContent =
@@ -465,7 +407,7 @@
           ${[1,2,3,4,5].map(n => `<button type="button" class="star-btn text-2xl text-navy/20" data-star="${n}">★</button>`).join('')}
         </div>
         <textarea rows="2" class="w-full rounded-lg border border-navy/15 px-3 py-2 text-[14px] outline-none resize-none review-comment" placeholder="How did it go? (optional)"></textarea>
-        <button class="btn-primary mt-2.5 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg submit-review">Submit review</button>
+        <button type="button" class="btn-primary mt-2.5 text-white font-semibold text-[13.5px] px-4 py-2 rounded-lg submit-review">Submit review</button>
         <p class="hidden mt-2 text-[13px] text-red-600 review-error"></p>
       `;
       const starsWrap = section.querySelector('[data-rating]');
@@ -520,7 +462,7 @@
 
   async function loadJobs() {
     const jobs = await apiFetch('/jobs/mine?role=customer');
-    const snapshot = JSON.stringify(jobs);
+    const snapshot = jobsSnapshot(jobs);
     if (snapshot === drawn || writingInList()) return;
     drawn = snapshot;
     // Re-rendering replaces the maps, so drop their live location channels.
@@ -540,12 +482,15 @@
     apiFetch('/profile/me')
       .then((profile) => { document.getElementById('adminLink').hidden = !(profile && profile.is_admin); })
       .catch(() => { /* the link just stays hidden */ });
-    mountPushPrompt(document.getElementById('pushPrompt'), "Get a notification when a fundi sends a price, finishes a job, or can't make it.");
+    mountPushPrompt(document.getElementById('pushPrompt'), "Get a notification when a fundi sends a quotation, finishes a job, or can't make it.");
+    // After an answer in the quotation thread, the list catches up at once.
+    QuoteThread.onChange = () => { loadJobs().catch(() => {}); };
     // A notification means one of these jobs changed: show it without a reload.
-    onPushUpdate(() => { loadJobs().catch(() => {}); });
+    onPushUpdate(() => { loadJobs().catch(() => {}); QuoteThread.refresh(); });
     // And so does the database, which also covers a page that was left open.
-    watchMyJobs(session.user.id, 'customer_id', loadJobs);
+    watchMyJobs(session.user.id, 'customer_id', async () => { await loadJobs(); await QuoteThread.refresh(); });
     await loadJobs();
+    QuoteThread.openFromUrl('customer');
   })();
 </script>
 </body>

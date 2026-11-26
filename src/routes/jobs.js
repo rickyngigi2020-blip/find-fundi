@@ -12,6 +12,8 @@ router.post('/:id/offer/accept', requireAuth, controller.acceptOffer);
 router.post('/:id/offer/decline', requireAuth, controller.declineOffer);
 router.post('/:id/quote', requireAuth, controller.quote);
 router.post('/:id/accept-quote', requireAuth, controller.acceptQuote);
+router.post('/:id/decline-quote', requireAuth, controller.declineQuote);
+router.get('/:id/thread', requireAuth, controller.thread);
 router.post('/:id/revise-price', requireAuth, controller.revisePrice);
 router.post('/:id/answer-price', requireAuth, controller.answerPriceChange);
 router.post('/:id/materials', requireAuth, controller.materials);
